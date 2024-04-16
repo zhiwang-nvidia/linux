@@ -169,8 +169,7 @@ core507d_new_(const struct nv50_core_func *func, struct nouveau_drm *drm,
 		goto done;
 
 	ret = disp->impl->chan.core.new(disp->priv, core->chan.push.mem.priv,
-					&core->chan.impl, &core->chan.priv,
-					nvif_handle(&core->chan.object));
+					&core->chan.impl, &core->chan.priv);
 	if (ret)
 		goto done;
 

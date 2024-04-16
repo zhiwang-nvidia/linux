@@ -411,14 +411,14 @@ struct nvif_disp_impl {
 			s32 oclass;
 			int (*new)(struct nvif_disp_priv *, struct nvif_mem_priv *,
 				   const struct nvif_disp_chan_impl **,
-				   struct nvif_disp_chan_priv **, u64 handle);
+				   struct nvif_disp_chan_priv **);
 		} core;
 
 		struct nvif_disp_impl_dmac {
 			s32 oclass;
 			int (*new)(struct nvif_disp_priv *, u8 id, struct nvif_mem_priv *,
 				   const struct nvif_disp_chan_impl **,
-				   struct nvif_disp_chan_priv **, u64 handle);
+				   struct nvif_disp_chan_priv **);
 		} base, ovly, wndw, wimm;
 
 		struct nvif_disp_impl_pioc {

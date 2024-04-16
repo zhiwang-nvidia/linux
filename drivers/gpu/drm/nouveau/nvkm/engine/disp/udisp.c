@@ -37,8 +37,7 @@ struct nvif_disp_priv {
 static int
 nvkm_udisp_chan_new(struct nvif_disp_priv *udisp, const struct nvkm_disp_func_chan *func,
 		    u8 nr, u8 id, struct nvif_mem_priv *umem,
-		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv,
-		    u64 handle)
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv)
 {
 	struct nvkm_memory *memory = NULL;
 	struct nvkm_object *object;
@@ -55,9 +54,6 @@ nvkm_udisp_chan_new(struct nvif_disp_priv *udisp, const struct nvkm_disp_func_ch
 	if (ret)
 		return ret;
 
-	if (handle)
-		return nvkm_object_link_rb(udisp->object.client, &udisp->object, handle, object);
-
 	nvkm_object_link(&udisp->object, object);
 	return 0;
 }
@@ -69,7 +65,7 @@ nvkm_udisp_oimm_new(struct nvif_disp_priv *udisp, u8 id,
 	struct nvkm_disp *disp = udisp->disp;
 
 	return nvkm_udisp_chan_new(udisp, &disp->func->user.oimm, disp->head.nr, id, NULL,
-				   pimpl, ppriv, 0);
+				   pimpl, ppriv);
 }
 
 static int
@@ -79,61 +75,56 @@ nvkm_udisp_curs_new(struct nvif_disp_priv *udisp, u8 id,
 	struct nvkm_disp *disp = udisp->disp;
 
 	return nvkm_udisp_chan_new(udisp, &disp->func->user.curs, disp->head.nr, id, NULL,
-				   pimpl, ppriv, 0);
+				   pimpl, ppriv);
 }
 
 static int
 nvkm_udisp_wimm_new(struct nvif_disp_priv *udisp, u8 id, struct nvif_mem_priv *umem,
-		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv,
-		    u64 handle)
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv)
 {
 	struct nvkm_disp *disp = udisp->disp;
 
 	return nvkm_udisp_chan_new(udisp, &disp->func->user.wimm, disp->wndw.nr, id, umem,
-				   pimpl, ppriv, 0);
+				   pimpl, ppriv);
 }
 
 static int
 nvkm_udisp_wndw_new(struct nvif_disp_priv *udisp, u8 id, struct nvif_mem_priv *umem,
-		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv,
-		    u64 handle)
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv)
 {
 	struct nvkm_disp *disp = udisp->disp;
 
 	return nvkm_udisp_chan_new(udisp, &disp->func->user.wndw, disp->wndw.nr, id, umem,
-				   pimpl, ppriv, handle);
+				   pimpl, ppriv);
 }
 
 static int
 nvkm_udisp_ovly_new(struct nvif_disp_priv *udisp, u8 id, struct nvif_mem_priv *umem,
-		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv,
-		    u64 handle)
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv)
 {
 	struct nvkm_disp *disp = udisp->disp;
 
 	return nvkm_udisp_chan_new(udisp, &disp->func->user.ovly, disp->head.nr, id, umem,
-				   pimpl, ppriv, handle);
+				   pimpl, ppriv);
 }
 
 static int
 nvkm_udisp_base_new(struct nvif_disp_priv *udisp, u8 id, struct nvif_mem_priv *umem,
-		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv,
-		    u64 handle)
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv)
 {
 	struct nvkm_disp *disp = udisp->disp;
 
 	return nvkm_udisp_chan_new(udisp, &disp->func->user.base, disp->head.nr, id, umem,
-				   pimpl, ppriv, handle);
+				   pimpl, ppriv);
 }
 
 static int
 nvkm_udisp_core_new(struct nvif_disp_priv *udisp, struct nvif_mem_priv *umem,
-		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv,
-		    u64 handle)
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv)
 {
 	struct nvkm_disp *disp = udisp->disp;
 
-	return nvkm_udisp_chan_new(udisp, &disp->func->user.core, 1, 0, umem, pimpl, ppriv, handle);
+	return nvkm_udisp_chan_new(udisp, &disp->func->user.core, 1, 0, umem, pimpl, ppriv);
 }
 
 static int

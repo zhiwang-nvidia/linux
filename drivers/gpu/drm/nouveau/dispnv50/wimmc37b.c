@@ -75,8 +75,7 @@ wimmc37b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 		goto done;
 
 	ret = disp->impl->chan.wimm.new(disp->priv, wndw->id, wndw->wimm.push.mem.priv,
-					&wndw->wimm.impl, &wndw->wimm.priv,
-					nvif_handle(&wndw->wimm.object));
+					&wndw->wimm.impl, &wndw->wimm.priv);
 	if (ret)
 		goto done;
 

@@ -160,8 +160,7 @@ ovly507e_new_(const struct nv50_wndw_func *func, const u32 *format,
 		goto done;
 
 	ret = disp->impl->chan.ovly.new(disp->priv, wndw->id, wndw->wndw.push.mem.priv,
-					&wndw->wndw.impl, &wndw->wndw.priv,
-					nvif_handle(&wndw->wndw.object));
+					&wndw->wndw.impl, &wndw->wndw.priv);
 	if (ret)
 		goto done;
 

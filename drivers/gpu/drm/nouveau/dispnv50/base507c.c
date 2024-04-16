@@ -318,8 +318,7 @@ base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 		goto done;
 
 	ret = disp->impl->chan.base.new(disp->priv, head, wndw->wndw.push.mem.priv,
-					&wndw->wndw.impl, &wndw->wndw.priv,
-					nvif_handle(&wndw->wndw.object));
+					&wndw->wndw.impl, &wndw->wndw.priv);
 	if (ret)
 		goto done;
 
