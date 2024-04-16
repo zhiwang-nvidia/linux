@@ -29,38 +29,14 @@
 int
 nvif_vmm_unmap(struct nvif_vmm *vmm, u64 addr)
 {
-	return nvif_object_mthd(&vmm->object, NVIF_VMM_V0_UNMAP,
-				&(struct nvif_vmm_unmap_v0) { .addr = addr },
-				sizeof(struct nvif_vmm_unmap_v0));
+	return vmm->impl->unmap(vmm->priv, addr);
 }
 
 int
 nvif_vmm_map(struct nvif_vmm *vmm, u64 addr, u64 size, void *argv, u32 argc,
 	     struct nvif_mem *mem, u64 offset)
 {
-	struct nvif_vmm_map_v0 *args;
-	u8 stack[48];
-	int ret;
-
-	if (sizeof(*args) + argc > sizeof(stack)) {
-		if (!(args = kmalloc(sizeof(*args) + argc, GFP_KERNEL)))
-			return -ENOMEM;
-	} else {
-		args = (void *)stack;
-	}
-
-	args->version = 0;
-	args->addr = addr;
-	args->size = size;
-	args->memory = nvif_handle(&mem->object);
-	args->offset = offset;
-	memcpy(args->data, argv, argc);
-
-	ret = nvif_object_mthd(&vmm->object, NVIF_VMM_V0_MAP,
-			       args, sizeof(*args) + argc);
-	if (args != (void *)stack)
-		kfree(args);
-	return ret;
+	return vmm->impl->map(vmm->priv, addr, size, argv, argc, mem->priv, offset);
 }
 
 void

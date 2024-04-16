@@ -48,6 +48,15 @@ struct nvif_mem_priv {
 	struct nvif_mem_impl impl;
 };
 
+struct nvkm_memory *
+nvkm_umem_ref(struct nvif_mem_priv *umem)
+{
+	if (umem)
+		return nvkm_memory_ref(umem->memory);
+
+	return NULL;
+}
+
 static const struct nvkm_object_func nvkm_umem;
 struct nvkm_memory *
 nvkm_umem_search(struct nvkm_mmu *mmu, struct nvkm_client *client, u64 handle)

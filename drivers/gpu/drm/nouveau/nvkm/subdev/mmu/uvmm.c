@@ -113,20 +113,11 @@ nvkm_uvmm_mthd_pfnmap(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 }
 
 static int
-nvkm_uvmm_mthd_unmap(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
+nvkm_uvmm_unmap(struct nvif_vmm_priv *uvmm, u64 addr)
 {
-	union {
-		struct nvif_vmm_unmap_v0 v0;
-	} *args = argv;
 	struct nvkm_vmm *vmm = uvmm->vmm;
 	struct nvkm_vma *vma;
-	int ret = -ENOSYS;
-	u64 addr;
-
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		addr = args->v0.addr;
-	} else
-		return ret;
+	int ret;
 
 	if (nvkm_vmm_in_managed_range(vmm, addr, 0) && vmm->managed.raw)
 		return -EINVAL;
@@ -157,34 +148,18 @@ done:
 }
 
 static int
-nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
+nvkm_uvmm_map(struct nvif_vmm_priv *uvmm, u64 addr, u64 size, void *argv, u32 argc,
+	      struct nvif_mem_priv *mem, u64 offset)
 {
-	struct nvkm_client *client = uvmm->object.client;
-	union {
-		struct nvif_vmm_map_v0 v0;
-	} *args = argv;
-	u64 addr, size, handle, offset;
 	struct nvkm_vmm *vmm = uvmm->vmm;
 	struct nvkm_vma *vma;
 	struct nvkm_memory *memory;
-	int ret = -ENOSYS;
-
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, true))) {
-		addr = args->v0.addr;
-		size = args->v0.size;
-		handle = args->v0.memory;
-		offset = args->v0.offset;
-	} else
-		return ret;
+	int ret;
 
 	if (nvkm_vmm_in_managed_range(vmm, addr, size) && vmm->managed.raw)
 		return -EINVAL;
 
-	memory = nvkm_umem_search(vmm->mmu, client, handle);
-	if (IS_ERR(memory)) {
-		VMM_DEBUG(vmm, "memory %016llx %ld\n", handle, PTR_ERR(memory));
-		return PTR_ERR(memory);
-	}
+	memory = nvkm_umem_ref(mem);
 
 	mutex_lock(&vmm->mutex.vmm);
 	if (ret = -ENOENT, !(vma = nvkm_vmm_node_search(vmm, addr))) {
@@ -452,8 +427,6 @@ nvkm_uvmm_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
 	struct nvif_vmm_priv *uvmm = container_of(object, typeof(*uvmm), object);
 	switch (mthd) {
-	case NVIF_VMM_V0_MAP   : return nvkm_uvmm_mthd_map   (uvmm, argv, argc);
-	case NVIF_VMM_V0_UNMAP : return nvkm_uvmm_mthd_unmap (uvmm, argv, argc);
 	case NVIF_VMM_V0_PFNMAP: return nvkm_uvmm_mthd_pfnmap(uvmm, argv, argc);
 	case NVIF_VMM_V0_PFNCLR: return nvkm_uvmm_mthd_pfnclr(uvmm, argv, argc);
 	case NVIF_VMM_V0_RAW   : return nvkm_uvmm_mthd_raw   (uvmm, argv, argc);
@@ -483,6 +456,8 @@ nvkm_uvmm_impl = {
 	.del = nvkm_uvmm_del,
 	.get = nvkm_uvmm_get,
 	.put = nvkm_uvmm_put,
+	.map = nvkm_uvmm_map,
+	.unmap = nvkm_uvmm_unmap,
 };
 
 static void *

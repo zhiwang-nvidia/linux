@@ -119,6 +119,10 @@ struct nvif_vmm_impl {
 	int (*get)(struct nvif_vmm_priv *, enum nvif_vmm_get_type, bool sparse, u8 page,
 		   u8 align, u64 size, u64 *addr);
 	int (*put)(struct nvif_vmm_priv *, u64 addr);
+
+	int (*map)(struct nvif_vmm_priv *, u64 addr, u64 size, void *, u32,
+		   struct nvif_mem_priv *, u64 offset);
+	int (*unmap)(struct nvif_vmm_priv *, u64 addr);
 };
 
 struct nvif_mmu_impl {

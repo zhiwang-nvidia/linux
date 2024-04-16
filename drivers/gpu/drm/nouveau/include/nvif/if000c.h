@@ -1,28 +1,10 @@
 #ifndef __NVIF_IF000C_H__
 #define __NVIF_IF000C_H__
 
-#define NVIF_VMM_V0_MAP                                                    0x03
-#define NVIF_VMM_V0_UNMAP                                                  0x04
 #define NVIF_VMM_V0_PFNMAP                                                 0x05
 #define NVIF_VMM_V0_PFNCLR                                                 0x06
 #define NVIF_VMM_V0_RAW                                                    0x07
 #define NVIF_VMM_V0_MTHD(i)                                         ((i) + 0x80)
-
-struct nvif_vmm_map_v0 {
-	__u8  version;
-	__u8  pad01[7];
-	__u64 addr;
-	__u64 size;
-	__u64 memory;
-	__u64 offset;
-	__u8  data[];
-};
-
-struct nvif_vmm_unmap_v0 {
-	__u8  version;
-	__u8  pad01[7];
-	__u64 addr;
-};
 
 struct nvif_vmm_raw_v0 {
 	__u8 version;
