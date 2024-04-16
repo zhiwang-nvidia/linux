@@ -307,34 +307,6 @@ nvkm_uvmm_mthd_get(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	return ret;
 }
 
-static int
-nvkm_uvmm_mthd_page(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
-{
-	union {
-		struct nvif_vmm_page_v0 v0;
-	} *args = argv;
-	const struct nvkm_vmm_page *page;
-	int ret = -ENOSYS;
-	u8 type, index, nr;
-
-	page = uvmm->vmm->func->page;
-	for (nr = 0; page[nr].shift; nr++);
-
-	if (!(nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		if ((index = args->v0.index) >= nr)
-			return -EINVAL;
-		type = page[index].type;
-		args->v0.shift = page[index].shift;
-		args->v0.sparse = !!(type & NVKM_VMM_PAGE_SPARSE);
-		args->v0.vram = !!(type & NVKM_VMM_PAGE_VRAM);
-		args->v0.host = !!(type & NVKM_VMM_PAGE_HOST);
-		args->v0.comp = !!(type & NVKM_VMM_PAGE_COMP);
-	} else
-		return -ENOSYS;
-
-	return 0;
-}
-
 static inline int
 nvkm_uvmm_page_index(struct nvif_vmm_priv *uvmm, u64 size, u8 shift, u8 *refd)
 {
@@ -502,7 +474,6 @@ nvkm_uvmm_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
 	struct nvif_vmm_priv *uvmm = container_of(object, typeof(*uvmm), object);
 	switch (mthd) {
-	case NVIF_VMM_V0_PAGE  : return nvkm_uvmm_mthd_page  (uvmm, argv, argc);
 	case NVIF_VMM_V0_GET   : return nvkm_uvmm_mthd_get   (uvmm, argv, argc);
 	case NVIF_VMM_V0_PUT   : return nvkm_uvmm_mthd_put   (uvmm, argv, argc);
 	case NVIF_VMM_V0_MAP   : return nvkm_uvmm_mthd_map   (uvmm, argv, argc);
@@ -595,8 +566,17 @@ nvkm_uvmm_new(struct nvkm_mmu *mmu, u8 type, u64 addr, u64 size, void *argv, u32
 	uvmm->impl.limit = uvmm->vmm->limit;
 
 	page = uvmm->vmm->func->page;
-	while (page && (page++)->shift)
+	for (int i = 0; page->shift; i++, page++) {
+		if (WARN_ON(i >= ARRAY_SIZE(uvmm->impl.page)))
+			break;
+
+		uvmm->impl.page[i].shift  = page->shift;
+		uvmm->impl.page[i].sparse = !!(page->type & NVKM_VMM_PAGE_SPARSE);
+		uvmm->impl.page[i].vram   = !!(page->type & NVKM_VMM_PAGE_VRAM);
+		uvmm->impl.page[i].host   = !!(page->type & NVKM_VMM_PAGE_HOST);
+		uvmm->impl.page[i].comp   = !!(page->type & NVKM_VMM_PAGE_COMP);
 		uvmm->impl.page_nr++;
+	}
 
 	*pimpl = &uvmm->impl;
 	*ppriv = uvmm;

@@ -20,14 +20,6 @@ struct nvif_vmm {
 	const struct nvif_vmm_impl *impl;
 	struct nvif_vmm_priv *priv;
 	struct nvif_object object;
-
-	struct {
-		u8 shift;
-		bool sparse:1;
-		bool vram:1;
-		bool host:1;
-		bool comp:1;
-	} *page;
 };
 
 int nvif_vmm_ctor(struct nvif_mmu *, const char *name,

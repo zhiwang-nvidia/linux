@@ -196,7 +196,6 @@ nvif_vmm_dtor(struct nvif_vmm *vmm)
 	if (!vmm->impl)
 		return;
 
-	kfree(vmm->page);
 	vmm->impl->del(vmm->priv);
 	vmm->impl = NULL;
 }
@@ -207,9 +206,7 @@ nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name,
 	      struct nvif_vmm *vmm)
 {
 	const u32 oclass = mmu->impl->vmm.oclass;
-	int ret, i;
-
-	vmm->page = NULL;
+	int ret;
 
 	ret = mmu->impl->vmm.new(mmu->priv, type, addr, size, argv, argc, &vmm->impl, &vmm->priv,
 				 nvif_handle(&vmm->object));
@@ -218,32 +215,5 @@ nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name,
 		return ret;
 
 	nvif_object_ctor(&mmu->object, name ?: "nvifVmm", 0, oclass, &vmm->object);
-
-	vmm->page = kmalloc_array(vmm->impl->page_nr, sizeof(*vmm->page),
-				  GFP_KERNEL);
-	if (!vmm->page) {
-		ret = -ENOMEM;
-		goto done;
-	}
-
-	for (i = 0; i < vmm->impl->page_nr; i++) {
-		struct nvif_vmm_page_v0 args = { .index = i };
-
-		ret = nvif_object_mthd(&vmm->object, NVIF_VMM_V0_PAGE,
-				       &args, sizeof(args));
-		if (ret)
-			break;
-
-		vmm->page[i].shift = args.shift;
-		vmm->page[i].sparse = args.sparse;
-		vmm->page[i].vram = args.vram;
-		vmm->page[i].host = args.host;
-		vmm->page[i].comp = args.comp;
-	}
-
-done:
-	if (ret)
-		nvif_vmm_dtor(vmm);
-
 	return ret;
 }

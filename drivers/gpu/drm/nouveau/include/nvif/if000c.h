@@ -1,7 +1,6 @@
 #ifndef __NVIF_IF000C_H__
 #define __NVIF_IF000C_H__
 
-#define NVIF_VMM_V0_PAGE                                                   0x00
 #define NVIF_VMM_V0_GET                                                    0x01
 #define NVIF_VMM_V0_PUT                                                    0x02
 #define NVIF_VMM_V0_MAP                                                    0x03
@@ -10,17 +9,6 @@
 #define NVIF_VMM_V0_PFNCLR                                                 0x06
 #define NVIF_VMM_V0_RAW                                                    0x07
 #define NVIF_VMM_V0_MTHD(i)                                         ((i) + 0x80)
-
-struct nvif_vmm_page_v0 {
-	__u8  version;
-	__u8  index;
-	__u8  shift;
-	__u8  sparse;
-	__u8  vram;
-	__u8  host;
-	__u8  comp;
-	__u8  pad07[1];
-};
 
 struct nvif_vmm_get_v0 {
 	__u8  version;

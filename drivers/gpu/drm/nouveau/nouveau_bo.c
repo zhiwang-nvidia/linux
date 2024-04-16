@@ -273,21 +273,21 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 domain,
 			 * Skip page sizes that can't support needed domains.
 			 */
 			if (cli->device.info.family > NV_DEVICE_INFO_V0_CURIE &&
-			    (domain & NOUVEAU_GEM_DOMAIN_VRAM) && !vmm->page[i].vram)
+			    (domain & NOUVEAU_GEM_DOMAIN_VRAM) && !vmm->impl->page[i].vram)
 				continue;
 			if ((domain & NOUVEAU_GEM_DOMAIN_GART) &&
-			    (!vmm->page[i].host || vmm->page[i].shift > PAGE_SHIFT))
+			    (!vmm->impl->page[i].host || vmm->impl->page[i].shift > PAGE_SHIFT))
 				continue;
 
 			/* Select this page size if it's the first that supports
 			 * the potential memory domains, or when it's compatible
 			 * with the requested compression settings.
 			 */
-			if (pi < 0 || !nvbo->comp || vmm->page[i].comp)
+			if (pi < 0 || !nvbo->comp || vmm->impl->page[i].comp)
 				pi = i;
 
 			/* Stop once the buffer is larger than the current page size. */
-			if (*size >= 1ULL << vmm->page[i].shift)
+			if (*size >= 1ULL << vmm->impl->page[i].shift)
 				break;
 		}
 
@@ -297,12 +297,12 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 domain,
 		}
 
 		/* Disable compression if suitable settings couldn't be found. */
-		if (nvbo->comp && !vmm->page[pi].comp) {
+		if (nvbo->comp && !vmm->impl->page[pi].comp) {
 			if (mmu->object.oclass >= NVIF_CLASS_MMU_GF100)
 				nvbo->kind = mmu->impl->kind[nvbo->kind];
 			nvbo->comp = 0;
 		}
-		nvbo->page = vmm->page[pi].shift;
+		nvbo->page = vmm->impl->page[pi].shift;
 	} else {
 		/* reject other tile flags when in VM mode. */
 		if (tile_mode)
@@ -319,24 +319,24 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 domain,
 			 *
 			 * Skip page sizes that can't support needed domains.
 			 */
-			if ((domain & NOUVEAU_GEM_DOMAIN_VRAM) && !vmm->page[i].vram)
+			if ((domain & NOUVEAU_GEM_DOMAIN_VRAM) && !vmm->impl->page[i].vram)
 				continue;
 			if ((domain & NOUVEAU_GEM_DOMAIN_GART) &&
-			    (!vmm->page[i].host || vmm->page[i].shift > PAGE_SHIFT))
+			    (!vmm->impl->page[i].host || vmm->impl->page[i].shift > PAGE_SHIFT))
 				continue;
 
 			/* pick the last one as it will be smallest. */
 			pi = i;
 
 			/* Stop once the buffer is larger than the current page size. */
-			if (*size >= 1ULL << vmm->page[i].shift)
+			if (*size >= 1ULL << vmm->impl->page[i].shift)
 				break;
 		}
 		if (WARN_ON(pi < 0)) {
 			kfree(nvbo);
 			return ERR_PTR(-EINVAL);
 		}
-		nvbo->page = vmm->page[pi].shift;
+		nvbo->page = vmm->impl->page[pi].shift;
 	}
 
 	nouveau_bo_fixup_align(nvbo, align, size);

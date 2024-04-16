@@ -101,6 +101,14 @@ struct nvif_vmm_impl {
 	u64 start;
 	u64 limit;
 	u8 page_nr;
+
+	struct {
+		u8 shift;
+		bool sparse;
+		bool vram;
+		bool host;
+		bool comp;
+	} page[8];
 };
 
 struct nvif_mmu_impl {
