@@ -80,9 +80,16 @@ nvif_device_ctor(struct nvif_client *client, const char *name, struct nvif_devic
 	device->object.client = client;
 
 	if (ret == 0) {
+		/*FIXME: remove after moving users to device->impl */
 		device->info.version = 0;
-		ret = nvif_object_mthd(&device->object, NV_DEVICE_V0_INFO,
-				       &device->info, sizeof(device->info));
+		device->info.platform = device->impl->platform;
+		device->info.chipset = device->impl->chipset;
+		device->info.revision = device->impl->revision;
+		device->info.family = device->impl->family;
+		device->info.ram_size = device->impl->ram_size;
+		device->info.ram_user = device->impl->ram_user;
+		strscpy(device->info.chip, device->impl->chip, sizeof(device->info.chip));
+		strscpy(device->info.name, device->impl->name, sizeof(device->info.name));
 	}
 
 	return ret;

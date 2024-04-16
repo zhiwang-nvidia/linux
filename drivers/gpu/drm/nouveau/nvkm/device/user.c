@@ -80,10 +80,7 @@ nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
 {
 	struct nvkm_object *object = &udev->object;
 	struct nvkm_device *device = udev->device;
-	struct nvkm_fb *fb = device->fb;
-	struct nvkm_instmem *imem = device->imem;
 	union {
-		struct nv_device_info_v0 v0;
 		struct nv_device_info_v1 v1;
 	} *args = data;
 	int ret = -ENOSYS, i;
@@ -99,77 +96,8 @@ nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
 		}
 		return -EINVAL;
 	} else
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "device info vers %d\n", args->v0.version);
-	} else
 		return ret;
 
-	switch (device->chipset) {
-	case 0x01a:
-	case 0x01f:
-	case 0x04c:
-	case 0x04e:
-	case 0x063:
-	case 0x067:
-	case 0x068:
-	case 0x0aa:
-	case 0x0ac:
-	case 0x0af:
-		args->v0.platform = NV_DEVICE_INFO_V0_IGP;
-		break;
-	default:
-		switch (device->type) {
-		case NVKM_DEVICE_PCI:
-			args->v0.platform = NV_DEVICE_INFO_V0_PCI;
-			break;
-		case NVKM_DEVICE_AGP:
-			args->v0.platform = NV_DEVICE_INFO_V0_AGP;
-			break;
-		case NVKM_DEVICE_PCIE:
-			args->v0.platform = NV_DEVICE_INFO_V0_PCIE;
-			break;
-		case NVKM_DEVICE_TEGRA:
-			args->v0.platform = NV_DEVICE_INFO_V0_SOC;
-			break;
-		default:
-			WARN_ON(1);
-			break;
-		}
-		break;
-	}
-
-	switch (device->card_type) {
-	case NV_04: args->v0.family = NV_DEVICE_INFO_V0_TNT; break;
-	case NV_10:
-	case NV_11: args->v0.family = NV_DEVICE_INFO_V0_CELSIUS; break;
-	case NV_20: args->v0.family = NV_DEVICE_INFO_V0_KELVIN; break;
-	case NV_30: args->v0.family = NV_DEVICE_INFO_V0_RANKINE; break;
-	case NV_40: args->v0.family = NV_DEVICE_INFO_V0_CURIE; break;
-	case NV_50: args->v0.family = NV_DEVICE_INFO_V0_TESLA; break;
-	case NV_C0: args->v0.family = NV_DEVICE_INFO_V0_FERMI; break;
-	case NV_E0: args->v0.family = NV_DEVICE_INFO_V0_KEPLER; break;
-	case GM100: args->v0.family = NV_DEVICE_INFO_V0_MAXWELL; break;
-	case GP100: args->v0.family = NV_DEVICE_INFO_V0_PASCAL; break;
-	case GV100: args->v0.family = NV_DEVICE_INFO_V0_VOLTA; break;
-	case TU100: args->v0.family = NV_DEVICE_INFO_V0_TURING; break;
-	case GA100: args->v0.family = NV_DEVICE_INFO_V0_AMPERE; break;
-	case AD100: args->v0.family = NV_DEVICE_INFO_V0_ADA; break;
-	default:
-		args->v0.family = 0;
-		break;
-	}
-
-	args->v0.chipset  = device->chipset;
-	args->v0.revision = device->chiprev;
-	if (fb && fb->ram)
-		args->v0.ram_size = args->v0.ram_user = fb->ram->size;
-	else
-		args->v0.ram_size = args->v0.ram_user = 0;
-	if (imem && args->v0.ram_size > 0)
-		args->v0.ram_user = args->v0.ram_user - imem->reserved;
-
-	snprintf(args->v0.chip, sizeof(args->v0.chip), "%s", device->chip->name);
-	snprintf(args->v0.name, sizeof(args->v0.name), "%s", device->name);
 	return 0;
 }
 
@@ -348,6 +276,69 @@ nvkm_udevice_new(struct nvkm_device *device,
 	udev->impl.map.type = NVIF_MAP_IO;
 	udev->impl.map.handle = device->func->resource_addr(device, 0);
 	udev->impl.map.length = device->func->resource_size(device, 0);
+
+	switch (device->chipset) {
+	case 0x01a:
+	case 0x01f:
+	case 0x04c:
+	case 0x04e:
+	case 0x063:
+	case 0x067:
+	case 0x068:
+	case 0x0aa:
+	case 0x0ac:
+	case 0x0af:
+		udev->impl.platform = NVIF_DEVICE_IGP;
+		break;
+	default:
+		switch (device->type) {
+		case NVKM_DEVICE_PCI  : udev->impl.platform = NVIF_DEVICE_PCI; break;
+		case NVKM_DEVICE_AGP  : udev->impl.platform = NVIF_DEVICE_AGP; break;
+		case NVKM_DEVICE_PCIE : udev->impl.platform = NVIF_DEVICE_PCIE; break;
+		case NVKM_DEVICE_TEGRA: udev->impl.platform = NVIF_DEVICE_SOC; break;
+		default:
+			WARN_ON(1);
+			ret = -EINVAL;
+			goto done;
+		}
+		break;
+	}
+
+	udev->impl.chipset  = device->chipset;
+	udev->impl.revision = device->chiprev;
+
+	switch (device->card_type) {
+	case NV_04: udev->impl.family = NVIF_DEVICE_TNT; break;
+	case NV_10:
+	case NV_11: udev->impl.family = NVIF_DEVICE_CELSIUS; break;
+	case NV_20: udev->impl.family = NVIF_DEVICE_KELVIN; break;
+	case NV_30: udev->impl.family = NVIF_DEVICE_RANKINE; break;
+	case NV_40: udev->impl.family = NVIF_DEVICE_CURIE; break;
+	case NV_50: udev->impl.family = NVIF_DEVICE_TESLA; break;
+	case NV_C0: udev->impl.family = NVIF_DEVICE_FERMI; break;
+	case NV_E0: udev->impl.family = NVIF_DEVICE_KEPLER; break;
+	case GM100: udev->impl.family = NVIF_DEVICE_MAXWELL; break;
+	case GP100: udev->impl.family = NVIF_DEVICE_PASCAL; break;
+	case GV100: udev->impl.family = NVIF_DEVICE_VOLTA; break;
+	case TU100: udev->impl.family = NVIF_DEVICE_TURING; break;
+	case GA100: udev->impl.family = NVIF_DEVICE_AMPERE; break;
+	case AD100: udev->impl.family = NVIF_DEVICE_ADA; break;
+	default:
+		WARN_ON(1);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	snprintf(udev->impl.chip, sizeof(udev->impl.chip), "%s", device->chip->name);
+	snprintf(udev->impl.name, sizeof(udev->impl.name), "%s", device->name);
+
+	if (device->fb && device->fb->ram)
+		udev->impl.ram_size = udev->impl.ram_user = device->fb->ram->size;
+	else
+		udev->impl.ram_size = udev->impl.ram_user = 0;
+
+	if (device->imem && udev->impl.ram_size > 0)
+		udev->impl.ram_user = udev->impl.ram_user - device->imem->reserved;
 
 	if (device->vfn) {
 		udev->impl.usermode.oclass = device->vfn->user.base.oclass;
