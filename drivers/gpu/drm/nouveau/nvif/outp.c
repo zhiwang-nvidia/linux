@@ -381,8 +381,7 @@ nvif_outp_ctor(struct nvif_disp *disp, const char *name, int id, struct nvif_out
 {
 	int ret;
 
-	ret = disp->impl->outp.new(disp->priv, id, &outp->impl, &outp->priv,
-				   nvif_handle(&outp->object));
+	ret = disp->impl->outp.new(disp->priv, id, &outp->impl, &outp->priv);
 	NVIF_ERRON(ret, &disp->object, "[NEW outp id:%d]", id);
 	if (ret)
 		return ret;

@@ -366,7 +366,7 @@ struct nvif_disp_impl {
 	struct {
 		u32 mask;
 		int (*new)(struct nvif_disp_priv *, u8 id,
-			   const struct nvif_outp_impl **, struct nvif_outp_priv **, u64 handle);
+			   const struct nvif_outp_impl **, struct nvif_outp_priv **);
 	} outp;
 
 	struct {
