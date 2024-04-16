@@ -30,4 +30,6 @@ nvkm_blob_dtor(struct nvkm_blob *blob)
 	(p = container_of((h), typeof(*p), m), nvkm_list_find_next(p, (h), m, (c)))
 #define nvkm_list_foreach(p,h,m,c)                                                           \
 	for (p = nvkm_list_find(p, (h), m, (c)); p; p = nvkm_list_find_next(p, (h), m, (c)))
+
+#define nvkm_uevent nvif_event_priv
 #endif
