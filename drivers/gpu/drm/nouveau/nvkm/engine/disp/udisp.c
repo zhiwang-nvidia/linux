@@ -27,6 +27,13 @@
 #include "uoutp.h"
 #include <subdev/mmu/umem.h>
 
+struct nvif_disp_priv {
+	struct nvkm_object object;
+	struct nvkm_disp *disp;
+
+	struct nvif_disp_impl impl;
+};
+
 static int
 nvkm_udisp_chan_new(struct nvif_disp_priv *udisp, const struct nvkm_disp_func_chan *func,
 		    u8 nr, u8 id, struct nvif_mem_priv *umem,

@@ -484,8 +484,7 @@ struct nvif_device_impl {
 	struct {
 		s32 oclass;
 		int (*new)(struct nvif_device_priv *,
-			   const struct nvif_disp_impl **, struct nvif_disp_priv **,
-			   u64 handle);
+			   const struct nvif_disp_impl **, struct nvif_disp_priv **);
 	} disp;
 
 	struct nvif_device_impl_fifo {

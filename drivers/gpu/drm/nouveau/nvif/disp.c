@@ -97,8 +97,7 @@ nvif_disp_ctor(struct nvif_device *device, const char *name, struct nvif_disp *d
 		return -ENODEV;
 	}
 
-	ret = device->impl->disp.new(device->priv, &disp->impl, &disp->priv,
-				     nvif_handle(&disp->object));
+	ret = device->impl->disp.new(device->priv, &disp->impl, &disp->priv);
 	NVIF_ERRON(ret, &device->object, "[NEW disp%04x]", oclass);
 	if (ret)
 		return ret;
