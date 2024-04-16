@@ -3,6 +3,7 @@
 #define __NVIF_DISPCHAN_H__
 #include "disp.h"
 #include "push.h"
+struct nvif_ctxdma;
 
 struct nvif_dispchan {
 	const struct nvif_disp_chan_impl *impl;
@@ -18,4 +19,7 @@ int nvif_dispchan_ctor(struct nvif_disp *, const char *name, u32 handle, s32 ocl
 		       struct nvif_mmu *, struct nvif_dispchan *);
 int nvif_dispchan_oneinit(struct nvif_dispchan *);
 void nvif_dispchan_dtor(struct nvif_dispchan *);
+
+int nvif_dispchan_ctxdma_ctor(struct nvif_dispchan *, const char *name, u32 handle, s32 oclass,
+			      void *argv, u32 argc, struct nvif_ctxdma *ctxdma);
 #endif

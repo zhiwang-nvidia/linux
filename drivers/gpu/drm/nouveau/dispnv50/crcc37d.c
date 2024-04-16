@@ -41,7 +41,7 @@ crcc37d_set_src(struct nv50_head *head, int or, enum nv50_crc_source_type source
 		return ret;
 
 	if (source) {
-		PUSH_MTHD(push, NVC37D, HEAD_SET_CONTEXT_DMA_CRC(i), ctx->ntfy.handle);
+		PUSH_MTHD(push, NVC37D, HEAD_SET_CONTEXT_DMA_CRC(i), ctx->ntfy.object.handle);
 		PUSH_MTHD(push, NVC37D, HEAD_SET_CRC_CONTROL(i), crc_args);
 	} else {
 		PUSH_MTHD(push, NVC37D, HEAD_SET_CRC_CONTROL(i), 0);
@@ -60,7 +60,7 @@ int crcc37d_set_ctx(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTEXT_DMA_CRC(i), ctx ? ctx->ntfy.handle : 0);
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTEXT_DMA_CRC(i), ctx ? ctx->ntfy.object.handle : 0);
 	return 0;
 }
 

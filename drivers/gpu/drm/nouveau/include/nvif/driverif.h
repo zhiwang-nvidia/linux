@@ -18,6 +18,7 @@ struct nvif_conn_priv;
 struct nvif_outp_priv;
 struct nvif_head_priv;
 struct nvif_disp_chan_priv;
+struct nvif_ctxdma_priv;
 
 struct nvif_event_impl {
 	void (*del)(struct nvif_event_priv *);
@@ -361,9 +362,21 @@ struct nvif_head_impl {
 		      const struct nvif_event_impl **, struct nvif_event_priv **);
 };
 
+#include <nvif/cl0002.h>
+
+struct nvif_ctxdma_impl {
+	void (*del)(struct nvif_ctxdma_priv *);
+};
+
 struct nvif_disp_chan_impl {
 	void (*del)(struct nvif_disp_chan_priv *);
 	struct nvif_mapinfo map;
+
+	struct {
+		int (*new)(struct nvif_disp_chan_priv *, u32 handle, s32 oclass,
+			   struct nv_dma_v0 *argv, u32 argc,
+			   const struct nvif_ctxdma_impl **, struct nvif_ctxdma_priv **);
+	} ctxdma;
 };
 
 struct nvif_disp_impl {

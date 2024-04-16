@@ -6,6 +6,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_vblank_work.h>
 
+#include <nvif/ctxdma.h>
 #include <nvif/mem.h>
 #include <nvkm/subdev/bios.h>
 #include "nouveau_encoder.h"
@@ -41,7 +42,7 @@ enum nv50_crc_source_type {
 struct nv50_crc_notifier_ctx {
 	struct nvif_mem mem;
 	struct nvif_map map;
-	struct nvif_object ntfy;
+	struct nvif_ctxdma ntfy;
 };
 
 struct nv50_crc_atom {

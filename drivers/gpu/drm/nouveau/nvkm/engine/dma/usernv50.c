@@ -73,7 +73,6 @@ nv50_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 	union {
 		struct nv50_dma_v0 v0;
 	} *args;
-	struct nvkm_object *parent = oclass->parent;
 	struct nv50_dmaobj *dmaobj;
 	u32 user, part, comp, kind;
 	int ret;
@@ -90,12 +89,7 @@ nv50_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 	ret  = -ENOSYS;
 	args = data;
 
-	nvif_ioctl(parent, "create nv50 dma size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent, "create nv50 dma vers %d priv %d part %d "
-				   "comp %d kind %02x\n", args->v0.version,
-			   args->v0.priv, args->v0.part, args->v0.comp,
-			   args->v0.kind);
 		user = args->v0.priv;
 		part = args->v0.part;
 		comp = args->v0.comp;

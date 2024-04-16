@@ -42,7 +42,7 @@
 static void
 nv50_wndw_ctxdma_del(struct nv50_wndw_ctxdma *ctxdma)
 {
-	nvif_object_dtor(&ctxdma->object);
+	nvif_ctxdma_dtor(&ctxdma->ctxdma);
 	list_del(&ctxdma->head);
 	kfree(ctxdma);
 }
@@ -70,7 +70,7 @@ nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct drm_framebuffer *fb)
 	handle = NV50_DISP_HANDLE_WNDW_CTX(kind);
 
 	list_for_each_entry(ctxdma, &wndw->ctxdma.list, head) {
-		if (ctxdma->object.handle == handle)
+		if (ctxdma->ctxdma.object.handle == handle)
 			return ctxdma;
 	}
 
@@ -101,8 +101,8 @@ nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct drm_framebuffer *fb)
 		argc += sizeof(args.gf119);
 	}
 
-	ret = nvif_object_ctor(wndw->ctxdma.parent, "kmsFbCtxDma", handle,
-			       NV_DMA_IN_MEMORY, &args, argc, &ctxdma->object);
+	ret = nvif_dispchan_ctxdma_ctor(&wndw->wndw, "kmsFbCtxDma", handle, NV_DMA_IN_MEMORY,
+					&args.base, argc, &ctxdma->ctxdma);
 	if (ret) {
 		nv50_wndw_ctxdma_del(ctxdma);
 		return ERR_PTR(ret);
@@ -181,7 +181,7 @@ nv50_wndw_ntfy_enable(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
 	struct nv50_disp *disp = nv50_disp(wndw->plane.dev);
 
-	asyw->ntfy.handle = wndw->sync.handle;
+	asyw->ntfy.handle = wndw->sync.object.handle;
 	asyw->ntfy.offset = wndw->ntfy;
 	asyw->ntfy.awaken = false;
 	asyw->set.ntfy = true;
@@ -406,7 +406,7 @@ nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 	memset(&asyw->xlut, 0x00, sizeof(asyw->xlut));
 	if ((asyw->ilut = wndw->func->ilut ? ilut : NULL)) {
 		wndw->func->ilut(wndw, asyw, drm_color_lut_size(ilut));
-		asyw->xlut.handle = wndw->vram.handle;
+		asyw->xlut.handle = wndw->vram.object.handle;
 		asyw->xlut.i.buffer = !asyw->xlut.i.buffer;
 		asyw->set.xlut = true;
 	} else {
@@ -557,7 +557,7 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 		}
 
 		if (asyw->visible)
-			asyw->image.handle[0] = ctxdma->object.handle;
+			asyw->image.handle[0] = ctxdma->ctxdma.object.handle;
 	}
 
 	ret = drm_gem_plane_helper_prepare_fb(plane, state);
@@ -646,8 +646,8 @@ nv50_wndw_destroy(struct drm_plane *plane)
 
 	nvif_dispchan_dtor(&wndw->wimm);
 
-	nvif_object_dtor(&wndw->vram);
-	nvif_object_dtor(&wndw->sync);
+	nvif_ctxdma_dtor(&wndw->vram);
+	nvif_ctxdma_dtor(&wndw->sync);
 	nvif_dispchan_dtor(&wndw->wndw);
 
 	nv50_lut_fini(&wndw->ilut);
@@ -705,27 +705,23 @@ nv50_wndw_ctor(struct nv50_wndw *wndw)
 	if (!wndw->wndw.impl)
 		return 0;
 
-	ret = nvif_object_ctor(&wndw->wndw.object, "kmsWndwSyncCtxDma", NV50_DISP_HANDLE_SYNCBUF,
-			       NV_DMA_IN_MEMORY,
-			       (&(struct nv_dma_v0) {
-					.target = NV_DMA_V0_TARGET_VRAM,
-					.access = NV_DMA_V0_ACCESS_RDWR,
-					.start = disp->sync->offset + 0x0000,
-					.limit = disp->sync->offset + 0x0fff,
-			       }), sizeof(struct nv_dma_v0),
-			       &wndw->sync);
+	ret = nvif_dispchan_ctxdma_ctor(&wndw->wndw, "kmsWndwSyncCtxdma", NV50_DISP_HANDLE_SYNCBUF,
+					NV_DMA_IN_MEMORY, &(struct nv_dma_v0) {
+						.target = NV_DMA_V0_TARGET_VRAM,
+						.access = NV_DMA_V0_ACCESS_RDWR,
+						.start = disp->sync->offset + 0x0000,
+						.limit = disp->sync->offset + 0x0fff,
+					}, sizeof(struct nv_dma_v0), &wndw->sync);
 	if (ret)
 		return ret;
 
-	ret = nvif_object_ctor(&wndw->wndw.object, "kmsWndwVramCtxDma", NV50_DISP_HANDLE_VRAM,
-			       NV_DMA_IN_MEMORY,
-			       (&(struct nv_dma_v0) {
-					.target = NV_DMA_V0_TARGET_VRAM,
-					.access = NV_DMA_V0_ACCESS_RDWR,
-					.start = 0,
-					.limit = drm->device.info.ram_user - 1,
-			       }), sizeof(struct nv_dma_v0),
-			       &wndw->vram);
+	ret = nvif_dispchan_ctxdma_ctor(&wndw->wndw, "kmsWndwVramCtxdma", NV50_DISP_HANDLE_VRAM,
+					NV_DMA_IN_MEMORY, &(struct nv_dma_v0) {
+						.target = NV_DMA_V0_TARGET_VRAM,
+						.access = NV_DMA_V0_ACCESS_RDWR,
+						.start = 0,
+						.limit = drm->device.impl->ram_user - 1,
+					}, sizeof(struct nv_dma_v0), &wndw->vram);
 	if (ret)
 		return ret;
 

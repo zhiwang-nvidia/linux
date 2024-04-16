@@ -70,7 +70,6 @@ gv100_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 	union {
 		struct gf119_dma_v0 v0;
 	} *args;
-	struct nvkm_object *parent = oclass->parent;
 	struct gv100_dmaobj *dmaobj;
 	u32 kind, page;
 	int ret;
@@ -87,11 +86,7 @@ gv100_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 	ret  = -ENOSYS;
 	args = data;
 
-	nvif_ioctl(parent, "create gv100 dma size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent,
-			   "create gv100 dma vers %d page %d kind %02x\n",
-			   args->v0.version, args->v0.page, args->v0.kind);
 		kind = args->v0.kind != 0;
 		page = args->v0.page != 0;
 	} else

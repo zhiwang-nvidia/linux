@@ -5,14 +5,15 @@
 #include "crc.h"
 #include <nouveau_encoder.h>
 
+#include <nvif/ctxdma.h>
 #include <nvif/dispchan.h>
 
 struct nv50_core {
 	const struct nv50_core_func *func;
 	struct nvif_dispchan chan;
 
-	struct nvif_object vram;
-	struct nvif_object sync;
+	struct nvif_ctxdma sync;
+	struct nvif_ctxdma vram;
 
 	bool assign_windows;
 };

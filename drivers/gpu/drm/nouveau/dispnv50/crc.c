@@ -509,17 +509,15 @@ nv50_crc_ctx_init(struct nv50_head *head, struct nvif_mmu *mmu,
 	if (ret)
 		return ret;
 
-	ret = nvif_object_ctor(&core->chan.object, "kmsCrcNtfyCtxDma",
-			       NV50_DISP_HANDLE_CRC_CTX(head, idx),
-			       NV_DMA_IN_MEMORY,
-			       (&(struct nv_dma_v0) {
-					.target = NV_DMA_V0_TARGET_VRAM,
-					.access = NV_DMA_V0_ACCESS_RDWR,
-					.start = ctx->mem.impl->addr,
-					.limit =  ctx->mem.impl->addr
-						+ ctx->mem.impl->size - 1,
-			       }), sizeof(struct nv_dma_v0),
-			       &ctx->ntfy);
+	ret = nvif_dispchan_ctxdma_ctor(&core->chan, "kmsCrcNtfyCtxDma",
+					NV50_DISP_HANDLE_CRC_CTX(head, idx),
+					NV_DMA_IN_MEMORY, &(struct nv_dma_v0) {
+						.target = NV_DMA_V0_TARGET_VRAM,
+						.access = NV_DMA_V0_ACCESS_RDWR,
+						.start = ctx->mem.impl->addr,
+						.limit = ctx->mem.impl->addr +
+							 ctx->mem.impl->size - 1,
+					}, sizeof(struct nv_dma_v0), &ctx->ntfy);
 	if (ret)
 		goto fail_fini;
 
@@ -533,7 +531,7 @@ fail_fini:
 static inline void
 nv50_crc_ctx_fini(struct nv50_crc_notifier_ctx *ctx)
 {
-	nvif_object_dtor(&ctx->ntfy);
+	nvif_ctxdma_dtor(&ctx->ntfy);
 	nvif_mem_unmap_dtor(&ctx->mem, &ctx->map);
 }
 

@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include <nvif/dispchan.h>
+#include <nvif/ctxdma.h>
 #include <nvif/device.h>
 #include <nvif/driverif.h>
 #include <nvif/push507c.h>
@@ -27,6 +28,22 @@
 
 #include <nvif/class.h>
 #include <nvhw/class/cl507c.h>
+
+int
+nvif_dispchan_ctxdma_ctor(struct nvif_dispchan *chan, const char *name, u32 handle, s32 oclass,
+			  void *argv, u32 argc, struct nvif_ctxdma *ctxdma)
+{
+	int ret;
+
+	ret = chan->impl->ctxdma.new(chan->priv, handle, oclass, argv, argc,
+				     &ctxdma->impl, &ctxdma->priv);
+	NVIF_ERRON(ret, &chan->object, "[NEW ctxdma%04x handle:%08x]", oclass, handle);
+	if (ret)
+		return ret;
+
+	nvif_ctxdma_ctor(&chan->object, name ?: "nvifDispChanCtxdma", handle, oclass, ctxdma);
+	return 0;
+}
 
 static int
 nvif_dispchan_kick(struct nvif_push *push)

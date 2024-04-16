@@ -37,7 +37,7 @@ static int crcc57d_set_src(struct nv50_head *head, int or, enum nv50_crc_source_
 		return ret;
 
 	if (source) {
-		PUSH_MTHD(push, NVC57D, HEAD_SET_CONTEXT_DMA_CRC(i), ctx->ntfy.handle);
+		PUSH_MTHD(push, NVC57D, HEAD_SET_CONTEXT_DMA_CRC(i), ctx->ntfy.object.handle);
 		PUSH_MTHD(push, NVC57D, HEAD_SET_CRC_CONTROL(i), crc_args);
 	} else {
 		PUSH_MTHD(push, NVC57D, HEAD_SET_CRC_CONTROL(i), 0);

@@ -265,7 +265,7 @@ head507d_core_calc(struct nv50_head *head, struct nv50_head_atom *asyh)
 		asyh->core.w = asyh->state.mode.hdisplay;
 		asyh->core.h = asyh->state.mode.vdisplay;
 	}
-	asyh->core.handle = disp->core->vram.handle;
+	asyh->core.handle = disp->core->vram.object.handle;
 	asyh->core.offset = 0;
 	asyh->core.format = NV507D_HEAD_SET_PARAMS_FORMAT_A8R8G8B8;
 	asyh->core.kind = NV507D_HEAD_SET_PARAMS_KIND_KIND_PITCH;

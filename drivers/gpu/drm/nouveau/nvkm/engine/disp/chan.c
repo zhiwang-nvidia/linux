@@ -49,77 +49,83 @@ nvkm_disp_chan_ntfy(struct nvkm_object *object, u32 type, struct nvkm_event **pe
 	return -EINVAL;
 }
 
-struct nvkm_disp_chan_object {
+struct nvif_ctxdma_priv {
 	struct nvkm_oproxy oproxy;
 	struct nvkm_disp *disp;
 	int hash;
 };
 
 static void
-nvkm_disp_chan_child_del_(struct nvkm_oproxy *base)
+nvkm_disp_chan_ctxdma_del(struct nvif_ctxdma_priv *ctxdma)
 {
-	struct nvkm_disp_chan_object *object = container_of(base, typeof(*object), oproxy);
+	struct nvkm_object *object = &ctxdma->oproxy.base;
+
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_ctxdma_impl
+nvkm_disp_chan_ctxdma_impl = {
+	.del = nvkm_disp_chan_ctxdma_del,
+};
+
+static void
+nvkm_disp_chan_ctxdma_dtor(struct nvkm_oproxy *base)
+{
+	struct nvif_ctxdma_priv *object = container_of(base, typeof(*object), oproxy);
 
 	nvkm_ramht_remove(object->disp->ramht, object->hash);
 }
 
 static const struct nvkm_oproxy_func
-nvkm_disp_chan_child_func_ = {
-	.dtor[0] = nvkm_disp_chan_child_del_,
+nvkm_disp_chan_ctxdma = {
+	.dtor[0] = nvkm_disp_chan_ctxdma_dtor,
 };
 
+#include <engine/dma/priv.h>
+
 static int
-nvkm_disp_chan_child_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-			 struct nvkm_object **pobject)
+nvkm_disp_chan_ctxdma_new(struct nvif_disp_chan_priv *uchan, u32 handle, s32 oclass,
+			  struct nv_dma_v0 *args, u32 argc,
+			  const struct nvif_ctxdma_impl **pimpl, struct nvif_ctxdma_priv **ppriv)
 {
-	struct nvif_disp_chan_priv *uchan = container_of(oclass->parent, typeof(*uchan), object);
 	struct nvkm_disp_chan *chan = &uchan->chan;
 	struct nvkm_disp *disp = chan->disp;
 	struct nvkm_device *device = disp->engine.subdev.device;
-	const struct nvkm_device_oclass *sclass = oclass->priv;
-	struct nvkm_disp_chan_object *object;
+	struct nvkm_dma *dma = device->dma;
+	struct nvkm_dmaobj *dmaobj;
+	struct nvif_ctxdma_priv *object;
 	int ret;
 
 	if (!(object = kzalloc(sizeof(*object), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_oproxy_ctor(&nvkm_disp_chan_child_func_, oclass, &object->oproxy);
+
+	nvkm_oproxy_ctor(&nvkm_disp_chan_ctxdma, &(struct nvkm_oclass) {}, &object->oproxy);
 	object->disp = disp;
-	*pobject = &object->oproxy.base;
 
-	ret = sclass->ctor(device, oclass, argv, argc, &object->oproxy.object);
+	ret = dma->func->class_new(dma, &(struct nvkm_oclass) {
+					.client = uchan->object.client,
+					.base.oclass = oclass
+				   }, args, argc, &dmaobj);
+	object->oproxy.object = &dmaobj->object;
 	if (ret)
-		return ret;
+		goto done;
 
-	object->hash = chan->func->bind(chan, object->oproxy.object, oclass->handle);
-	if (object->hash < 0)
-		return object->hash;
-
-	return 0;
-}
-
-static int
-nvkm_disp_chan_child_get(struct nvkm_object *object, int index, struct nvkm_oclass *sclass)
-{
-	struct nvif_disp_chan_priv *uchan = container_of(object, typeof(*uchan), object);
-	struct nvkm_disp_chan *chan = &uchan->chan;
-	struct nvkm_device *device = chan->disp->engine.subdev.device;
-	const struct nvkm_device_oclass *oclass = NULL;
-
-	if (chan->func->bind)
-		sclass->engine = nvkm_device_engine(device, NVKM_ENGINE_DMAOBJ, 0);
-	else
-		sclass->engine = NULL;
-
-	if (sclass->engine && sclass->engine->func->base.sclass) {
-		sclass->engine->func->base.sclass(sclass, index, &oclass);
-		if (oclass) {
-			sclass->ctor = nvkm_disp_chan_child_new;
-			sclass->priv = oclass;
-			return 0;
-		}
+	object->hash = chan->func->bind(chan, object->oproxy.object, handle);
+	if (object->hash < 0) {
+		ret = object->hash;
+		goto done;
 	}
 
-	return -EINVAL;
+	*pimpl = &nvkm_disp_chan_ctxdma_impl;
+	*ppriv = object;
+
+	nvkm_object_link(&uchan->object, &object->oproxy.base);
+
+done:
+	if (ret)
+		nvkm_disp_chan_ctxdma_del(object);
+
+	return ret;
 }
 
 static void
@@ -179,7 +185,6 @@ nvkm_disp_chan = {
 	.init = nvkm_disp_chan_init,
 	.fini = nvkm_disp_chan_fini,
 	.ntfy = nvkm_disp_chan_ntfy,
-	.sclass = nvkm_disp_chan_child_get,
 };
 
 int
@@ -224,6 +229,8 @@ nvkm_disp_chan_new(struct nvkm_disp *disp, const struct nvkm_disp_func_chan *fun
 	uchan->impl.map.type = NVIF_MAP_IO;
 	uchan->impl.map.handle = device->func->resource_addr(device, 0);
 	uchan->impl.map.handle += chan->func->user(chan, &uchan->impl.map.length);
+	if (chan->func->bind)
+		uchan->impl.ctxdma.new = nvkm_disp_chan_ctxdma_new;
 
 	if (chan->func->push) {
 		chan->memory = nvkm_memory_ref(memory);

@@ -32,8 +32,8 @@ nv50_core_del(struct nv50_core **pcore)
 {
 	struct nv50_core *core = *pcore;
 	if (core) {
-		nvif_object_dtor(&core->sync);
-		nvif_object_dtor(&core->vram);
+		nvif_ctxdma_dtor(&core->vram);
+		nvif_ctxdma_dtor(&core->sync);
 		nvif_dispchan_dtor(&core->chan);
 		kfree(*pcore);
 		*pcore = NULL;
@@ -75,27 +75,23 @@ nv50_core_new(struct nouveau_drm *drm, struct nv50_core **pcore)
 	if (ret)
 		return ret;
 
-	ret = nvif_object_ctor(&core->chan.object, "kmsCoreSyncCtxdma", NV50_DISP_HANDLE_SYNCBUF,
-			       NV_DMA_IN_MEMORY,
-			       (&(struct nv_dma_v0) {
-					.target = NV_DMA_V0_TARGET_VRAM,
-					.access = NV_DMA_V0_ACCESS_RDWR,
-					.start = disp->sync->offset + 0x0000,
-					.limit = disp->sync->offset + 0x0fff
-			       }), sizeof(struct nv_dma_v0),
-			       &core->sync);
+	ret = nvif_dispchan_ctxdma_ctor(&core->chan, "kmsCoreSyncCtxdma", NV50_DISP_HANDLE_SYNCBUF,
+					NV_DMA_IN_MEMORY, &(struct nv_dma_v0) {
+						.target = NV_DMA_V0_TARGET_VRAM,
+						.access = NV_DMA_V0_ACCESS_RDWR,
+						.start = disp->sync->offset + 0x0000,
+						.limit = disp->sync->offset + 0x0fff,
+					}, sizeof(struct nv_dma_v0), &core->sync);
 	if (ret)
 		return ret;
 
-	ret = nvif_object_ctor(&core->chan.object, "kmsCoreVramCtxdma", NV50_DISP_HANDLE_VRAM,
-			       NV_DMA_IN_MEMORY,
-			       (&(struct nv_dma_v0) {
-					.target = NV_DMA_V0_TARGET_VRAM,
-					.access = NV_DMA_V0_ACCESS_RDWR,
-					.start = 0,
-					.limit = drm->device.info.ram_user - 1
-			       }), sizeof(struct nv_dma_v0),
-			       &core->vram);
+	ret = nvif_dispchan_ctxdma_ctor(&core->chan, "kmsCoreVramCtxdma", NV50_DISP_HANDLE_VRAM,
+					NV_DMA_IN_MEMORY, &(struct nv_dma_v0) {
+						.target = NV_DMA_V0_TARGET_VRAM,
+						.access = NV_DMA_V0_ACCESS_RDWR,
+						.start = 0,
+						.limit = drm->device.impl->ram_user - 1,
+					}, sizeof(struct nv_dma_v0), &core->vram);
 	if (ret)
 		return ret;
 

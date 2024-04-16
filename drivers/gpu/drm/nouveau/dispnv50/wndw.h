@@ -5,11 +5,13 @@
 #include "atom.h"
 #include "lut.h"
 
+#include <nvif/ctxdma.h>
 #include <nvif/dispchan.h>
 
 struct nv50_wndw_ctxdma {
 	struct list_head head;
-	struct nvif_object object;
+
+	struct nvif_ctxdma ctxdma;
 };
 
 struct nv50_wndw {
@@ -30,8 +32,8 @@ struct nv50_wndw {
 	struct nvif_dispchan wndw;
 	struct nvif_dispchan wimm;
 
-	struct nvif_object vram;
-	struct nvif_object sync;
+	struct nvif_ctxdma vram;
+	struct nvif_ctxdma sync;
 
 	u16 ntfy;
 	u16 sema;
