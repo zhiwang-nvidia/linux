@@ -612,7 +612,7 @@ nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 		goto fail_nvif;
 	}
 
-	ret = nouveau_cli_init(drm, "DRM", &drm->client);
+	ret = nouveau_cli_init(drm, "DRM", &drm->cli);
 	if (ret)
 		goto fail_wq;
 
@@ -674,7 +674,7 @@ fail_bios:
 	nouveau_ttm_fini(drm);
 fail_ttm:
 	nouveau_vga_fini(drm);
-	nouveau_cli_fini(&drm->client);
+	nouveau_cli_fini(&drm->cli);
 fail_wq:
 	destroy_workqueue(drm->sched_wq);
 fail_nvif:
@@ -733,7 +733,7 @@ nouveau_drm_device_fini(struct drm_device *dev)
 	}
 	mutex_unlock(&drm->clients_lock);
 
-	nouveau_cli_fini(&drm->client);
+	nouveau_cli_fini(&drm->cli);
 	destroy_workqueue(drm->sched_wq);
 	nvif_mmu_dtor(&drm->mmu);
 	nvif_device_dtor(&drm->device);

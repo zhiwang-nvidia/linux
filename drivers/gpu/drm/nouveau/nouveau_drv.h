@@ -208,7 +208,10 @@ struct nouveau_drm {
 	struct nvif_device device;
 	struct nvif_mmu mmu;
 
-	struct nouveau_cli client;
+	union {
+		struct nouveau_cli client;
+		struct nouveau_cli cli;
+	};
 	struct drm_device *dev;
 
 	struct list_head clients;
