@@ -79,9 +79,12 @@ struct nouveau_svm {
 #define SVM_ERR(s,f,a...) NV_WARN((s)->drm, "svm: "f"\n", ##a)
 
 struct nouveau_pfnmap_args {
-	struct nvif_ioctl_v0 i;
-	struct nvif_ioctl_mthd_v0 m;
-	struct nvif_vmm_pfnmap_v0 p;
+	struct {
+		u8 page;
+		u64 addr;
+		u64 size;
+		u64 phys[];
+	} p;
 };
 
 struct nouveau_ivmm {
@@ -239,13 +242,10 @@ nouveau_svmm_join(struct nouveau_svmm *svmm, u64 inst)
 void
 nouveau_svmm_invalidate(struct nouveau_svmm *svmm, u64 start, u64 limit)
 {
-	if (limit > start) {
-		nvif_object_mthd(&svmm->vmm->vmm.object, NVIF_VMM_V0_PFNCLR,
-				 &(struct nvif_vmm_pfnclr_v0) {
-					.addr = start,
-					.size = limit - start,
-				 }, sizeof(struct nvif_vmm_pfnclr_v0));
-	}
+	struct nvif_vmm *vmm = &svmm->vmm->vmm;
+
+	if (limit > start)
+		vmm->impl->pfnclr(vmm->priv, start, limit - start);
 }
 
 static int
@@ -571,14 +571,14 @@ static void nouveau_hmm_convert_pfn(struct nouveau_drm *drm,
 	}
 	if (is_device_private_page(page))
 		args->p.phys[0] = nouveau_dmem_page_addr(page) |
-				NVIF_VMM_PFNMAP_V0_V |
-				NVIF_VMM_PFNMAP_V0_VRAM;
+				NVIF_VMM_PFNMAP_V |
+				NVIF_VMM_PFNMAP_VRAM;
 	else
 		args->p.phys[0] = page_to_phys(page) |
-				NVIF_VMM_PFNMAP_V0_V |
-				NVIF_VMM_PFNMAP_V0_HOST;
+				NVIF_VMM_PFNMAP_V |
+				NVIF_VMM_PFNMAP_HOST;
 	if (range->hmm_pfns[0] & HMM_PFN_WRITE)
-		args->p.phys[0] |= NVIF_VMM_PFNMAP_V0_W;
+		args->p.phys[0] |= NVIF_VMM_PFNMAP_W;
 }
 
 static int nouveau_atomic_range_fault(struct nouveau_svmm *svmm,
@@ -592,6 +592,7 @@ static int nouveau_atomic_range_fault(struct nouveau_svmm *svmm,
 	struct page *page;
 	unsigned long start = args->p.addr;
 	unsigned long notifier_seq;
+	struct nvif_vmm *vmm = &svmm->vmm->vmm;
 	int ret = 0;
 
 	ret = mmu_interval_notifier_insert(&notifier->notifier, mm,
@@ -628,12 +629,12 @@ static int nouveau_atomic_range_fault(struct nouveau_svmm *svmm,
 	args->p.size = PAGE_SIZE;
 	args->p.addr = start;
 	args->p.phys[0] = page_to_phys(page) |
-		NVIF_VMM_PFNMAP_V0_V |
-		NVIF_VMM_PFNMAP_V0_W |
-		NVIF_VMM_PFNMAP_V0_A |
-		NVIF_VMM_PFNMAP_V0_HOST;
+		NVIF_VMM_PFNMAP_V |
+		NVIF_VMM_PFNMAP_W |
+		NVIF_VMM_PFNMAP_A |
+		NVIF_VMM_PFNMAP_HOST;
 
-	ret = nvif_object_ioctl(&svmm->vmm->vmm.object, args, size, NULL);
+	ret = vmm->impl->pfnmap(vmm->priv, args->p.page, args->p.size, args->p.addr, args->p.phys);
 	mutex_unlock(&svmm->mutex);
 
 	unlock_page(page);
@@ -661,6 +662,7 @@ static int nouveau_range_fault(struct nouveau_svmm *svmm,
 		.dev_private_owner = drm->dev,
 	};
 	struct mm_struct *mm = svmm->notifier.mm;
+	struct nvif_vmm *vmm = &svmm->vmm->vmm;
 	int ret;
 
 	ret = mmu_interval_notifier_insert(&notifier->notifier, mm,
@@ -699,7 +701,7 @@ static int nouveau_range_fault(struct nouveau_svmm *svmm,
 
 	nouveau_hmm_convert_pfn(drm, &range, args);
 
-	ret = nvif_object_ioctl(&svmm->vmm->vmm.object, args, size, NULL);
+	ret = vmm->impl->pfnmap(vmm->priv, args->p.page, args->p.addr, args->p.size, args->p.phys);
 	mutex_unlock(&svmm->mutex);
 
 out:
@@ -767,12 +769,6 @@ nouveau_svm_fault(struct work_struct *work)
 	mutex_unlock(&svm->mutex);
 
 	/* Process list of faults. */
-	args.i.i.version = 0;
-	args.i.i.type = NVIF_IOCTL_V0_MTHD;
-	args.i.m.version = 0;
-	args.i.m.method = NVIF_VMM_V0_PFNMAP;
-	args.i.p.version = 0;
-
 	for (fi = 0; fn = fi + 1, fi < buffer->fault_nr; fi = fn) {
 		struct svm_notifier notifier;
 		struct mm_struct *mm;
@@ -850,14 +846,14 @@ nouveau_svm_fault(struct work_struct *work)
 			if (buffer->fault[fn]->svmm != svmm ||
 			    buffer->fault[fn]->addr >= limit ||
 			    (buffer->fault[fi]->access == FAULT_ACCESS_READ &&
-			     !(args.phys[0] & NVIF_VMM_PFNMAP_V0_V)) ||
+			     !(args.phys[0] & NVIF_VMM_PFNMAP_V)) ||
 			    (buffer->fault[fi]->access != FAULT_ACCESS_READ &&
 			     buffer->fault[fi]->access != FAULT_ACCESS_PREFETCH &&
-			     !(args.phys[0] & NVIF_VMM_PFNMAP_V0_W)) ||
+			     !(args.phys[0] & NVIF_VMM_PFNMAP_W)) ||
 			    (buffer->fault[fi]->access != FAULT_ACCESS_READ &&
 			     buffer->fault[fi]->access != FAULT_ACCESS_WRITE &&
 			     buffer->fault[fi]->access != FAULT_ACCESS_PREFETCH &&
-			     !(args.phys[0] & NVIF_VMM_PFNMAP_V0_A)))
+			     !(args.phys[0] & NVIF_VMM_PFNMAP_A)))
 				break;
 		}
 
@@ -902,8 +898,6 @@ nouveau_pfns_alloc(unsigned long npages)
 	if (!args)
 		return NULL;
 
-	args->i.type = NVIF_IOCTL_V0_MTHD;
-	args->m.method = NVIF_VMM_V0_PFNMAP;
 	args->p.page = PAGE_SHIFT;
 
 	return args->p.phys;
@@ -922,15 +916,13 @@ nouveau_pfns_map(struct nouveau_svmm *svmm, struct mm_struct *mm,
 		 unsigned long addr, u64 *pfns, unsigned long npages)
 {
 	struct nouveau_pfnmap_args *args = nouveau_pfns_to_args(pfns);
+	struct nvif_vmm *vmm = &svmm->vmm->vmm;
 
 	args->p.addr = addr;
 	args->p.size = npages << PAGE_SHIFT;
 
 	mutex_lock(&svmm->mutex);
-
-	nvif_object_ioctl(&svmm->vmm->vmm.object, args,
-			  struct_size(args, p.phys, npages), NULL);
-
+	vmm->impl->pfnmap(vmm->priv, args->p.page, args->p.addr, args->p.size, args->p.phys);
 	mutex_unlock(&svmm->mutex);
 }
 

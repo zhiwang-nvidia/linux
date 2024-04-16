@@ -52,20 +52,10 @@ nvkm_uvmm_search(struct nvkm_client *client, u64 handle)
 }
 
 static int
-nvkm_uvmm_mthd_pfnclr(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
+nvkm_uvmm_pfnclr(struct nvif_vmm_priv *uvmm, u64 addr, u64 size)
 {
-	union {
-		struct nvif_vmm_pfnclr_v0 v0;
-	} *args = argv;
 	struct nvkm_vmm *vmm = uvmm->vmm;
-	int ret = -ENOSYS;
-	u64 addr, size;
-
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		addr = args->v0.addr;
-		size = args->v0.size;
-	} else
-		return ret;
+	int ret = 0;
 
 	if (nvkm_vmm_in_managed_range(vmm, addr, size) && vmm->managed.raw)
 		return -EINVAL;
@@ -80,25 +70,10 @@ nvkm_uvmm_mthd_pfnclr(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 }
 
 static int
-nvkm_uvmm_mthd_pfnmap(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
+nvkm_uvmm_pfnmap(struct nvif_vmm_priv *uvmm, u8 page, u64 addr, u64 size, u64 *phys)
 {
-	union {
-		struct nvif_vmm_pfnmap_v0 v0;
-	} *args = argv;
 	struct nvkm_vmm *vmm = uvmm->vmm;
-	int ret = -ENOSYS;
-	u64 addr, size, *phys;
-	u8  page;
-
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, true))) {
-		page = args->v0.page;
-		addr = args->v0.addr;
-		size = args->v0.size;
-		phys = args->v0.phys;
-		if (argc != (size >> page) * sizeof(args->v0.phys[0]))
-			return -EINVAL;
-	} else
-		return ret;
+	int ret = 0;
 
 	if (nvkm_vmm_in_managed_range(vmm, addr, size) && vmm->managed.raw)
 		return -EINVAL;
@@ -427,8 +402,6 @@ nvkm_uvmm_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
 	struct nvif_vmm_priv *uvmm = container_of(object, typeof(*uvmm), object);
 	switch (mthd) {
-	case NVIF_VMM_V0_PFNMAP: return nvkm_uvmm_mthd_pfnmap(uvmm, argv, argc);
-	case NVIF_VMM_V0_PFNCLR: return nvkm_uvmm_mthd_pfnclr(uvmm, argv, argc);
 	case NVIF_VMM_V0_RAW   : return nvkm_uvmm_mthd_raw   (uvmm, argv, argc);
 	case NVIF_VMM_V0_MTHD(0x00) ... NVIF_VMM_V0_MTHD(0x7f):
 		if (uvmm->vmm->func->mthd) {
@@ -458,6 +431,8 @@ nvkm_uvmm_impl = {
 	.put = nvkm_uvmm_put,
 	.map = nvkm_uvmm_map,
 	.unmap = nvkm_uvmm_unmap,
+	.pfnmap = nvkm_uvmm_pfnmap,
+	.pfnclr = nvkm_uvmm_pfnclr,
 };
 
 static void *

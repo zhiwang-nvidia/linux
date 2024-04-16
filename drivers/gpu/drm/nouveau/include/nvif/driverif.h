@@ -123,6 +123,18 @@ struct nvif_vmm_impl {
 	int (*map)(struct nvif_vmm_priv *, u64 addr, u64 size, void *, u32,
 		   struct nvif_mem_priv *, u64 offset);
 	int (*unmap)(struct nvif_vmm_priv *, u64 addr);
+
+#define NVIF_VMM_PFNMAP_ADDR       0xfffffffffffff000ULL
+#define NVIF_VMM_PFNMAP_ADDR_SHIFT                    12
+#define NVIF_VMM_PFNMAP_APER       0x00000000000000f0ULL
+#define NVIF_VMM_PFNMAP_HOST       0x0000000000000000ULL
+#define NVIF_VMM_PFNMAP_VRAM       0x0000000000000010ULL
+#define NVIF_VMM_PFNMAP_A          0x0000000000000004ULL
+#define NVIF_VMM_PFNMAP_W          0x0000000000000002ULL
+#define NVIF_VMM_PFNMAP_V          0x0000000000000001ULL
+#define NVIF_VMM_PFNMAP_NONE       0x0000000000000000ULL
+	int (*pfnmap)(struct nvif_vmm_priv *, u8 page, u64 addr, u64 size, u64 *phys);
+	int (*pfnclr)(struct nvif_vmm_priv *, u64 addr, u64 size);
 };
 
 struct nvif_mmu_impl {

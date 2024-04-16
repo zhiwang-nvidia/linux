@@ -645,10 +645,10 @@ static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
 	}
 
 	dpage->zone_device_data = svmm;
-	*pfn = NVIF_VMM_PFNMAP_V0_V | NVIF_VMM_PFNMAP_V0_VRAM |
-		((paddr >> PAGE_SHIFT) << NVIF_VMM_PFNMAP_V0_ADDR_SHIFT);
+	*pfn = NVIF_VMM_PFNMAP_V | NVIF_VMM_PFNMAP_VRAM |
+		((paddr >> PAGE_SHIFT) << NVIF_VMM_PFNMAP_ADDR_SHIFT);
 	if (src & MIGRATE_PFN_WRITE)
-		*pfn |= NVIF_VMM_PFNMAP_V0_W;
+		*pfn |= NVIF_VMM_PFNMAP_W;
 	return migrate_pfn(page_to_pfn(dpage));
 
 out_dma_unmap:
@@ -656,7 +656,7 @@ out_dma_unmap:
 out_free_page:
 	nouveau_dmem_page_free_locked(drm, dpage);
 out:
-	*pfn = NVIF_VMM_PFNMAP_V0_NONE;
+	*pfn = NVIF_VMM_PFNMAP_NONE;
 	return 0;
 }
 
