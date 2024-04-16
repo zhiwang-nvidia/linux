@@ -29,30 +29,6 @@
 #include <subdev/bios.h>
 #include <subdev/therm.h>
 
-static DEFINE_MUTEX(nv_devices_mutex);
-static LIST_HEAD(nv_devices);
-
-static struct nvkm_device *
-nvkm_device_find_locked(u64 handle)
-{
-	struct nvkm_device *device;
-	list_for_each_entry(device, &nv_devices, head) {
-		if (device->handle == handle)
-			return device;
-	}
-	return NULL;
-}
-
-struct nvkm_device *
-nvkm_device_find(u64 handle)
-{
-	struct nvkm_device *device;
-	mutex_lock(&nv_devices_mutex);
-	device = nvkm_device_find_locked(handle);
-	mutex_unlock(&nv_devices_mutex);
-	return device;
-}
-
 static const struct nvkm_device_chip
 nv4_chipset = {
 	.name = "NV04",
@@ -2985,8 +2961,6 @@ nvkm_device_del(struct nvkm_device **pdevice)
 	struct nvkm_device *device = *pdevice;
 	struct nvkm_subdev *subdev, *subtmp;
 	if (device) {
-		mutex_lock(&nv_devices_mutex);
-
 		nvkm_intr_dtor(device);
 
 		list_for_each_entry_safe_reverse(subdev, subtmp, &device->subdev, head)
@@ -2994,11 +2968,9 @@ nvkm_device_del(struct nvkm_device **pdevice)
 
 		if (device->pri)
 			iounmap(device->pri);
-		list_del(&device->head);
 
 		if (device->func->dtor)
 			*pdevice = device->func->dtor(device);
-		mutex_unlock(&nv_devices_mutex);
 
 		kfree(*pdevice);
 		*pdevice = NULL;
@@ -3049,10 +3021,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	int ret = -EEXIST, j;
 	unsigned chipset;
 
-	mutex_lock(&nv_devices_mutex);
-	if (nvkm_device_find_locked(handle))
-		goto done;
-
 	device->func = func;
 	device->quirk = quirk;
 	device->dev = dev;
@@ -3061,7 +3029,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	device->cfgopt = cfg;
 	device->dbgopt = dbg;
 	device->name = name;
-	list_add_tail(&device->head, &nv_devices);
 	device->debug = nvkm_dbgopt(device->dbgopt, "device");
 	INIT_LIST_HEAD(&device->subdev);
 
@@ -3344,6 +3311,5 @@ done:
 		iounmap(device->pri);
 		device->pri = NULL;
 	}
-	mutex_unlock(&nv_devices_mutex);
 	return ret;
 }

@@ -22,7 +22,6 @@ struct nvkm_device {
 	const char *cfgopt;
 	const char *dbgopt;
 
-	struct list_head head;
 	struct mutex mutex;
 	int refcount;
 
@@ -107,8 +106,6 @@ struct nvkm_device_chip {
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
 };
-
-struct nvkm_device *nvkm_device_find(u64 name);
 
 /* privileged register interface accessor macros */
 #define nvkm_rd08(d,a) ioread8((d)->pri + (a))
