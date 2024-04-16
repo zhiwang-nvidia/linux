@@ -296,40 +296,33 @@ nvkm_uvmm_raw_put(struct nvif_vmm_priv *uvmm, u8 shift, u64 addr, u64 size)
 }
 
 static int
-nvkm_uvmm_mthd_raw_map(struct nvkm_uvmm *uvmm, struct nvif_vmm_raw_v0 *args)
+nvkm_uvmm_raw_map(struct nvif_vmm_priv *uvmm, u8 shift, u64 addr, u64 size, void *argv, u32 argc,
+		  struct nvif_mem_priv *umem, u64 offset)
 {
-	struct nvkm_client *client = uvmm->object.client;
 	struct nvkm_vmm *vmm = uvmm->vmm;
 	struct nvkm_vma vma = {
-		.addr = args->addr,
-		.size = args->size,
+		.addr = addr,
+		.size = size,
 		.used = true,
 		.mapref = false,
 		.no_comp = true,
 	};
 	struct nvkm_memory *memory;
-	void *argv = (void *)(uintptr_t)args->argv;
-	unsigned int argc = args->argc;
-	u64 handle = args->memory;
 	u8 refd;
 	int ret;
 
-	if (!nvkm_vmm_in_managed_range(vmm, args->addr, args->size))
+	if (!nvkm_vmm_in_managed_range(vmm, addr, size))
 		return -EINVAL;
 
-	ret = nvkm_uvmm_page_index(uvmm, args->size, args->shift, &refd);
+	ret = nvkm_uvmm_page_index(uvmm, size, shift, &refd);
 	if (ret)
 		return ret;
 
 	vma.page = vma.refd = refd;
 
-	memory = nvkm_umem_search(uvmm->vmm->mmu, client, args->memory);
-	if (IS_ERR(memory)) {
-		VMM_DEBUG(vmm, "memory %016llx %ld\n", handle, PTR_ERR(memory));
-		return PTR_ERR(memory);
-	}
+	memory = nvkm_umem_ref(umem);
 
-	ret = nvkm_memory_map(memory, args->offset, vmm, &vma, argv, argc);
+	ret = nvkm_memory_map(memory, offset, vmm, &vma, argv, argc);
 
 	nvkm_memory_unref(&vma.memory);
 	nvkm_memory_unref(&memory);
@@ -337,22 +330,20 @@ nvkm_uvmm_mthd_raw_map(struct nvkm_uvmm *uvmm, struct nvif_vmm_raw_v0 *args)
 }
 
 static int
-nvkm_uvmm_mthd_raw_unmap(struct nvkm_uvmm *uvmm, struct nvif_vmm_raw_v0 *args)
+nvkm_uvmm_raw_unmap(struct nvif_vmm_priv *uvmm, u8 shift, u64 addr, u64 size, bool sparse)
 {
 	struct nvkm_vmm *vmm = uvmm->vmm;
 	u8 refd;
 	int ret;
 
-	if (!nvkm_vmm_in_managed_range(vmm, args->addr, args->size))
+	if (!nvkm_vmm_in_managed_range(vmm, addr, size))
 		return -EINVAL;
 
-	ret = nvkm_uvmm_page_index(uvmm, args->size, args->shift, &refd);
+	ret = nvkm_uvmm_page_index(uvmm, size, shift, &refd);
 	if (ret)
 		return ret;
 
-	nvkm_vmm_raw_unmap(vmm, args->addr, args->size,
-			   args->sparse, refd);
-
+	nvkm_vmm_raw_unmap(vmm, addr, size, sparse, refd);
 	return 0;
 }
 
@@ -382,10 +373,6 @@ nvkm_uvmm_mthd_raw(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		return ret;
 
 	switch (args->v0.op) {
-	case NVIF_VMM_RAW_V0_MAP:
-		return nvkm_uvmm_mthd_raw_map(uvmm, &args->v0);
-	case NVIF_VMM_RAW_V0_UNMAP:
-		return nvkm_uvmm_mthd_raw_unmap(uvmm, &args->v0);
 	case NVIF_VMM_RAW_V0_SPARSE:
 		return nvkm_uvmm_mthd_raw_sparse(uvmm, &args->v0);
 	default:
@@ -431,6 +418,8 @@ nvkm_uvmm_impl = {
 	.pfnclr = nvkm_uvmm_pfnclr,
 	.raw.get = nvkm_uvmm_raw_get,
 	.raw.put = nvkm_uvmm_raw_put,
+	.raw.map = nvkm_uvmm_raw_map,
+	.raw.unmap = nvkm_uvmm_raw_unmap,
 };
 
 static void *

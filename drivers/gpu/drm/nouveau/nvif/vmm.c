@@ -81,38 +81,14 @@ int
 nvif_vmm_raw_map(struct nvif_vmm *vmm, u64 addr, u64 size, u8 shift,
 		 void *argv, u32 argc, struct nvif_mem *mem, u64 offset)
 {
-	struct nvif_vmm_raw_v0 args = {
-		.version = 0,
-		.op = NVIF_VMM_RAW_V0_MAP,
-		.addr = addr,
-		.size = size,
-		.shift = shift,
-		.memory = nvif_handle(&mem->object),
-		.offset = offset,
-		.argv = (u64)(uintptr_t)argv,
-		.argc = argc,
-	};
-
-
-	return nvif_object_mthd(&vmm->object, NVIF_VMM_V0_RAW,
-				&args, sizeof(args));
+	return vmm->impl->raw.map(vmm->priv, shift, addr, size, argv, argc, mem->priv, offset);
 }
 
 int
 nvif_vmm_raw_unmap(struct nvif_vmm *vmm, u64 addr, u64 size,
 		   u8 shift, bool sparse)
 {
-	struct nvif_vmm_raw_v0 args = {
-		.version = 0,
-		.op = NVIF_VMM_RAW_V0_UNMAP,
-		.addr = addr,
-		.size = size,
-		.shift = shift,
-		.sparse = sparse,
-	};
-
-	return nvif_object_mthd(&vmm->object, NVIF_VMM_V0_RAW,
-				&args, sizeof(args));
+	return vmm->impl->raw.unmap(vmm->priv, shift, addr, size, sparse);
 }
 
 int
