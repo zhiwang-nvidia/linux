@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_DISP_PRIV_H__
 #define __NVKM_DISP_PRIV_H__
-#define nvkm_udisp(p) container_of((p), struct nvkm_disp, client.object)
 #include <engine/disp.h>
 #include <core/enum.h>
 struct nvkm_head;

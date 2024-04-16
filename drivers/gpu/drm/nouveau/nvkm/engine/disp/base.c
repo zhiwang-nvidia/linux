@@ -240,7 +240,7 @@ nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
 	INIT_LIST_HEAD(&disp->iors);
 	INIT_LIST_HEAD(&disp->outps);
 	INIT_LIST_HEAD(&disp->conns);
-	spin_lock_init(&disp->client.lock);
+	spin_lock_init(&disp->user.lock);
 
 	ret = nvkm_engine_ctor(&nvkm_disp, device, type, inst, true, &disp->engine);
 	if (ret) {

@@ -65,8 +65,8 @@ struct nvkm_disp {
 
 	struct {
 		spinlock_t lock;
-		struct nvkm_object object;
-	} client;
+		bool allocated;
+	} user;
 };
 
 int nv04_disp_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_disp **);

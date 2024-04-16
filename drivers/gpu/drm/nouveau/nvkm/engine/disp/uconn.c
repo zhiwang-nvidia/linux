@@ -154,9 +154,9 @@ nvkm_uconn_dtor(struct nvkm_object *object)
 	struct nvkm_conn *conn = nvkm_uconn(object);
 	struct nvkm_disp *disp = conn->disp;
 
-	spin_lock(&disp->client.lock);
+	spin_lock(&disp->user.lock);
 	conn->object.func = NULL;
-	spin_unlock(&disp->client.lock);
+	spin_unlock(&disp->user.lock);
 	return NULL;
 }
 
@@ -166,10 +166,11 @@ nvkm_uconn = {
 	.uevent = nvkm_uconn_uevent,
 };
 
+#include "udisp.h"
 int
 nvkm_uconn_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nvkm_object **pobject)
 {
-	struct nvkm_disp *disp = nvkm_udisp(oclass->parent);
+	struct nvkm_disp *disp = container_of(oclass->parent, struct nvif_disp_priv, object)->disp;
 	struct nvkm_conn *cont, *conn = NULL;
 	union nvif_conn_args *args = argv;
 	int ret;
@@ -188,7 +189,7 @@ nvkm_uconn_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 		return -EINVAL;
 
 	ret = -EBUSY;
-	spin_lock(&disp->client.lock);
+	spin_lock(&disp->user.lock);
 	if (!conn->object.func) {
 		switch (conn->info.type) {
 		case DCB_CONNECTOR_VGA      : args->v0.type = NVIF_CONN_V0_VGA; break;
@@ -220,6 +221,6 @@ nvkm_uconn_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 		*pobject = &conn->object;
 		ret = 0;
 	}
-	spin_unlock(&disp->client.lock);
+	spin_unlock(&disp->user.lock);
 	return ret;
 }

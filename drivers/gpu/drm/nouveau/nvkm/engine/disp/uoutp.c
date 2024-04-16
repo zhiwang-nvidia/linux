@@ -570,9 +570,9 @@ nvkm_uoutp_dtor(struct nvkm_object *object)
 	struct nvkm_outp *outp = nvkm_uoutp(object);
 	struct nvkm_disp *disp = outp->disp;
 
-	spin_lock(&disp->client.lock);
+	spin_lock(&disp->user.lock);
 	outp->object.func = NULL;
-	spin_unlock(&disp->client.lock);
+	spin_unlock(&disp->user.lock);
 	return NULL;
 }
 
@@ -582,10 +582,11 @@ nvkm_uoutp = {
 	.mthd = nvkm_uoutp_mthd,
 };
 
+#include "udisp.h"
 int
 nvkm_uoutp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nvkm_object **pobject)
 {
-	struct nvkm_disp *disp = nvkm_udisp(oclass->parent);
+	struct nvkm_disp *disp = container_of(oclass->parent, struct nvif_disp_priv, object)->disp;
 	struct nvkm_outp *outt, *outp = NULL;
 	union nvif_outp_args *args = argv;
 	int ret;
@@ -604,7 +605,7 @@ nvkm_uoutp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 		return -EINVAL;
 
 	ret = -EBUSY;
-	spin_lock(&disp->client.lock);
+	spin_lock(&disp->user.lock);
 	if (!outp->object.func) {
 		switch (outp->info.type) {
 		case DCB_OUTPUT_ANALOG:
@@ -660,6 +661,6 @@ nvkm_uoutp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	}
 
 done:
-	spin_unlock(&disp->client.lock);
+	spin_unlock(&disp->user.lock);
 	return ret;
 }

@@ -19,7 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "priv.h"
+#include "udisp.h"
 #include "conn.h"
 #include "head.h"
 #include "outp.h"
@@ -30,7 +30,7 @@
 static int
 nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *sclass)
 {
-	struct nvkm_disp *disp = nvkm_udisp(object);
+	struct nvkm_disp *disp = container_of(object, struct nvif_disp_priv, object)->disp;
 
 	if (index-- == 0) {
 		sclass->base = (struct nvkm_sclass) { 0, 0, NVIF_CLASS_CONN };
@@ -62,13 +62,13 @@ nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *scl
 static void *
 nvkm_udisp_dtor(struct nvkm_object *object)
 {
-	struct nvkm_disp *disp = nvkm_udisp(object);
+	struct nvif_disp_priv *udisp = container_of(object, typeof(*udisp), object);
+	struct nvkm_disp *disp = udisp->disp;
 
-	spin_lock(&disp->client.lock);
-	if (object == &disp->client.object)
-		disp->client.object.func = NULL;
-	spin_unlock(&disp->client.lock);
-	return NULL;
+	spin_lock(&disp->user.lock);
+	disp->user.allocated = false;
+	spin_unlock(&disp->user.lock);
+	return udisp;
 }
 
 static const struct nvkm_object_func
@@ -85,18 +85,27 @@ nvkm_udisp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	struct nvkm_outp *outp;
 	struct nvkm_head *head;
 	union nvif_disp_args *args = argv;
+	struct nvif_disp_priv *udisp;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
 		return -ENOSYS;
 
-	spin_lock(&disp->client.lock);
-	if (disp->client.object.func) {
-		spin_unlock(&disp->client.lock);
+	udisp = kzalloc(sizeof(*udisp), GFP_KERNEL);
+	if (!udisp)
+		return -ENOMEM;
+
+	spin_lock(&disp->user.lock);
+	if (disp->user.allocated) {
+		spin_unlock(&disp->user.lock);
+		kfree(udisp);
 		return -EBUSY;
 	}
-	nvkm_object_ctor(&nvkm_udisp, oclass, &disp->client.object);
-	*pobject = &disp->client.object;
-	spin_unlock(&disp->client.lock);
+	disp->user.allocated = true;
+	spin_unlock(&disp->user.lock);
+
+	nvkm_object_ctor(&nvkm_udisp, oclass, &udisp->object);
+	udisp->disp = disp;
+	*pobject = &udisp->object;
 
 	args->v0.conn_mask = 0;
 	list_for_each_entry(conn, &disp->conns, head)

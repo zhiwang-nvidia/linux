@@ -815,11 +815,12 @@ gv100_disp_caps = {
 	.map = gv100_disp_caps_map,
 };
 
+#include "udisp.h"
 int
 gv100_disp_caps_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		    struct nvkm_object **pobject)
 {
-	struct nvkm_disp *disp = nvkm_udisp(oclass->parent);
+	struct nvkm_disp *disp = container_of(oclass->parent, struct nvif_disp_priv, object)->disp;
 	struct gv100_disp_caps *caps;
 
 	if (!(caps = kzalloc(sizeof(*caps), GFP_KERNEL)))

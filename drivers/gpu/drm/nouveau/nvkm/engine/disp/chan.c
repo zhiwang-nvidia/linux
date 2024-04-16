@@ -152,10 +152,10 @@ nvkm_disp_chan_dtor(struct nvkm_object *object)
 	struct nvkm_disp_chan *chan = nvkm_disp_chan(object);
 	struct nvkm_disp *disp = chan->disp;
 
-	spin_lock(&disp->client.lock);
+	spin_lock(&disp->user.lock);
 	if (disp->chan[chan->chid.user] == chan)
 		disp->chan[chan->chid.user] = NULL;
-	spin_unlock(&disp->client.lock);
+	spin_unlock(&disp->user.lock);
 
 	nvkm_memory_unref(&chan->memory);
 	return chan;
@@ -213,21 +213,22 @@ nvkm_disp_chan_new_(struct nvkm_disp *disp, int nr, const struct nvkm_oclass *oc
 			return ret;
 	}
 
-	spin_lock(&disp->client.lock);
+	spin_lock(&disp->user.lock);
 	if (disp->chan[chan->chid.user]) {
-		spin_unlock(&disp->client.lock);
+		spin_unlock(&disp->user.lock);
 		return -EBUSY;
 	}
 	disp->chan[chan->chid.user] = chan;
-	spin_unlock(&disp->client.lock);
+	spin_unlock(&disp->user.lock);
 	return 0;
 }
 
+#include "udisp.h"
 int
 nvkm_disp_wndw_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		   struct nvkm_object **pobject)
 {
-	struct nvkm_disp *disp = nvkm_udisp(oclass->parent);
+	struct nvkm_disp *disp = container_of(oclass->parent, struct nvif_disp_priv, object)->disp;
 
 	return nvkm_disp_chan_new_(disp, disp->wndw.nr, oclass, argv, argc, pobject);
 }
@@ -236,7 +237,7 @@ int
 nvkm_disp_chan_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		   struct nvkm_object **pobject)
 {
-	struct nvkm_disp *disp = nvkm_udisp(oclass->parent);
+	struct nvkm_disp *disp = container_of(oclass->parent, struct nvif_disp_priv, object)->disp;
 
 	return nvkm_disp_chan_new_(disp, disp->head.nr, oclass, argv, argc, pobject);
 }
@@ -245,7 +246,7 @@ int
 nvkm_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		   struct nvkm_object **pobject)
 {
-	struct nvkm_disp *disp = nvkm_udisp(oclass->parent);
+	struct nvkm_disp *disp = container_of(oclass->parent, struct nvif_disp_priv, object)->disp;
 
 	return nvkm_disp_chan_new_(disp, 1, oclass, argv, argc, pobject);
 }

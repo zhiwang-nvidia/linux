@@ -89,9 +89,9 @@ nvkm_uhead_dtor(struct nvkm_object *object)
 	struct nvkm_head *head = nvkm_uhead(object);
 	struct nvkm_disp *disp = head->disp;
 
-	spin_lock(&disp->client.lock);
+	spin_lock(&disp->user.lock);
 	head->object.func = NULL;
-	spin_unlock(&disp->client.lock);
+	spin_unlock(&disp->user.lock);
 	return NULL;
 }
 
@@ -102,10 +102,11 @@ nvkm_uhead = {
 	.uevent = nvkm_uhead_uevent,
 };
 
+#include "udisp.h"
 int
 nvkm_uhead_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nvkm_object **pobject)
 {
-	struct nvkm_disp *disp = nvkm_udisp(oclass->parent);
+	struct nvkm_disp *disp = container_of(oclass->parent, struct nvif_disp_priv, object)->disp;
 	struct nvkm_head *head;
 	union nvif_head_args *args = argv;
 	int ret;
@@ -116,12 +117,12 @@ nvkm_uhead_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 		return -EINVAL;
 
 	ret = -EBUSY;
-	spin_lock(&disp->client.lock);
+	spin_lock(&disp->user.lock);
 	if (!head->object.func) {
 		nvkm_object_ctor(&nvkm_uhead, oclass, &head->object);
 		*pobject = &head->object;
 		ret = 0;
 	}
-	spin_unlock(&disp->client.lock);
+	spin_unlock(&disp->user.lock);
 	return ret;
 }
