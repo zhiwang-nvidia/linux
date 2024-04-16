@@ -26,9 +26,6 @@
 #include <core/event.h>
 #include <subdev/mmu.h>
 
-#include <nvif/clb069.h>
-#include <nvif/unpack.h>
-
 struct nvif_faultbuf_priv {
 	struct nvkm_object object;
 	struct nvkm_fault_buffer *buffer;
@@ -37,18 +34,13 @@ struct nvif_faultbuf_priv {
 };
 
 static int
-nvkm_ufault_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
+nvkm_ufault_event_new(struct nvif_faultbuf_priv *ufault, u64 token,
+		      const struct nvif_event_impl **pimpl, struct nvif_event_priv **ppriv)
 {
-	struct nvkm_fault_buffer *buffer = container_of(object, struct nvif_faultbuf_priv, object)->buffer;
-	union nvif_clb069_event_args *args = argv;
+	struct nvkm_fault_buffer *buffer = ufault->buffer;
 
-	if (!uevent)
-		return 0;
-	if (argc != sizeof(args->vn))
-		return -ENOSYS;
-
-	return nvkm_uevent_add(uevent, &buffer->fault->event, buffer->id,
-			       NVKM_FAULT_BUFFER_EVENT_PENDING, NULL);
+	return nvkm_uevent_new_(&ufault->object, token, &buffer->fault->event, true, buffer->id,
+				NVKM_FAULT_BUFFER_EVENT_PENDING, NULL, pimpl, ppriv);
 }
 
 static void
@@ -63,6 +55,7 @@ nvkm_ufault_del(struct nvif_faultbuf_priv *ufault)
 static const struct nvif_faultbuf_impl
 nvkm_ufault_impl = {
 	.del = nvkm_ufault_del,
+	.event.new = nvkm_ufault_event_new,
 };
 
 static int
@@ -96,7 +89,6 @@ nvkm_ufault = {
 	.dtor = nvkm_ufault_dtor,
 	.init = nvkm_ufault_init,
 	.fini = nvkm_ufault_fini,
-	.uevent = nvkm_ufault_uevent,
 };
 
 int

@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <nvif/event.h>
+#include <nvif/driverif.h>
 #include <nvif/printf.h>
 
 #include <nvif/class.h>
@@ -28,29 +29,51 @@
 int
 nvif_event_block(struct nvif_event *event)
 {
-	if (nvif_event_constructed(event)) {
+	int ret;
+
+	if (!event->impl && nvif_event_constructed(event)) {
 		int ret = nvif_mthd(&event->object, NVIF_EVENT_V0_BLOCK, NULL, 0);
 		NVIF_ERRON(ret, &event->object, "[BLOCK]");
 		return ret;
 	}
-	return 0;
+
+	if (!event->impl)
+		return 0;
+
+	ret = event->impl->block(event->priv);
+	NVIF_ERRON(ret, &event->object, "[BLOCK]");
+	return ret;
 }
 
 int
 nvif_event_allow(struct nvif_event *event)
 {
-	if (nvif_event_constructed(event)) {
+	int ret;
+
+	if (!event->impl && nvif_event_constructed(event)) {
 		int ret = nvif_mthd(&event->object, NVIF_EVENT_V0_ALLOW, NULL, 0);
 		NVIF_ERRON(ret, &event->object, "[ALLOW]");
 		return ret;
 	}
-	return 0;
+
+	if (!event->impl)
+		return 0;
+
+	ret = event->impl->allow(event->priv);
+	NVIF_ERRON(ret, &event->object, "[ALLOW]");
+	return ret;
 }
 
 void
 nvif_event_dtor(struct nvif_event *event)
 {
-	nvif_object_dtor(&event->object);
+	if (!event->impl) {
+		nvif_object_dtor(&event->object);
+		return;
+	}
+
+	event->impl->del(event->priv);
+	event->impl = NULL;
 }
 
 int

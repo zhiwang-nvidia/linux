@@ -22,6 +22,7 @@
 #include <core/event.h>
 #include <core/client.h>
 
+#include <nvif/driverif.h>
 #include <nvif/if000e.h>
 
 struct nvif_event_priv {
@@ -70,6 +71,38 @@ nvkm_uevent_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 
 	return -EINVAL;
 }
+
+static int
+nvkm_uevent_block(struct nvif_event_priv *uevent)
+{
+	nvkm_event_ntfy_block(&uevent->ntfy);
+	atomic_set(&uevent->allowed, 0);
+	return 0;
+}
+
+static int
+nvkm_uevent_allow(struct nvif_event_priv *uevent)
+{
+	nvkm_event_ntfy_allow(&uevent->ntfy);
+	atomic_set(&uevent->allowed, 1);
+	return 0;
+}
+
+static void
+nvkm_uevent_del(struct nvif_event_priv *uevent)
+{
+	struct nvkm_object *object = &uevent->object;
+
+	nvkm_object_fini(object, false);
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_event_impl
+nvkm_uevent_impl = {
+	.del = nvkm_uevent_del,
+	.allow = nvkm_uevent_allow,
+	.block = nvkm_uevent_block,
+};
 
 static int
 nvkm_uevent_fini(struct nvkm_object *object, bool suspend)
@@ -153,4 +186,36 @@ nvkm_uevent_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	uevent->wait = args->v0.wait;
 	uevent->ntfy.event = NULL;
 	return parent->func->uevent(parent, &args->v0.data, argc - sizeof(args->v0), uevent);
+}
+
+int
+nvkm_uevent_new_(struct nvkm_object *parent, u64 handle, struct nvkm_event *event,
+		 bool wait, int id, u32 bits, nvkm_uevent_func func,
+		 const struct nvif_event_impl **pimpl, struct nvif_event_priv **ppriv)
+{
+	struct nvif_event_priv *uevent;
+	int ret;
+
+	uevent = kzalloc(sizeof(*uevent), GFP_KERNEL);
+	if (!uevent)
+		return -ENOMEM;
+
+	nvkm_object_ctor(&nvkm_uevent, &(struct nvkm_oclass) {}, &uevent->object);
+	uevent->object.object = handle;
+	uevent->parent = parent;
+	uevent->func = NULL;
+	uevent->wait = wait;
+	uevent->ntfy.event = NULL;
+
+	ret = nvkm_uevent_add(uevent, event, id, bits, func);
+	if (ret) {
+		kfree(uevent);
+		return ret;
+	}
+
+	*pimpl = &nvkm_uevent_impl;
+	*ppriv = uevent;
+
+	nvkm_object_link(parent, &uevent->object);
+	return 0;
 }

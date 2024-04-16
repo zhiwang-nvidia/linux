@@ -10,7 +10,10 @@ struct nvif_event;
 typedef int (*nvif_event_func)(struct nvif_event *, void *repv, u32 repc);
 
 struct nvif_event {
+	const struct nvif_event_impl *impl;
+	struct nvif_event_priv *priv;
 	struct nvif_object object;
+
 	nvif_event_func func;
 };
 

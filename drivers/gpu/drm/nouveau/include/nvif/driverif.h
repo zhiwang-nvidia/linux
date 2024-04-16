@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NVIF_DRIVERIF_H__
 #define __NVIF_DRIVERIF_H__
+struct nvif_event_priv;
 struct nvif_client_priv;
 struct nvif_device_priv;
 struct nvif_control_priv;
@@ -9,6 +10,12 @@ struct nvif_mmu_priv;
 struct nvif_mem_priv;
 struct nvif_vmm_priv;
 struct nvif_faultbuf_priv;
+
+struct nvif_event_impl {
+	void (*del)(struct nvif_event_priv *);
+	int (*allow)(struct nvif_event_priv *);
+	int (*block)(struct nvif_event_priv *);
+};
 
 struct nvif_driver {
 	const char *name;
@@ -202,6 +209,11 @@ struct nvif_faultbuf_impl {
 	u32 entries;
 	u32 get;
 	u32 put;
+
+	struct {
+		int (*new)(struct nvif_faultbuf_priv *, u64 token,
+			   const struct nvif_event_impl **, struct nvif_event_priv **);
+	} event;
 };
 
 struct nvif_device_impl {

@@ -29,7 +29,6 @@
 #include <nvif/vmm.h>
 
 #include <nvif/class.h>
-#include <nvif/clb069.h>
 #include <nvif/ifc00d.h>
 
 #include <linux/sched/mm.h>
@@ -998,10 +997,13 @@ nouveau_svm_fault_buffer_ctor(struct nouveau_svm *svm, s32 oclass, int id)
 
 	INIT_WORK(&buffer->work, nouveau_svm_fault);
 
-	ret = nvif_event_ctor(&buffer->object, "svmFault", id, nouveau_svm_event, true, NULL, 0,
-			      &buffer->notify);
+	ret = buffer->impl->event.new(buffer->priv, nvif_handle(&buffer->notify.object),
+				      &buffer->notify.impl, &buffer->notify.priv);
 	if (ret)
 		return ret;
+
+	nvif_event_ctor(&buffer->object, "svmFaultEvent", buffer->id, nouveau_svm_event,
+			&buffer->notify);
 
 	buffer->fault = kvcalloc(buffer->entries, sizeof(*buffer->fault), GFP_KERNEL);
 	if (!buffer->fault)
