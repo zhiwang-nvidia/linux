@@ -37,6 +37,7 @@
 #include <drm/drm_ioctl.h>
 #include <drm/drm_vblank.h>
 
+#include <core/driver.h>
 #include <core/gpuobj.h>
 #include <core/option.h>
 #include <core/pci.h>
@@ -111,30 +112,6 @@ module_param_named(runpm, nouveau_runtime_pm, int, 0400);
 static struct drm_driver driver_stub;
 static struct drm_driver driver_pci;
 static struct drm_driver driver_platform;
-
-static u64
-nouveau_pci_name(struct pci_dev *pdev)
-{
-	u64 name = (u64)pci_domain_nr(pdev->bus) << 32;
-	name |= pdev->bus->number << 16;
-	name |= PCI_SLOT(pdev->devfn) << 8;
-	return name | PCI_FUNC(pdev->devfn);
-}
-
-static u64
-nouveau_platform_name(struct platform_device *platformdev)
-{
-	return platformdev->id;
-}
-
-static u64
-nouveau_name(struct drm_device *dev)
-{
-	if (dev_is_pci(dev->dev))
-		return nouveau_pci_name(to_pci_dev(dev->dev));
-	else
-		return nouveau_platform_name(to_platform_device(dev->dev));
-}
 
 static inline bool
 nouveau_cli_work_ready(struct dma_fence *fence)
@@ -564,6 +541,9 @@ nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 		{}
 	};
 	struct nouveau_drm *drm;
+	const struct nvif_driver *driver;
+	const struct nvif_client_impl *impl;
+	struct nvif_client_priv *priv;
 	int ret;
 
 	if (!(drm = kzalloc(sizeof(*drm), GFP_KERNEL)))
@@ -576,10 +556,11 @@ nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 	mutex_init(&drm->client_mutex);
 	drm->_client.object.parent = &drm->parent;
 
-	ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug, "drm",
-			       nouveau_name(dev), &drm->_client);
+	ret = nvkm_driver_ctor(drm->nvkm, &driver, &impl, &priv);
 	if (ret)
 		goto fail_alloc;
+
+	nvif_driver_ctor(&drm->parent, driver, "drm", impl, priv, &drm->_client);
 
 	ret = nvif_device_ctor(&drm->_client, "drmDevice", &drm->device);
 	if (ret) {

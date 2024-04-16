@@ -33,19 +33,27 @@
 int
 nvif_client_suspend(struct nvif_client *client)
 {
-	return client->driver->suspend(client->object.priv);
+	return client->driver->suspend(client->priv);
 }
 
 int
 nvif_client_resume(struct nvif_client *client)
 {
-	return client->driver->resume(client->object.priv);
+	return client->driver->resume(client->priv);
 }
 
 void
 nvif_client_dtor(struct nvif_client *client)
 {
-	nvif_object_dtor(&client->object);
+	if (!client->impl) {
+		nvif_object_dtor(&client->object);
+		client->driver = NULL;
+		return;
+	}
+
+	client->impl->del(client->priv);
+	client->impl = NULL;
+	client->object.client = NULL;
 	client->driver = NULL;
 }
 

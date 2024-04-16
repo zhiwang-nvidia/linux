@@ -32,4 +32,5 @@ nvkm_blob_dtor(struct nvkm_blob *blob)
 	for (p = nvkm_list_find(p, (h), m, (c)); p; p = nvkm_list_find_next(p, (h), m, (c)))
 
 #define nvkm_uevent nvif_event_priv
+#define nvkm_client nvif_client_priv
 #endif

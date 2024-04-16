@@ -2,10 +2,13 @@
 #ifndef __NVIF_DRIVER_H__
 #define __NVIF_DRIVER_H__
 #include <nvif/os.h>
+struct nvif_parent;
+struct nvif_driver;
+struct nvif_client_impl;
+struct nvif_client_priv;
 struct nvif_client;
 
-int nvif_driver_init(const char *drv, const char *cfg, const char *dbg,
-		     const char *name, u64 device, struct nvif_client *);
-
-extern const struct nvif_driver nvif_driver_nvkm;
+void nvif_driver_ctor(struct nvif_parent *, const struct nvif_driver *, const char *name,
+		      const struct nvif_client_impl *, struct nvif_client_priv *,
+		      struct nvif_client *);
 #endif

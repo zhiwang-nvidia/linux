@@ -330,11 +330,7 @@ nvkm_udevice_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 	nvkm_object_ctor(&nvkm_udevice, oclass, &udev->object);
 	*pobject = &udev->object;
 
-	/* find the device that matches what the client requested */
-	udev->device = nvkm_device_find(client->device);
-	if (!udev->device)
-		return -ENODEV;
-
+	udev->device = client->device;
 	return 0;
 }
 

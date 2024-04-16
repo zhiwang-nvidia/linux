@@ -25,17 +25,17 @@
 #include <nvif/driverif.h>
 #include <nvif/client.h>
 
-int
-nvif_driver_init(const char *drv, const char *cfg, const char *dbg,
-		 const char *name, u64 device, struct nvif_client *client)
+void
+nvif_driver_ctor(struct nvif_parent *parent, const struct nvif_driver *driver, const char *name,
+		 const struct nvif_client_impl *impl, struct nvif_client_priv *priv,
+		 struct nvif_client *client)
 {
-	int ret;
+	client->object.parent = parent;
+	client->object.client = client;
 
-	client->driver = &nvif_driver_nvkm;
-
-	ret = client->driver->init(name, device, cfg, dbg, &client->object.priv);
-	if (ret)
-		return ret;
-
-	return nvif_client_ctor(client, name, client);
+	nvif_object_ctor(&client->object, name ?: "nvifDriver", 0, 0, &client->object);
+	client->object.priv = priv;
+	client->driver = driver;
+	client->impl = impl;
+	client->priv = priv;
 }

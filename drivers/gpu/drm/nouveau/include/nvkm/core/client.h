@@ -3,10 +3,12 @@
 #define __NVKM_CLIENT_H__
 #include <core/object.h>
 
+#include <nvif/driverif.h>
+
 struct nvkm_client {
 	struct nvkm_object object;
 	char name[32];
-	u64 device;
+	struct nvkm_device *device;
 	u32 debug;
 
 	struct rb_root objroot;
@@ -16,8 +18,8 @@ struct nvkm_client {
 	int (*event)(u64 token, void *argv, u32 argc);
 };
 
-int  nvkm_client_new(const char *name, u64 device, const char *cfg, const char *dbg,
-		     int (*)(u64, void *, u32), struct nvkm_client **);
+int nvkm_client_new(const char *name, struct nvkm_device *, int (*event)(u64, void *, u32),
+		    const struct nvif_client_impl **, struct nvif_client_priv **);
 
 /* logging for client-facing objects */
 #define nvif_printk(o,l,p,f,a...) do {                                         \

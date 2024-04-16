@@ -26,6 +26,7 @@
 #include <core/option.h>
 
 #include <nvif/class.h>
+#include <nvif/driverif.h>
 #include <nvif/event.h>
 #include <nvif/if0000.h>
 #include <nvif/unpack.h>
@@ -41,9 +42,11 @@ nvkm_uclient_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	int ret = -ENOSYS;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))){
+		const struct nvif_client_impl *impl;
+
 		args->v0.name[sizeof(args->v0.name) - 1] = 0;
-		ret = nvkm_client_new(args->v0.name, oclass->client->device, NULL,
-				      NULL, oclass->client->event, &client);
+		ret = nvkm_client_new(args->v0.name, oclass->client->device,
+				      oclass->client->event, &impl, &client);
 		if (ret)
 			return ret;
 	} else
@@ -63,6 +66,19 @@ nvkm_uclient_sclass = {
 	.minver = 0,
 	.maxver = 0,
 	.ctor = nvkm_uclient_new,
+};
+
+static void
+nvkm_client_del(struct nvif_client_priv *client)
+{
+	struct nvkm_object *object = &client->object;
+
+	nvkm_object_del(&object);
+}
+
+const struct nvif_client_impl
+nvkm_client_impl = {
+	.del = nvkm_client_del,
 };
 
 static int
@@ -103,22 +119,26 @@ nvkm_client = {
 };
 
 int
-nvkm_client_new(const char *name, u64 device, const char *cfg, const char *dbg,
-		int (*event)(u64, void *, u32), struct nvkm_client **pclient)
+nvkm_client_new(const char *name, struct nvkm_device *device, int (*event)(u64, void *, u32),
+		const struct nvif_client_impl **pimpl, struct nvif_client_priv **ppriv)
 {
 	struct nvkm_oclass oclass = { .base = nvkm_uclient_sclass };
 	struct nvkm_client *client;
 
-	if (!(client = *pclient = kzalloc(sizeof(*client), GFP_KERNEL)))
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	if (!client)
 		return -ENOMEM;
 	oclass.client = client;
 
 	nvkm_object_ctor(&nvkm_client, &oclass, &client->object);
 	snprintf(client->name, sizeof(client->name), "%s", name);
 	client->device = device;
-	client->debug = nvkm_dbgopt(dbg, "CLIENT");
+	client->debug = NV_DBG_ERROR;
 	client->objroot = RB_ROOT;
 	spin_lock_init(&client->obj_lock);
 	client->event = event;
+
+	*pimpl = &nvkm_client_impl;
+	*ppriv = client;
 	return 0;
 }

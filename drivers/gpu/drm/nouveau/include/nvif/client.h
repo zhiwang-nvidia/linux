@@ -5,7 +5,10 @@
 #include <nvif/object.h>
 
 struct nvif_client {
+	const struct nvif_client_impl *impl;
+	struct nvif_client_priv *priv;
 	struct nvif_object object;
+
 	const struct nvif_driver *driver;
 };
 

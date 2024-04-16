@@ -169,8 +169,8 @@ nvif_object_unmap(struct nvif_object *object)
 	struct nvif_client *client = object->client;
 	if (object->map.ptr) {
 		if (object->map.size) {
-			client->driver->unmap(client, object->map.ptr,
-						      object->map.size);
+			client->driver->unmap(client->object.priv, object->map.ptr,
+								   object->map.size);
 			object->map.size = 0;
 		}
 		object->map.ptr = NULL;
@@ -186,7 +186,7 @@ nvif_object_map(struct nvif_object *object, void *argv, u32 argc)
 	int ret = nvif_object_map_handle(object, argv, argc, &handle, &length);
 	if (ret >= 0) {
 		if (ret) {
-			object->map.ptr = client->driver->map(client,
+			object->map.ptr = client->driver->map(client->object.priv,
 							      handle,
 							      length);
 			if (ret = -ENOMEM, object->map.ptr) {

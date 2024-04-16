@@ -25,8 +25,8 @@
 /*******************************************************************************
  * NVIF client driver - NVKM directly linked
  ******************************************************************************/
-
 #include <core/client.h>
+#include <core/driver.h>
 #include <core/event.h>
 #include <core/ioctl.h>
 
@@ -34,13 +34,13 @@
 #include <nvif/event.h>
 
 static void
-nvkm_driver_unmap(void *priv, void __iomem *ptr, u32 size)
+nvkm_driver_unmap(struct nvif_client_priv *client, void __iomem *ptr, u32 size)
 {
 	iounmap(ptr);
 }
 
 static void __iomem *
-nvkm_driver_map(void *priv, u64 handle, u32 size)
+nvkm_driver_map(struct nvif_client_priv *client, u64 handle, u32 size)
 {
 	return ioremap(handle, size);
 }
@@ -52,18 +52,14 @@ nvkm_driver_ioctl(void *priv, void *data, u32 size, void **hack)
 }
 
 static int
-nvkm_driver_resume(void *priv)
+nvkm_driver_resume(struct nvif_client_priv *client)
 {
-	struct nvkm_client *client = priv;
-
 	return nvkm_object_init(&client->object);
 }
 
 static int
-nvkm_driver_suspend(void *priv)
+nvkm_driver_suspend(struct nvif_client_priv *client)
 {
-	struct nvkm_client *client = priv;
-
 	return nvkm_object_fini(&client->object, true);
 }
 
@@ -79,20 +75,26 @@ nvkm_driver_event(u64 token, void *repv, u32 repc)
 	return NVKM_EVENT_DROP;
 }
 
-static int
-nvkm_driver_init(const char *name, u64 device, const char *cfg, const char *dbg, void **ppriv)
-{
-	return nvkm_client_new(name, device, cfg, dbg, nvkm_driver_event,
-			       (struct nvkm_client **)ppriv);
-}
-
-const struct nvif_driver
-nvif_driver_nvkm = {
+static const struct nvif_driver
+nvkm_driver = {
 	.name = "nvkm",
-	.init = nvkm_driver_init,
 	.suspend = nvkm_driver_suspend,
 	.resume = nvkm_driver_resume,
 	.ioctl = nvkm_driver_ioctl,
 	.map = nvkm_driver_map,
 	.unmap = nvkm_driver_unmap,
 };
+
+int
+nvkm_driver_ctor(struct nvkm_device *device, const struct nvif_driver **pdrv,
+		 const struct nvif_client_impl **pimpl, struct nvif_client_priv **ppriv)
+{
+	int ret;
+
+	ret = nvkm_client_new("driver", device, nvkm_driver_event, pimpl, ppriv);
+	if (ret)
+		return ret;
+
+	*pdrv = &nvkm_driver;
+	return 0;
+}
