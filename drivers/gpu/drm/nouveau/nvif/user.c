@@ -30,6 +30,8 @@ void
 nvif_user_dtor(struct nvif_device *device)
 {
 	if (device->user.impl) {
+		nvif_object_unmap_cpu(&device->user.map);
+
 		device->user.impl->del(device->user.priv);
 		device->user.impl = NULL;
 		device->user.func = NULL;
@@ -64,6 +66,11 @@ nvif_user_ctor(struct nvif_device *device, const char *name)
 	nvif_object_ctor(&device->object, name ?: "nvifUsermode", 0, oclass, &device->user.object);
 	device->user.func = func;
 
-	nvif_object_map(&device->user.object, NULL, 0);
+	ret = nvif_object_map_cpu(&device->user.object, &device->user.impl->map, &device->user.map);
+	if (ret) {
+		nvif_user_dtor(device);
+		return ret;
+	}
+
 	return 0;
 }

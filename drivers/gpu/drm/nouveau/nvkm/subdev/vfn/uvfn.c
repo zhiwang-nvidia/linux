@@ -31,19 +31,6 @@ struct nvif_usermode_priv {
 	struct nvif_usermode_impl impl;
 };
 
-static int
-nvkm_uvfn_map(struct nvkm_object *object, void *argv, u32 argc,
-	      enum nvkm_object_map *type, u64 *addr, u64 *size)
-{
-	struct nvkm_vfn *vfn = container_of(object, struct nvif_usermode_priv, object)->vfn;
-	struct nvkm_device *device = vfn->subdev.device;
-
-	*addr = device->func->resource_addr(device, 0) + vfn->addr.user;
-	*size = vfn->func->user.size;
-	*type = NVKM_OBJECT_MAP_IO;
-	return 0;
-}
-
 static void
 nvkm_uvfn_del(struct nvif_usermode_priv *uvfn)
 {
@@ -59,13 +46,13 @@ nvkm_uvfn_impl = {
 
 static const struct nvkm_object_func
 nvkm_uvfn = {
-	.map = nvkm_uvfn_map,
 };
 
 int
 nvkm_uvfn_new(struct nvkm_device *device, const struct nvif_usermode_impl **pimpl,
 	      struct nvif_usermode_priv **ppriv, struct nvkm_object **pobject)
 {
+	struct nvkm_vfn *vfn = device->vfn;
 	struct nvif_usermode_priv *uvfn;
 
 	if (!(uvfn = kzalloc(sizeof(*uvfn), GFP_KERNEL)))
@@ -75,6 +62,9 @@ nvkm_uvfn_new(struct nvkm_device *device, const struct nvif_usermode_impl **pimp
 	uvfn->vfn = device->vfn;
 
 	uvfn->impl = nvkm_uvfn_impl;
+	uvfn->impl.map.type = NVIF_MAP_IO;
+	uvfn->impl.map.handle = device->func->resource_addr(device, 0) + vfn->addr.user;
+	uvfn->impl.map.length = vfn->func->user.size;
 
 	*pimpl = &uvfn->impl;
 	*ppriv = uvfn;

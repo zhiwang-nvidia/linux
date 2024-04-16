@@ -7,6 +7,7 @@ struct nvif_user {
 	const struct nvif_usermode_impl *impl;
 	struct nvif_usermode_priv *priv;
 	struct nvif_object object;
+	struct nvif_map map;
 
 	const struct nvif_user_func *func;
 };

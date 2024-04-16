@@ -72,6 +72,7 @@ struct nvif_control_impl {
 
 struct nvif_usermode_impl {
 	void (*del)(struct nvif_usermode_priv *);
+	struct nvif_mapinfo map;
 };
 
 struct nvif_device_impl {
