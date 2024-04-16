@@ -579,7 +579,7 @@ nouveau_parent = {
 };
 
 static int
-nouveau_drm_device_init(struct drm_device *dev)
+nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 {
 	struct nouveau_drm *drm;
 	int ret;
@@ -588,6 +588,7 @@ nouveau_drm_device_init(struct drm_device *dev)
 		return -ENOMEM;
 	dev->dev_private = drm;
 	drm->dev = dev;
+	drm->nvkm = nvkm;
 
 	nvif_parent_ctor(&nouveau_parent, &drm->parent);
 	drm->master.base.object.parent = &drm->parent;
@@ -830,7 +831,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, drm_dev);
 
-	ret = nouveau_drm_device_init(drm_dev);
+	ret = nouveau_drm_device_init(drm_dev, device);
 	if (ret)
 		goto fail_pci;
 
@@ -861,13 +862,9 @@ void
 nouveau_drm_device_remove(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_client *client;
-	struct nvkm_device *device;
+	struct nvkm_device *device = drm->nvkm;
 
 	drm_dev_unplug(dev);
-
-	client = nvxx_client(&drm->client.base);
-	device = nvkm_device_find(client->device);
 
 	nouveau_drm_device_fini(dev);
 	drm_dev_put(dev);
@@ -1376,7 +1373,7 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 		goto err_free;
 	}
 
-	err = nouveau_drm_device_init(drm);
+	err = nouveau_drm_device_init(drm, *pdevice);
 	if (err)
 		goto err_put;
 
