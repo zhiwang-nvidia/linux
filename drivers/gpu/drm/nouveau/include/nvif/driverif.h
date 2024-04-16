@@ -296,6 +296,11 @@ struct nvif_outp_impl {
 	} lvds;
 
 	struct {
+		int (*get)(struct nvif_outp_priv *, u8 *level);
+		int (*set)(struct nvif_outp_priv *, u8 level);
+	} bl;
+
+	struct {
 		u8 aux;
 		u8 mst;
 		u8 increased_wm;

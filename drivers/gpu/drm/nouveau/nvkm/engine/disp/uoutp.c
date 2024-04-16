@@ -320,39 +320,29 @@ nvkm_uoutp_mthd_lvds(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_bl_set(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_bl_set(struct nvif_outp_priv *uoutp, u8 level)
 {
-	union nvif_outp_bl_get_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
 	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-
-	if (outp->func->bl.set)
-		ret = outp->func->bl.set(outp, args->v0.level);
-	else
-		ret = -EINVAL;
-
+	nvkm_uoutp_lock(uoutp);
+	ret = outp->func->bl.set(outp, level);
+	nvkm_uoutp_unlock(uoutp);
 	return ret;
 }
 
 static int
-nvkm_uoutp_mthd_bl_get(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_bl_get(struct nvif_outp_priv *uoutp, u8 *level)
 {
-	union nvif_outp_bl_get_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
 	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-
-	if (outp->func->bl.get) {
-		ret = outp->func->bl.get(outp);
-		if (ret >= 0) {
-			args->v0.level = ret;
-			ret = 0;
-		}
-	} else {
-		ret = -EINVAL;
+	nvkm_uoutp_lock(uoutp);
+	ret = outp->func->bl.get(outp);
+	nvkm_uoutp_unlock(uoutp);
+	if (ret >= 0) {
+		*level = ret;
+		ret = 0;
 	}
 
 	return ret;
@@ -552,8 +542,6 @@ static int
 nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc, bool *invalid)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_BL_GET     : return nvkm_uoutp_mthd_bl_get     (outp, argv, argc);
-	case NVIF_OUTP_V0_BL_SET     : return nvkm_uoutp_mthd_bl_set     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_AUX_PWR : return nvkm_uoutp_mthd_dp_aux_pwr (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_AUX_XFER: return nvkm_uoutp_mthd_dp_aux_xfer(outp, argv, argc);
 	case NVIF_OUTP_V0_DP_RATES   : return nvkm_uoutp_mthd_dp_rates   (outp, argv, argc);
@@ -703,6 +691,11 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 		uoutp->impl.ddc = outp->info.i2c_index;
 	uoutp->impl.heads = outp->info.heads;
 	uoutp->impl.conn = outp->info.connector;
+
+	if (outp->func->bl.get) {
+		uoutp->impl.bl.get = nvkm_uoutp_bl_get;
+		uoutp->impl.bl.set = nvkm_uoutp_bl_set;
+	}
 
 	spin_lock(&disp->user.lock);
 	if (outp->user) {
