@@ -365,7 +365,7 @@ nvkm_uchan_new(struct nvkm_fifo *fifo, struct nvkm_cgrp *cgrp, const struct nvkm
 	}
 
 	if (args->v0.huserd) {
-		userd = nvkm_umem_search(oclass->client, args->v0.huserd);
+		userd = nvkm_umem_search(fifo->engine.subdev.device->mmu, oclass->client, args->v0.huserd);
 		if (IS_ERR(userd)) {
 			ret = PTR_ERR(userd);
 			userd = NULL;

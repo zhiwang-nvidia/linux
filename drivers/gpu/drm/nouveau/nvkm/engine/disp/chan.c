@@ -234,7 +234,7 @@ nvkm_disp_chan_new_(struct nvkm_disp *disp, int nr, const struct nvkm_oclass *oc
 	*pobject = &uchan->object;
 
 	if (chan->func->push) {
-		chan->memory = nvkm_umem_search(uchan->object.client, args->v0.pushbuf);
+		chan->memory = nvkm_umem_search(disp->engine.subdev.device->mmu, uchan->object.client, args->v0.pushbuf);
 		if (IS_ERR(chan->memory))
 			return PTR_ERR(chan->memory);
 

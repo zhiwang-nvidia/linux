@@ -178,7 +178,7 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	if (nvkm_vmm_in_managed_range(vmm, addr, size) && vmm->managed.raw)
 		return -EINVAL;
 
-	memory = nvkm_umem_search(client, handle);
+	memory = nvkm_umem_search(vmm->mmu, client, handle);
 	if (IS_ERR(memory)) {
 		VMM_DEBUG(vmm, "memory %016llx %ld\n", handle, PTR_ERR(memory));
 		return PTR_ERR(memory);
@@ -421,7 +421,7 @@ nvkm_uvmm_mthd_raw_map(struct nvkm_uvmm *uvmm, struct nvif_vmm_raw_v0 *args)
 
 	vma.page = vma.refd = refd;
 
-	memory = nvkm_umem_search(client, args->memory);
+	memory = nvkm_umem_search(uvmm->vmm->mmu, client, args->memory);
 	if (IS_ERR(memory)) {
 		VMM_DEBUG(vmm, "memory %016llx %ld\n", handle, PTR_ERR(memory));
 		return PTR_ERR(memory);

@@ -120,7 +120,5 @@ nvkm_client_new(const char *name, u64 device, const char *cfg, const char *dbg,
 	client->objroot = RB_ROOT;
 	spin_lock_init(&client->obj_lock);
 	client->event = event;
-	INIT_LIST_HEAD(&client->umem);
-	spin_lock_init(&client->lock);
 	return 0;
 }

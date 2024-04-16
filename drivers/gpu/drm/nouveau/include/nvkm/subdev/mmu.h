@@ -109,7 +109,7 @@ int nvkm_vmm_map(struct nvkm_vmm *, struct nvkm_vma *, void *argv, u32 argc,
 		 struct nvkm_vmm_map *);
 void nvkm_vmm_unmap(struct nvkm_vmm *, struct nvkm_vma *);
 
-struct nvkm_memory *nvkm_umem_search(struct nvkm_client *, u64);
+struct nvkm_memory *nvkm_umem_search(struct nvkm_mmu *, struct nvkm_client *, u64);
 struct nvkm_vmm *nvkm_uvmm_search(struct nvkm_client *, u64 handle);
 
 struct nvkm_mmu {
@@ -148,6 +148,9 @@ struct nvkm_mmu {
 	struct mutex mutex; /* serialises mmu invalidations */
 
 	struct nvkm_device_oclass user;
+
+	spinlock_t umem_lock;
+	struct list_head umem;
 };
 
 int nv04_mmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_mmu **);

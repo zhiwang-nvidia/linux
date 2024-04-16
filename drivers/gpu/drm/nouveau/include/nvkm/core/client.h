@@ -14,9 +14,6 @@ struct nvkm_client {
 
 	void *data;
 	int (*event)(u64 token, void *argv, u32 argc);
-
-	struct list_head umem;
-	spinlock_t lock;
 };
 
 int  nvkm_client_new(const char *name, u64 device, const char *cfg, const char *dbg,
