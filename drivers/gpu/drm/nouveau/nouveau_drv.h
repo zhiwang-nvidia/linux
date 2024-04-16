@@ -378,7 +378,7 @@ extern int nouveau_modeset;
 	struct {                                        \
 		struct nvkm_object object;              \
 		struct nvkm_device *device;             \
-	} *_udevice = (void *)_drm->device.object.priv; \
+	} *_udevice = (void *)_drm->device.priv;        \
 	_udevice->device;                               \
 })
 #define nvxx_bios(a) nvxx_device(a)->bios

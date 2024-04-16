@@ -24,11 +24,27 @@
 #include <core/client.h>
 #include <core/device.h>
 #include <core/option.h>
+#include <device/user.h>
 
 #include <nvif/class.h>
 #include <nvif/driverif.h>
 #include <nvif/event.h>
 #include <nvif/unpack.h>
+
+static int
+nvkm_client_new_device(struct nvif_client_priv *client,
+		       const struct nvif_device_impl **pimpl, struct nvif_device_priv **ppriv,
+		       u64 handle)
+{
+	struct nvkm_object *object;
+	int ret;
+
+	ret = nvkm_udevice_new(client->device, pimpl, ppriv, &object);
+	if (ret)
+		return ret;
+
+	return nvkm_object_link_rb(client, &client->object, handle, object);
+}
 
 static int
 nvkm_client_new_client(struct nvif_client_priv *parent,
@@ -59,31 +75,8 @@ const struct nvif_client_impl
 nvkm_client_impl = {
 	.del = nvkm_client_del,
 	.client.new = nvkm_client_new_client,
+	.device.new = nvkm_client_new_device,
 };
-
-static int
-nvkm_client_child_new(const struct nvkm_oclass *oclass,
-		      void *data, u32 size, struct nvkm_object **pobject)
-{
-	return oclass->base.ctor(oclass, data, size, pobject);
-}
-
-static int
-nvkm_client_child_get(struct nvkm_object *object, int index,
-		      struct nvkm_oclass *oclass)
-{
-	const struct nvkm_sclass *sclass;
-
-	switch (index) {
-	case 0: sclass = &nvkm_udevice_sclass; break;
-	default:
-		return -EINVAL;
-	}
-
-	oclass->ctor = nvkm_client_child_new;
-	oclass->base = *sclass;
-	return 0;
-}
 
 static void *
 nvkm_client_dtor(struct nvkm_object *object)
@@ -94,7 +87,6 @@ nvkm_client_dtor(struct nvkm_object *object)
 static const struct nvkm_object_func
 nvkm_client = {
 	.dtor = nvkm_client_dtor,
-	.sclass = nvkm_client_child_get,
 };
 
 int

@@ -2,6 +2,7 @@
 #ifndef __NVIF_DRIVERIF_H__
 #define __NVIF_DRIVERIF_H__
 struct nvif_client_priv;
+struct nvif_device_priv;
 
 struct nvif_driver {
 	const char *name;
@@ -12,6 +13,10 @@ struct nvif_driver {
 	void (*unmap)(struct nvif_client_priv *, void __iomem *ptr, u32 size);
 };
 
+struct nvif_device_impl {
+	void (*del)(struct nvif_device_priv *);
+};
+
 struct nvif_client_impl {
 	void (*del)(struct nvif_client_priv *);
 
@@ -20,5 +25,11 @@ struct nvif_client_impl {
 			   const struct nvif_client_impl **, struct nvif_client_priv **,
 			   u64 handle);
 	} client;
+
+	struct {
+		int (*new)(struct nvif_client_priv *,
+			   const struct nvif_device_impl **, struct nvif_device_priv **,
+			   u64 handle);
+	} device;
 };
 #endif

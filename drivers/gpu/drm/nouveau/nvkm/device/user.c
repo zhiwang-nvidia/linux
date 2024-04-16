@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "user.h"
 #include "priv.h"
 #include "ctrl.h"
 
@@ -38,6 +39,8 @@
 struct nvif_device_priv {
 	struct nvkm_object object;
 	struct nvkm_device *device;
+
+	struct nvif_device_impl impl;
 };
 
 static int
@@ -187,6 +190,20 @@ nvkm_udevice_time(struct nvkm_udevice *udev, void *data, u32 size)
 	return ret;
 }
 
+static void
+nvkm_udevice_del(struct nvif_device_priv *udev)
+{
+	struct nvkm_object *object = &udev->object;
+
+	nvkm_object_fini(object, false);
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_device_impl
+nvkm_udevice_impl = {
+	.del = nvkm_udevice_del,
+};
+
 static int
 nvkm_udevice_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
@@ -318,26 +335,35 @@ nvkm_udevice = {
 	.sclass = nvkm_udevice_child_get,
 };
 
-static int
-nvkm_udevice_new(const struct nvkm_oclass *oclass, void *data, u32 size,
+int
+nvkm_udevice_new(struct nvkm_device *device,
+		 const struct nvif_device_impl **pimpl, struct nvif_device_priv **ppriv,
 		 struct nvkm_object **pobject)
 {
-	struct nvkm_client *client = oclass->client;
 	struct nvif_device_priv *udev;
+	int ret;
 
 	if (!(udev = kzalloc(sizeof(*udev), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_object_ctor(&nvkm_udevice, oclass, &udev->object);
+
+	nvkm_object_ctor(&nvkm_udevice, &(struct nvkm_oclass) {}, &udev->object);
+	udev->device = device;
+
+	ret = nvkm_udevice_init(&udev->object);
+	if (ret) {
+		kfree(udev);
+		return ret;
+	}
+
+	udev->impl = nvkm_udevice_impl;
+
+	*pimpl = &udev->impl;
+	*ppriv = udev;
 	*pobject = &udev->object;
 
-	udev->device = client->device;
-	return 0;
-}
+done:
+	if (ret)
+		nvkm_udevice_del(udev);
 
-const struct nvkm_sclass
-nvkm_udevice_sclass = {
-	.oclass = NV_DEVICE,
-	.minver = 0,
-	.maxver = 0,
-	.ctor = nvkm_udevice_new,
-};
+	return ret;
+}

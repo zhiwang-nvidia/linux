@@ -23,6 +23,7 @@
  */
 #include <nvif/device.h>
 #include <nvif/client.h>
+#include <nvif/printf.h>
 
 u64
 nvif_device_time(struct nvif_device *device)
@@ -47,23 +48,39 @@ nvif_device_map(struct nvif_device *device)
 void
 nvif_device_dtor(struct nvif_device *device)
 {
+	if (!device->impl)
+		return;
+
 	nvif_user_dtor(device);
 	kfree(device->runlist);
 	device->runlist = NULL;
-	nvif_object_dtor(&device->object);
+
+	device->impl->del(device->priv);
+	device->impl = NULL;
 }
 
 int
 nvif_device_ctor(struct nvif_client *client, const char *name, struct nvif_device *device)
 {
-	int ret = nvif_object_ctor(&client->object, name ? name : "nvifDevice", 0,
-				   0x0080, NULL, 0, &device->object);
+	int ret;
+
 	device->runlist = NULL;
 	device->user.func = NULL;
+
+	ret = client->impl->device.new(client->priv, &device->impl, &device->priv,
+				       nvif_handle(&device->object));
+	NVIF_ERRON(ret, &client->object, "[NEW device]");
+	if (ret)
+		return ret;
+
+	nvif_object_ctor(&client->object, name ?: "nvifDevice", 0, 0, &device->object);
+	device->object.client = client;
+
 	if (ret == 0) {
 		device->info.version = 0;
 		ret = nvif_object_mthd(&device->object, NV_DEVICE_V0_INFO,
 				       &device->info, sizeof(device->info));
 	}
+
 	return ret;
 }
