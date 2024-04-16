@@ -238,6 +238,9 @@ struct nvif_conn_impl {
 		NVIF_CONN_DP,
 		NVIF_CONN_EDP,
 	} type;
+
+	int (*event)(struct nvif_conn_priv *, u64 handle, u8 types,
+		     const struct nvif_event_impl **, struct nvif_event_priv **);
 };
 
 struct nvif_disp_impl {

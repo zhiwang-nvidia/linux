@@ -23,25 +23,23 @@
 #include <nvif/disp.h>
 #include <nvif/printf.h>
 
-#include <nvif/if0011.h>
-
 int
 nvif_conn_event_ctor(struct nvif_conn *conn, const char *name, nvif_event_func func, u8 types,
 		     struct nvif_event *event)
 {
-	struct {
-		struct nvif_event_v0 base;
-		struct nvif_conn_event_v0 conn;
-	} args;
 	int ret;
 
-	args.conn.version = 0;
-	args.conn.types = types;
+	if (!conn->impl->event)
+		return -ENODEV;
 
-	ret = nvif_event_ctor_(&conn->object, name ?: "nvifConnHpd", nvif_conn_id(conn),
-			       func, true, &args.base, sizeof(args), false, event);
-	NVIF_DEBUG(&conn->object, "[NEW EVENT:HPD types:%02x]", types);
-	return ret;
+	ret = conn->impl->event(conn->priv, nvif_handle(&event->object), types,
+				&event->impl, &event->priv);
+	NVIF_ERRON(ret, &conn->object, "[NEW EVENT:HPD types:%02x]", types);
+	if (ret)
+		return ret;
+
+	nvif_event_ctor(&conn->object, name ?: "nvifConnHpd", conn->id, func, event);
+	return 0;
 }
 
 void
