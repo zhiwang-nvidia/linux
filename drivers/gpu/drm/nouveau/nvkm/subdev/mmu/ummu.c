@@ -32,7 +32,7 @@ static int
 nvkm_ummu_sclass(struct nvkm_object *object, int index,
 		 struct nvkm_oclass *oclass)
 {
-	struct nvkm_mmu *mmu = nvkm_ummu(object)->mmu;
+	struct nvkm_mmu *mmu = container_of(object, struct nvif_mmu_priv, object)->mmu;
 
 	if (mmu->func->mem.user.oclass) {
 		if (index-- == 0) {
@@ -132,7 +132,7 @@ nvkm_ummu_kind(struct nvkm_ummu *ummu, void *argv, u32 argc)
 static int
 nvkm_ummu_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
-	struct nvkm_ummu *ummu = nvkm_ummu(object);
+	struct nvif_mmu_priv *ummu = container_of(object, typeof(*ummu), object);
 	switch (mthd) {
 	case NVIF_MMU_V0_HEAP: return nvkm_ummu_heap(ummu, argv, argc);
 	case NVIF_MMU_V0_TYPE: return nvkm_ummu_type(ummu, argv, argc);
@@ -157,7 +157,7 @@ nvkm_ummu_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 		struct nvif_mmu_v0 v0;
 	} *args = argv;
 	struct nvkm_mmu *mmu = device->mmu;
-	struct nvkm_ummu *ummu;
+	struct nvif_mmu_priv *ummu;
 	int ret = -ENOSYS, kinds = 0;
 	u8 unused = 0;
 

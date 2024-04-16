@@ -532,7 +532,7 @@ int
 nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	      struct nvkm_object **pobject)
 {
-	struct nvkm_mmu *mmu = nvkm_ummu(oclass->parent)->mmu;
+	struct nvkm_mmu *mmu = container_of(oclass->parent, struct nvif_mmu_priv, object)->mmu;
 	const bool more = oclass->base.maxver >= 0;
 	union {
 		struct nvif_vmm_v0 v0;

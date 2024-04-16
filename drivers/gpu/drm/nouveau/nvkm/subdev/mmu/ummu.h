@@ -1,10 +1,11 @@
 #ifndef __NVKM_UMMU_H__
 #define __NVKM_UMMU_H__
-#define nvkm_ummu(p) container_of((p), struct nvkm_ummu, object)
 #include <core/object.h>
 #include "priv.h"
 
-struct nvkm_ummu {
+#define nvkm_ummu nvif_mmu_priv
+
+struct nvif_mmu_priv {
 	struct nvkm_object object;
 	struct nvkm_mmu *mmu;
 };

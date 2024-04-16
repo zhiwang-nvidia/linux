@@ -142,7 +142,7 @@ int
 nvkm_umem_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	      struct nvkm_object **pobject)
 {
-	struct nvkm_mmu *mmu = nvkm_ummu(oclass->parent)->mmu;
+	struct nvkm_mmu *mmu = container_of(oclass->parent, struct nvif_mmu_priv, object)->mmu;
 	union {
 		struct nvif_mem_v0 v0;
 	} *args = argv;
