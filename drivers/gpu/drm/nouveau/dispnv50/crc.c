@@ -225,7 +225,7 @@ static void nv50_crc_wait_ctx_finished(struct nv50_head *head,
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	s64 ret;
 
-	ret = nvif_msec(&drm->client.device, 50,
+	ret = nvif_msec(&drm->device, 50,
 			if (func->ctx_finished(head, ctx)) break;);
 	if (ret == -ETIMEDOUT)
 		NV_ERROR(drm,

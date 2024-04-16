@@ -192,7 +192,7 @@ static int
 nv10_disable_plane(struct drm_plane *plane,
 		   struct drm_modeset_acquire_ctx *ctx)
 {
-	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
+	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
 	struct nouveau_plane *nv_plane =
 		container_of(plane, struct nouveau_plane, base);
 
@@ -216,7 +216,7 @@ nv_destroy_plane(struct drm_plane *plane)
 static void
 nv10_set_params(struct nouveau_plane *plane)
 {
-	struct nvif_object *dev = &nouveau_drm(plane->base.dev)->client.device.object;
+	struct nvif_device *dev = &nouveau_drm(plane->base.dev)->device;
 	u32 luma = (plane->brightness - 512) << 16 | plane->contrast;
 	u32 chroma = ((sin_mul(plane->hue, plane->saturation) & 0xffff) << 16) |
 		(cos_mul(plane->hue, plane->saturation) & 0xffff);
@@ -368,7 +368,7 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  uint32_t src_w, uint32_t src_h,
 		  struct drm_modeset_acquire_ctx *ctx)
 {
-	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
+	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
 	struct nouveau_plane *nv_plane =
 		container_of(plane, struct nouveau_plane, base);
 	struct nouveau_bo *cur = nv_plane->cur;
@@ -443,7 +443,7 @@ static int
 nv04_disable_plane(struct drm_plane *plane,
 		   struct drm_modeset_acquire_ctx *ctx)
 {
-	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
+	struct nvif_device *dev = &nouveau_drm(plane->dev)->device;
 	struct nouveau_plane *nv_plane =
 		container_of(plane, struct nouveau_plane, base);
 

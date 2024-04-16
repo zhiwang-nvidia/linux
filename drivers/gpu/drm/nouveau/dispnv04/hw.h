@@ -59,7 +59,7 @@ extern void nouveau_calc_arb(struct drm_device *, int vclk, int bpp,
 static inline uint32_t NVReadCRTC(struct drm_device *dev,
 					int head, uint32_t reg)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	uint32_t val;
 	if (head)
 		reg += NV_PCRTC0_SIZE;
@@ -70,7 +70,7 @@ static inline uint32_t NVReadCRTC(struct drm_device *dev,
 static inline void NVWriteCRTC(struct drm_device *dev,
 					int head, uint32_t reg, uint32_t val)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	if (head)
 		reg += NV_PCRTC0_SIZE;
 	nvif_wr32(device, reg, val);
@@ -79,7 +79,7 @@ static inline void NVWriteCRTC(struct drm_device *dev,
 static inline uint32_t NVReadRAMDAC(struct drm_device *dev,
 					int head, uint32_t reg)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	uint32_t val;
 	if (head)
 		reg += NV_PRAMDAC0_SIZE;
@@ -90,7 +90,7 @@ static inline uint32_t NVReadRAMDAC(struct drm_device *dev,
 static inline void NVWriteRAMDAC(struct drm_device *dev,
 					int head, uint32_t reg, uint32_t val)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	if (head)
 		reg += NV_PRAMDAC0_SIZE;
 	nvif_wr32(device, reg, val);
@@ -119,7 +119,7 @@ static inline void nv_write_tmds(struct drm_device *dev,
 static inline void NVWriteVgaCrtc(struct drm_device *dev,
 					int head, uint8_t index, uint8_t value)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	nvif_wr08(device, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
 	nvif_wr08(device, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE, value);
 }
@@ -127,7 +127,7 @@ static inline void NVWriteVgaCrtc(struct drm_device *dev,
 static inline uint8_t NVReadVgaCrtc(struct drm_device *dev,
 					int head, uint8_t index)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	uint8_t val;
 	nvif_wr08(device, NV_PRMCIO_CRX__COLOR + head * NV_PRMCIO_SIZE, index);
 	val = nvif_rd08(device, NV_PRMCIO_CR__COLOR + head * NV_PRMCIO_SIZE);
@@ -191,14 +191,14 @@ static inline void NVWritePRMVIO(struct drm_device *dev,
 
 static inline void NVSetEnablePalette(struct drm_device *dev, int head, bool enable)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	nvif_rd08(device, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
 	nvif_wr08(device, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE, enable ? 0 : 0x20);
 }
 
 static inline bool NVGetEnablePalette(struct drm_device *dev, int head)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	nvif_rd08(device, NV_PRMCIO_INP0__COLOR + head * NV_PRMCIO_SIZE);
 	return !(nvif_rd08(device, NV_PRMCIO_ARX + head * NV_PRMCIO_SIZE) & 0x20);
 }
@@ -206,7 +206,7 @@ static inline bool NVGetEnablePalette(struct drm_device *dev, int head)
 static inline void NVWriteVgaAttr(struct drm_device *dev,
 					int head, uint8_t index, uint8_t value)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	if (NVGetEnablePalette(dev, head))
 		index &= ~0x20;
 	else
@@ -220,7 +220,7 @@ static inline void NVWriteVgaAttr(struct drm_device *dev,
 static inline uint8_t NVReadVgaAttr(struct drm_device *dev,
 					int head, uint8_t index)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	uint8_t val;
 	if (NVGetEnablePalette(dev, head))
 		index &= ~0x20;

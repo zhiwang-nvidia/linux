@@ -66,7 +66,7 @@ int nv04_dac_output_offset(struct drm_encoder *encoder)
 static int sample_load_twice(struct drm_device *dev, bool sense[2])
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_object *device = &drm->client.device.object;
+	struct nvif_device *device = &drm->device;
 	int i;
 
 	for (i = 0; i < 2; i++) {
@@ -80,19 +80,19 @@ static int sample_load_twice(struct drm_device *dev, bool sense[2])
 		 * use a 10ms timeout (guards against crtc being inactive, in
 		 * which case blank state would never change)
 		 */
-		if (nvif_msec(&drm->client.device, 10,
+		if (nvif_msec(device, 10,
 			if (!(nvif_rd32(device, NV_PRMCIO_INP0__COLOR) & 1))
 				break;
 		) < 0)
 			return -EBUSY;
 
-		if (nvif_msec(&drm->client.device, 10,
+		if (nvif_msec(device, 10,
 			if ( (nvif_rd32(device, NV_PRMCIO_INP0__COLOR) & 1))
 				break;
 		) < 0)
 			return -EBUSY;
 
-		if (nvif_msec(&drm->client.device, 10,
+		if (nvif_msec(device, 10,
 			if (!(nvif_rd32(device, NV_PRMCIO_INP0__COLOR) & 1))
 				break;
 		) < 0)
@@ -133,7 +133,7 @@ static enum drm_connector_status nv04_dac_detect(struct drm_encoder *encoder,
 						 struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint8_t saved_seq1, saved_pi, saved_rpc1, saved_cr_mode;
 	uint8_t saved_palette0[3], saved_palette_mask;

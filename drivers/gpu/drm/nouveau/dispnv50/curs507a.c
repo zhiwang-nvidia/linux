@@ -33,7 +33,7 @@
 bool
 curs507a_space(struct nv50_wndw *wndw)
 {
-	nvif_msec(&nouveau_drm(wndw->plane.dev)->client.device, 100,
+	nvif_msec(&nouveau_drm(wndw->plane.dev)->device, 100,
 		if (NVIF_TV32(&wndw->wimm, NV507A, FREE, COUNT, >=, 4))
 			return true;
 	);

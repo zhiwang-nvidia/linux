@@ -67,8 +67,6 @@ nvif_object_map_cpu(struct nvif_object *object,
 	map->object = object;
 	map->impl = impl;
 	map->ptr = ptr;
-
-	object->map.ptr = map->ptr; /*FIXME: needed by nvif_rd/wr */
 	return 0;
 }
 
@@ -90,6 +88,4 @@ nvif_object_ctor(struct nvif_object *parent, const char *name, u32 handle, s32 o
 	object->name = name ?: "nvifObject";
 	object->handle = handle;
 	object->oclass = oclass;
-	object->map.ptr = NULL;
-	object->map.size = 0;
 }

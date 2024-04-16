@@ -58,9 +58,9 @@ nvif_dispchan_kick(struct nvif_push *push)
 		if (chan->push.mem.type & NVIF_MEM_VRAM) {
 			struct nvif_device *device = chan->disp->device;
 
-			nvif_wr32(&device->object, 0x070000, 0x00000001);
+			nvif_wr32(device, 0x070000, 0x00000001);
 			nvif_msec(device, 2000,
-				if (!(nvif_rd32(&device->object, 0x070000) & 0x00000002))
+				if (!(nvif_rd32(device, 0x070000) & 0x00000002))
 					break;
 			);
 		}

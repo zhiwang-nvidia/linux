@@ -746,11 +746,11 @@ nv_load_state_ext(struct drm_device *dev, int head,
 		if (device->impl->family < NVIF_DEVICE_KELVIN) {
 			/* Not waiting for vertical retrace before modifying
 			   CRE_53/CRE_54 causes lockups. */
-			nvif_msec(&drm->client.device, 650,
+			nvif_msec(device, 650,
 				if ( (nvif_rd32(device, NV_PRMCIO_INP0__COLOR) & 8))
 					break;
 			);
-			nvif_msec(&drm->client.device, 650,
+			nvif_msec(device, 650,
 				if (!(nvif_rd32(device, NV_PRMCIO_INP0__COLOR) & 8))
 					break;
 			);
@@ -776,7 +776,7 @@ static void
 nv_save_state_palette(struct drm_device *dev, int head,
 		      struct nv04_mode_state *state)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	int head_offset = head * NV_PRMDIO_SIZE, i;
 
 	nvif_wr08(device, NV_PRMDIO_PIXEL_MASK + head_offset,
@@ -795,7 +795,7 @@ void
 nouveau_hw_load_state_palette(struct drm_device *dev, int head,
 			      struct nv04_mode_state *state)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	int head_offset = head * NV_PRMDIO_SIZE, i;
 
 	nvif_wr08(device, NV_PRMDIO_PIXEL_MASK + head_offset,

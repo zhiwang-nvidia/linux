@@ -711,7 +711,7 @@ nouveau_svm_fault(struct work_struct *work)
 {
 	struct nouveau_svm_fault_buffer *buffer = container_of(work, typeof(*buffer), work);
 	struct nouveau_svm *svm = container_of(buffer, typeof(*svm), buffer[buffer->id]);
-	struct nvif_object *device = &svm->drm->client.device.object;
+	struct nvif_device *device = &svm->drm->device;
 	struct nouveau_svmm *svmm;
 	struct {
 		struct nouveau_pfnmap_args i;
@@ -935,7 +935,7 @@ static int
 nouveau_svm_fault_buffer_init(struct nouveau_svm *svm, int id)
 {
 	struct nouveau_svm_fault_buffer *buffer = &svm->buffer[id];
-	struct nvif_object *device = &svm->drm->client.device.object;
+	struct nvif_device *device = &svm->drm->device;
 
 	buffer->get = nvif_rd32(device, buffer->getaddr);
 	buffer->put = nvif_rd32(device, buffer->putaddr);

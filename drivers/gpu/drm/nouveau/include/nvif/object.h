@@ -9,10 +9,6 @@ struct nvif_object {
 	const char *name;
 	u32 handle;
 	s32 oclass;
-	struct {
-		void __iomem *ptr;
-		u64 size;
-	} map;
 };
 
 struct nvif_map {
@@ -37,11 +33,13 @@ int nvif_object_unmap_cpu(struct nvif_map *);
 #define nvif_object(a) (a)->object
 
 #define nvif_rd(a,f,b,c) ({                                                    \
-	u32 _data = f((u8 __iomem *)(a)->map.ptr + (c));                       \
+	struct nvif_map *_map = &(a)->map;                                     \
+	u32 _data = f((u8 __iomem *)_map->ptr + (c));                          \
 	_data;                                                                 \
 })
 #define nvif_wr(a,f,b,c,d) ({                                                  \
-	f((d), (u8 __iomem *)(a)->map.ptr + (c));                              \
+	struct nvif_map *_map = &(a)->map;                                     \
+	f((d), (u8 __iomem *)_map->ptr + (c));                                 \
 })
 #define nvif_rd08(a,b) ({ ((u8)nvif_rd((a), ioread8, 1, (b))); })
 #define nvif_rd16(a,b) ({ ((u16)nvif_rd((a), ioread16_native, 2, (b))); })
