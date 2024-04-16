@@ -208,8 +208,7 @@ struct nvif_mmu_impl {
 	struct {
 		s32 oclass;
 		int (*new)(struct nvif_mmu_priv *, enum nvif_vmm_type type, u64 addr, u64 size,
-			   void *, u32, const struct nvif_vmm_impl **, struct nvif_vmm_priv **,
-			   u64 handle);
+			   void *, u32, const struct nvif_vmm_impl **, struct nvif_vmm_priv **);
 	} vmm;
 };
 

@@ -113,8 +113,7 @@ nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name,
 	const u32 oclass = mmu->impl->vmm.oclass;
 	int ret;
 
-	ret = mmu->impl->vmm.new(mmu->priv, type, addr, size, argv, argc, &vmm->impl, &vmm->priv,
-				 nvif_handle(&vmm->object));
+	ret = mmu->impl->vmm.new(mmu->priv, type, addr, size, argv, argc, &vmm->impl, &vmm->priv);
 	NVIF_ERRON(ret, &mmu->object, "[NEW vmm%08x]", oclass);
 	if (ret)
 		return ret;
