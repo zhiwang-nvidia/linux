@@ -4,10 +4,11 @@
 #include <nvif/client.h>
 #include <nvif/parent.h>
 
-#define NVIF_PRINT(l,o,f,a...) do {                                                                \
-	struct nvif_object *_o = (o);                                                              \
-	struct nvif_parent *_p = _o->parent;                                                       \
-	_p->func->l(_o, "[%s/%08x:%s] "f"\n", _o->client->object.name, _o->handle, _o->name, ##a); \
+#define NVIF_PRINT(l,o,f,a...) do {                                         \
+	struct nvif_object *_o = (o);                                       \
+	struct nvif_parent *_p = _o->parent;                                \
+	_p->func->l(_o, "[%s/%08x:%08x:%s] "f"\n", _o->client->object.name, \
+		    _o->handle, _o->oclass, _o->name, ##a);                 \
 } while(0)
 
 #ifndef NVIF_DEBUG_PRINT_DISABLE
