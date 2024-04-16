@@ -8,6 +8,10 @@
 struct nv50_core {
 	const struct nv50_core_func *func;
 	struct nv50_dmac chan;
+
+	struct nvif_object vram;
+	struct nvif_object sync;
+
 	bool assign_windows;
 };
 

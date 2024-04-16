@@ -134,7 +134,7 @@ corec37d_init(struct nv50_core *core)
 	if ((ret = PUSH_WAIT(push, 2 + windows * 5)))
 		return ret;
 
-	PUSH_MTHD(push, NVC37D, SET_CONTEXT_DMA_NOTIFIER, core->chan.sync.handle);
+	PUSH_MTHD(push, NVC37D, SET_CONTEXT_DMA_NOTIFIER, core->sync.handle);
 
 	for (i = 0; i < windows; i++) {
 		PUSH_MTHD(push, NVC37D, WINDOW_SET_WINDOW_FORMAT_USAGE_BOUNDS(i),

@@ -268,7 +268,7 @@ nv50_head_atomic_check_lut(struct nv50_head *head,
 			  size, crtc->base.id, crtc->name);
 		return -EINVAL;
 	}
-	asyh->olut.handle = disp->core->chan.vram.handle;
+	asyh->olut.handle = disp->core->vram.handle;
 	asyh->olut.buffer = !asyh->olut.buffer;
 
 	return 0;

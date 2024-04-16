@@ -63,9 +63,6 @@ struct nv50_dmac {
 	struct nv50_chan base;
 
 	struct nvif_push push;
-
-	struct nvif_object sync;
-	struct nvif_object vram;
 };
 
 struct nv50_outp_atom {

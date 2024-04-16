@@ -357,7 +357,7 @@ wndwc37e_new_(const struct nv50_wndw_func *func, struct nouveau_drm *drm,
 	struct nv50_wndw *wndw;
 	int ret;
 
-	ret = nv50_wndw_new_(func, drm->dev, type, "wndw", index,
+	ret = nv50_wndw_prep(func, drm->dev, type, "wndw", index,
 			     wndwc37e_format, heads, NV50_DISP_INTERLOCK_WNDW,
 			     BIT(index), &wndw);
 	if (*pwndw = wndw, ret)
@@ -374,7 +374,7 @@ wndwc37e_new_(const struct nv50_wndw_func *func, struct nouveau_drm *drm,
 	wndw->ntfy = NV50_DISP_WNDW_NTFY(wndw->id);
 	wndw->sema = NV50_DISP_WNDW_SEM0(wndw->id);
 	wndw->data = 0x00000000;
-	return 0;
+	return nv50_wndw_ctor(wndw);
 }
 
 int

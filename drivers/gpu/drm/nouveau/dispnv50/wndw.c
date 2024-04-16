@@ -181,7 +181,7 @@ nv50_wndw_ntfy_enable(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
 	struct nv50_disp *disp = nv50_disp(wndw->plane.dev);
 
-	asyw->ntfy.handle = wndw->wndw.sync.handle;
+	asyw->ntfy.handle = wndw->sync.handle;
 	asyw->ntfy.offset = wndw->ntfy;
 	asyw->ntfy.awaken = false;
 	asyw->set.ntfy = true;
@@ -406,7 +406,7 @@ nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 	memset(&asyw->xlut, 0x00, sizeof(asyw->xlut));
 	if ((asyw->ilut = wndw->func->ilut ? ilut : NULL)) {
 		wndw->func->ilut(wndw, asyw, drm_color_lut_size(ilut));
-		asyw->xlut.handle = wndw->wndw.vram.handle;
+		asyw->xlut.handle = wndw->vram.handle;
 		asyw->xlut.i.buffer = !asyw->xlut.i.buffer;
 		asyw->set.xlut = true;
 	} else {
@@ -645,6 +645,9 @@ nv50_wndw_destroy(struct drm_plane *plane)
 	}
 
 	nv50_dmac_destroy(&wndw->wimm);
+
+	nvif_object_dtor(&wndw->vram);
+	nvif_object_dtor(&wndw->sync);
 	nv50_dmac_destroy(&wndw->wndw);
 
 	nv50_lut_fini(&wndw->ilut);
@@ -693,7 +696,44 @@ static const u64 nv50_cursor_format_modifiers[] = {
 };
 
 int
-nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
+nv50_wndw_ctor(struct nv50_wndw *wndw)
+{
+	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
+	struct nv50_disp *disp = nv50_disp(wndw->plane.dev);
+	int ret;
+
+	if (!nvif_object_constructed(&wndw->wndw.base.user))
+		return 0;
+
+	ret = nvif_object_ctor(&wndw->wndw.base.user, "kmsWndwSyncCtxDma", NV50_DISP_HANDLE_SYNCBUF,
+			       NV_DMA_IN_MEMORY,
+			       &(struct nv_dma_v0) {
+					.target = NV_DMA_V0_TARGET_VRAM,
+					.access = NV_DMA_V0_ACCESS_RDWR,
+					.start = disp->sync->offset + 0x0000,
+					.limit = disp->sync->offset + 0x0fff,
+			       }, sizeof(struct nv_dma_v0),
+			       &wndw->sync);
+	if (ret)
+		return ret;
+
+	ret = nvif_object_ctor(&wndw->wndw.base.user, "kmsWndwVramCtxDma", NV50_DISP_HANDLE_VRAM,
+			       NV_DMA_IN_MEMORY,
+			       &(struct nv_dma_v0) {
+					.target = NV_DMA_V0_TARGET_VRAM,
+					.access = NV_DMA_V0_ACCESS_RDWR,
+					.start = 0,
+					.limit = drm->device.info.ram_user - 1,
+			       }, sizeof(struct nv_dma_v0),
+			       &wndw->vram);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int
+nv50_wndw_prep(const struct nv50_wndw_func *func, struct drm_device *dev,
 	       enum drm_plane_type type, const char *name, int index,
 	       const u32 *format, u32 heads,
 	       enum nv50_disp_interlock_type interlock_type, u32 interlock_data,

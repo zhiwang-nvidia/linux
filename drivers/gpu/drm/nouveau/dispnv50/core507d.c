@@ -136,7 +136,7 @@ core507d_init(struct nv50_core *core)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_MTHD(push, NV507D, SET_CONTEXT_DMA_NOTIFIER, core->chan.sync.handle);
+	PUSH_MTHD(push, NV507D, SET_CONTEXT_DMA_NOTIFIER, core->sync.handle);
 	return PUSH_KICK(push);
 }
 

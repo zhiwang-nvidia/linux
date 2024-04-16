@@ -122,9 +122,6 @@ nv50_chan_destroy(struct nv50_chan *chan)
 void
 nv50_dmac_destroy(struct nv50_dmac *dmac)
 {
-	nvif_object_dtor(&dmac->vram);
-	nvif_object_dtor(&dmac->sync);
-
 	nv50_chan_destroy(&dmac->base);
 
 	nvif_mem_dtor(&dmac->push.mem);
@@ -281,30 +278,6 @@ nv50_dmac_create(struct nouveau_drm *drm,
 
 	if (syncbuf < 0)
 		return 0;
-
-	ret = nvif_object_ctor(&dmac->base.user, "kmsSyncCtxDma", NV50_DISP_HANDLE_SYNCBUF,
-			       NV_DMA_IN_MEMORY,
-			       &(struct nv_dma_v0) {
-					.target = NV_DMA_V0_TARGET_VRAM,
-					.access = NV_DMA_V0_ACCESS_RDWR,
-					.start = syncbuf + 0x0000,
-					.limit = syncbuf + 0x0fff,
-			       }, sizeof(struct nv_dma_v0),
-			       &dmac->sync);
-	if (ret)
-		return ret;
-
-	ret = nvif_object_ctor(&dmac->base.user, "kmsVramCtxDma", NV50_DISP_HANDLE_VRAM,
-			       NV_DMA_IN_MEMORY,
-			       &(struct nv_dma_v0) {
-					.target = NV_DMA_V0_TARGET_VRAM,
-					.access = NV_DMA_V0_ACCESS_RDWR,
-					.start = 0,
-					.limit = device->info.ram_user - 1,
-			       }, sizeof(struct nv_dma_v0),
-			       &dmac->vram);
-	if (ret)
-		return ret;
 
 	return ret;
 }

@@ -78,7 +78,7 @@ static void
 curs507a_prepare(struct nv50_wndw *wndw, struct nv50_head_atom *asyh,
 		 struct nv50_wndw_atom *asyw)
 {
-	u32 handle = nv50_disp(wndw->plane.dev)->core->chan.vram.handle;
+	u32 handle = nv50_disp(wndw->plane.dev)->core->vram.handle;
 	u32 offset = asyw->image.offset[0];
 	if (asyh->curs.handle != handle || asyh->curs.offset != offset) {
 		asyh->curs.handle = handle;
@@ -177,7 +177,7 @@ curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	struct nv50_wndw *wndw;
 	int ret;
 
-	ret = nv50_wndw_new_(&curs507a_wndw, drm->dev, DRM_PLANE_TYPE_CURSOR,
+	ret = nv50_wndw_prep(&curs507a_wndw, drm->dev, DRM_PLANE_TYPE_CURSOR,
 			     "curs", head, curs507a_format, BIT(head),
 			     NV50_DISP_INTERLOCK_CURS, interlock_data, &wndw);
 	if (*pwndw = wndw, ret)
@@ -193,7 +193,7 @@ curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	nvif_object_map(&wndw->wimm.base.user, NULL, 0);
 	wndw->immd = func;
 	wndw->ctxdma.parent = NULL;
-	return 0;
+	return nv50_wndw_ctor(wndw);
 }
 
 int
