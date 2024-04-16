@@ -78,11 +78,9 @@ nouveau_mem_map(struct nouveau_mem *mem,
 void
 nouveau_mem_fini(struct nouveau_mem *mem)
 {
-	nvif_vmm_put(&mem->drm->client.vmm.vmm, &mem->vma[1]);
-	nvif_vmm_put(&mem->drm->client.vmm.vmm, &mem->vma[0]);
-	mutex_lock(&mem->drm->client_mutex);
+	nvif_vmm_put(&mem->drm->cli.vmm.vmm, &mem->vma[1]);
+	nvif_vmm_put(&mem->drm->cli.vmm.vmm, &mem->vma[0]);
 	nvif_mem_dtor(&mem->mem);
-	mutex_unlock(&mem->drm->client_mutex);
 }
 
 int
@@ -113,11 +111,9 @@ nouveau_mem_host(struct ttm_resource *reg, struct ttm_tt *tt)
 	else
 		args.dma = tt->dma_address;
 
-	mutex_lock(&drm->client_mutex);
 	ret = nvif_mem_ctor_type(mmu, "ttmHostMem", type, PAGE_SHIFT,
 				 reg->size,
 				 &args, sizeof(args), &mem->mem);
-	mutex_unlock(&drm->client_mutex);
 	return ret;
 }
 
@@ -130,7 +126,6 @@ nouveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
 	u64 size = ALIGN(reg->size, 1 << page);
 	int ret;
 
-	mutex_lock(&drm->client_mutex);
 	switch (drm->mmu.impl->mem.oclass) {
 	case NVIF_CLASS_MEM_GF100:
 		ret = nvif_mem_ctor_type(mmu, "ttmVram",
@@ -154,7 +149,6 @@ nouveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
 		WARN_ON(1);
 		break;
 	}
-	mutex_unlock(&drm->client_mutex);
 
 	if (ret == 0)
 		reg->start = mem->mem.impl->addr >> PAGE_SHIFT;

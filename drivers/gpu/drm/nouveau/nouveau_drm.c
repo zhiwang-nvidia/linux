@@ -185,9 +185,7 @@ nouveau_cli_fini(struct nouveau_cli *cli)
 	nvif_mmu_dtor(&cli->mmu);
 	cli->device.object.map.ptr = NULL;
 	nvif_device_dtor(&cli->device);
-	mutex_lock(&cli->drm->client_mutex);
 	nvif_client_dtor(&cli->base);
-	mutex_unlock(&cli->drm->client_mutex);
 }
 
 static int
@@ -204,9 +202,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	INIT_LIST_HEAD(&cli->worker);
 	mutex_init(&cli->lock);
 
-	mutex_lock(&drm->client_mutex);
 	ret = nvif_client_ctor(&drm->_client, cli->name, &cli->base);
-	mutex_unlock(&drm->client_mutex);
 	if (ret) {
 		NV_PRINTK(err, cli, "Client allocation failed: %d\n", ret);
 		goto done;
@@ -502,7 +498,6 @@ nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 	drm->nvkm = nvkm;
 
 	nvif_parent_ctor(&nouveau_parent, &drm->parent);
-	mutex_init(&drm->client_mutex);
 	drm->_client.object.parent = &drm->parent;
 
 	ret = nvkm_driver_ctor(drm->nvkm, &driver, &impl, &priv);
@@ -641,7 +636,6 @@ fail_nvif:
 	nvif_device_dtor(&drm->device);
 	nvif_client_dtor(&drm->_client);
 fail_alloc:
-	mutex_destroy(&drm->client_mutex);
 	nvif_parent_dtor(&drm->parent);
 	kfree(drm);
 	return ret;
@@ -696,7 +690,6 @@ nouveau_drm_device_fini(struct drm_device *dev)
 	destroy_workqueue(drm->sched_wq);
 	nvif_mmu_dtor(&drm->mmu);
 	nvif_device_dtor(&drm->device);
-	mutex_destroy(&drm->client_mutex);
 	nvif_client_dtor(&drm->_client);
 	nvif_parent_dtor(&drm->parent);
 	mutex_destroy(&drm->clients_lock);
