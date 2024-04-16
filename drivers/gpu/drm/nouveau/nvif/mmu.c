@@ -20,6 +20,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <nvif/mmu.h>
+#include <nvif/device.h>
+#include <nvif/printf.h>
 
 #include <nvif/class.h>
 #include <nvif/if0008.h>
@@ -27,18 +29,18 @@
 void
 nvif_mmu_dtor(struct nvif_mmu *mmu)
 {
-	if (!nvif_object_constructed(&mmu->object))
+	if (!mmu->impl)
 		return;
 
 	kfree(mmu->kind);
 	kfree(mmu->type);
 	kfree(mmu->heap);
-	nvif_object_dtor(&mmu->object);
+	mmu->impl->del(mmu->priv);
+	mmu->impl = NULL;
 }
 
 int
-nvif_mmu_ctor(struct nvif_object *parent, const char *name, s32 oclass,
-	      struct nvif_mmu *mmu)
+nvif_mmu_ctor(struct nvif_device *device, const char *name, struct nvif_mmu *mmu)
 {
 	static const struct nvif_mclass mems[] = {
 		{ NVIF_CLASS_MEM_GF100, -1 },
@@ -46,23 +48,25 @@ nvif_mmu_ctor(struct nvif_object *parent, const char *name, s32 oclass,
 		{ NVIF_CLASS_MEM_NV04 , -1 },
 		{}
 	};
-	struct nvif_mmu_v0 args;
+	const s32 oclass = device->impl->mmu.oclass;
 	int ret, i;
 
-	args.version = 0;
+	mmu->impl = NULL;
 	mmu->heap = NULL;
 	mmu->type = NULL;
 	mmu->kind = NULL;
 
-	ret = nvif_object_ctor(parent, name ? name : "nvifMmu", 0, oclass,
-			       &args, sizeof(args), &mmu->object);
+	ret = device->impl->mmu.new(device->priv, &mmu->impl, &mmu->priv,
+				    nvif_handle(&mmu->object));
+	NVIF_ERRON(ret, &device->object, "[NEW mmu%08x]", oclass);
 	if (ret)
-		goto done;
+		return ret;
 
-	mmu->dmabits = args.dmabits;
-	mmu->heap_nr = args.heap_nr;
-	mmu->type_nr = args.type_nr;
-	mmu->kind_nr = args.kind_nr;
+	nvif_object_ctor(&device->object, name ?: "nvifMmu", 0, oclass, &mmu->object);
+
+	mmu->heap_nr = mmu->impl->heap_nr;
+	mmu->type_nr = mmu->impl->type_nr;
+	mmu->kind_nr = mmu->impl->kind_nr;
 
 	ret = nvif_mclass(&mmu->object, mems);
 	if (ret < 0)

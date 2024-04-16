@@ -1,10 +1,13 @@
 #ifndef __NVIF_MMU_H__
 #define __NVIF_MMU_H__
 #include <nvif/object.h>
+#include <nvif/driverif.h>
+struct nvif_device;
 
 struct nvif_mmu {
+	const struct nvif_mmu_impl *impl;
+	struct nvif_mmu_priv *priv;
 	struct nvif_object object;
-	u8  dmabits;
 	u8  heap_nr;
 	u8  type_nr;
 	u8  kind_inv;
@@ -31,8 +34,7 @@ struct nvif_mmu {
 	u8 *kind;
 };
 
-int nvif_mmu_ctor(struct nvif_object *, const char *name, s32 oclass,
-		  struct nvif_mmu *);
+int nvif_mmu_ctor(struct nvif_device *, const char *name, struct nvif_mmu *);
 void nvif_mmu_dtor(struct nvif_mmu *);
 
 static inline bool

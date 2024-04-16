@@ -236,8 +236,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 
 	cli->device.object.map.ptr = drm->device.object.map.ptr;
 
-	ret = nvif_mmu_ctor(&cli->device.object, "drmMmu", drm->mmu.object.oclass,
-			    &cli->mmu);
+	ret = nvif_mmu_ctor(&cli->device, "drmMmu", &cli->mmu);
 	if (ret) {
 		NV_PRINTK(err, cli, "MMU allocation failed: %d\n", ret);
 		goto done;
@@ -567,7 +566,7 @@ nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 		goto fail_nvif;
 	}
 
-	ret = nvif_mmu_ctor(&drm->device.object, "drmMmu", drm->device.impl->mmu.oclass, &drm->mmu);
+	ret = nvif_mmu_ctor(&drm->device, "drmMmu", &drm->mmu);
 	if (ret) {
 		NV_ERROR(drm, "MMU allocation failed: %d\n", ret);
 		goto fail_nvif;

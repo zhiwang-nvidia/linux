@@ -29,6 +29,7 @@
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 #include <subdev/timer.h>
+#include <subdev/mmu/ummu.h>
 #include <subdev/vfn/uvfn.h>
 #include <engine/disp/priv.h>
 #include <engine/fifo/ufifo.h>
@@ -74,6 +75,22 @@ static u64
 nvkm_udevice_time(struct nvif_device_priv *udev)
 {
 	return nvkm_timer_read(udev->device->timer);
+}
+
+static int
+nvkm_udevice_mmu_new(struct nvif_device_priv *udev,
+		     const struct nvif_mmu_impl **pimpl, struct nvif_mmu_priv **ppriv,
+		     u64 handle)
+{
+	struct nvkm_device *device = udev->device;
+	struct nvkm_object *object;
+	int ret;
+
+	ret = nvkm_ummu_new(device, pimpl, ppriv, &object);
+	if (ret)
+		return ret;
+
+	return nvkm_object_link_rb(udev->object.client, &udev->object, handle, object);
 }
 
 static void
@@ -167,9 +184,7 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 	}
 
 	if (!sclass) {
-		if (device->mmu && index-- == 0)
-			sclass = &device->mmu->user;
-		else if (device->fault && index-- == 0)
+		if (device->fault && index-- == 0)
 			sclass = &device->fault->user;
 		else
 			return -EINVAL;
@@ -285,6 +300,7 @@ nvkm_udevice_new(struct nvkm_device *device,
 
 	if (device->mmu) {
 		udev->impl.mmu.oclass = device->mmu->user.base.oclass;
+		udev->impl.mmu.new = nvkm_udevice_mmu_new;
 	}
 
 	if (device->fault) {

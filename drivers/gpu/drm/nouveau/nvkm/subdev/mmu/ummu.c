@@ -129,6 +129,19 @@ nvkm_ummu_kind(struct nvkm_ummu *ummu, void *argv, u32 argc)
 	return 0;
 }
 
+static void
+nvkm_ummu_del(struct nvif_mmu_priv *ummu)
+{
+	struct nvkm_object *object = &ummu->object;
+
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_mmu_impl
+nvkm_ummu_impl = {
+	.del = nvkm_ummu_del,
+};
+
 static int
 nvkm_ummu_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
@@ -150,32 +163,31 @@ nvkm_ummu = {
 };
 
 int
-nvkm_ummu_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
-	      void *argv, u32 argc, struct nvkm_object **pobject)
+nvkm_ummu_new(struct nvkm_device *device, const struct nvif_mmu_impl **pimpl,
+	      struct nvif_mmu_priv **ppriv, struct nvkm_object **pobject)
 {
-	union {
-		struct nvif_mmu_v0 v0;
-	} *args = argv;
 	struct nvkm_mmu *mmu = device->mmu;
 	struct nvif_mmu_priv *ummu;
-	int ret = -ENOSYS, kinds = 0;
+	int kinds = 0;
 	u8 unused = 0;
+
+	if (!(ummu = kzalloc(sizeof(*ummu), GFP_KERNEL)))
+		return -ENOMEM;
+
+	nvkm_object_ctor(&nvkm_ummu, &(struct nvkm_oclass) {}, &ummu->object);
+	ummu->mmu = mmu;
+	ummu->impl = nvkm_ummu_impl;
 
 	if (mmu->func->kind)
 		mmu->func->kind(mmu, &kinds, &unused);
 
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		args->v0.dmabits = mmu->dma_bits;
-		args->v0.heap_nr = mmu->heap_nr;
-		args->v0.type_nr = mmu->type_nr;
-		args->v0.kind_nr = kinds;
-	} else
-		return ret;
+	ummu->impl.dmabits = mmu->dma_bits;
+	ummu->impl.heap_nr = mmu->heap_nr;
+	ummu->impl.type_nr = mmu->type_nr;
+	ummu->impl.kind_nr = kinds;
 
-	if (!(ummu = kzalloc(sizeof(*ummu), GFP_KERNEL)))
-		return -ENOMEM;
-	nvkm_object_ctor(&nvkm_ummu, oclass, &ummu->object);
-	ummu->mmu = mmu;
+	*pimpl = &ummu->impl;
+	*ppriv = ummu;
 	*pobject = &ummu->object;
 	return 0;
 }
