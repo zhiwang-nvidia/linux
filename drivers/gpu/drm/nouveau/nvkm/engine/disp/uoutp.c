@@ -77,29 +77,33 @@ nvkm_uoutp_mthd_dp_mst_vcpi(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_dp_mst_id_put(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_dp_mst_id_put(struct nvif_outp_priv *uoutp, u32 id)
 {
-	union nvif_outp_dp_mst_id_put_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
+	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-	        return -ENOSYS;
-	if (!outp->func->dp.mst_id_put)
-	        return -EINVAL;
+	ret = nvkm_uoutp_lock_acquired(uoutp);
+	if (ret)
+		return ret;
 
-	return outp->func->dp.mst_id_put(outp, args->v0.id);
+	ret = outp->func->dp.mst_id_put(outp, id);
+	nvkm_uoutp_unlock(uoutp);
+	return ret;
 }
 
 static int
-nvkm_uoutp_mthd_dp_mst_id_get(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_dp_mst_id_get(struct nvif_outp_priv *uoutp, u32 *id)
 {
-	union nvif_outp_dp_mst_id_get_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
+	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-	        return -ENOSYS;
-	if (!outp->func->dp.mst_id_get)
-	        return -EINVAL;
+	ret = nvkm_uoutp_lock_acquired(uoutp);
+	if (ret)
+		return ret;
 
-	return outp->func->dp.mst_id_get(outp, &args->v0.id);
+	ret = outp->func->dp.mst_id_get(outp, id);
+	nvkm_uoutp_unlock(uoutp);
+	return ret;
 }
 
 static int
@@ -558,8 +562,6 @@ static int
 nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_DP_MST_ID_GET: return nvkm_uoutp_mthd_dp_mst_id_get(outp, argv, argc);
-	case NVIF_OUTP_V0_DP_MST_ID_PUT: return nvkm_uoutp_mthd_dp_mst_id_put(outp, argv, argc);
 	case NVIF_OUTP_V0_DP_MST_VCPI  : return nvkm_uoutp_mthd_dp_mst_vcpi  (outp, argv, argc);
 	default:
 		break;
@@ -698,6 +700,10 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 		uoutp->impl.dp.train = nvkm_uoutp_dp_train;
 		uoutp->impl.dp.drive = nvkm_uoutp_dp_drive;
 		uoutp->impl.dp.sst = nvkm_uoutp_dp_sst;
+		if (outp->func->dp.mst_id_get) {
+			uoutp->impl.dp.mst_id_get = nvkm_uoutp_dp_mst_id_get;
+			uoutp->impl.dp.mst_id_put = nvkm_uoutp_dp_mst_id_put;
+		}
 		break;
 	default:
 		WARN_ON(1);

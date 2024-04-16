@@ -2,25 +2,7 @@
 #ifndef __NVIF_IF0012_H__
 #define __NVIF_IF0012_H__
 
-#define NVIF_OUTP_V0_DP_MST_ID_GET 0x76
-#define NVIF_OUTP_V0_DP_MST_ID_PUT 0x77
 #define NVIF_OUTP_V0_DP_MST_VCPI   0x78
-
-union nvif_outp_dp_mst_id_put_args {
-	struct nvif_outp_dp_mst_id_put_v0 {
-		__u8  version;
-		__u8  pad01[3];
-		__u32 id;
-	} v0;
-};
-
-union nvif_outp_dp_mst_id_get_args {
-	struct nvif_outp_dp_mst_id_get_v0 {
-		__u8  version;
-		__u8  pad01[3];
-		__u32 id;
-	} v0;
-};
 
 union nvif_outp_dp_mst_vcpi_args {
 	struct nvif_outp_dp_mst_vcpi_v0 {

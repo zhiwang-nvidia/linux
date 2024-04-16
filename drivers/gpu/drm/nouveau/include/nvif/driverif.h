@@ -341,6 +341,8 @@ struct nvif_outp_impl {
 		int (*drive)(struct nvif_outp_priv *, u8 lanes, u8 pe[4], u8 vs[4]);
 		int (*sst)(struct nvif_outp_priv *, u8 head,
 			   u32 watermark, u32 hblanksym, u32 vblanksym);
+		int (*mst_id_get)(struct nvif_outp_priv *, u32 *id);
+		int (*mst_id_put)(struct nvif_outp_priv *, u32 id);
 	} dp;
 };
 

@@ -49,30 +49,21 @@ nvif_outp_dp_mst_vcpi(struct nvif_outp *outp, int head,
 int
 nvif_outp_dp_mst_id_put(struct nvif_outp *outp, u32 id)
 {
-	struct nvif_outp_dp_mst_id_get_v0 args;
 	int ret;
 
-	args.version = 0;
-	args.id = id;
-	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_MST_ID_PUT, &args, sizeof(args));
-	NVIF_ERRON(ret, &outp->object, "[DP_MST_ID_PUT id:%08x]", args.id);
+	ret = outp->impl->dp.mst_id_put(outp->priv, id);
+	NVIF_ERRON(ret, &outp->object, "[DP_MST_ID_PUT id:%08x]", id);
 	return ret;
 }
 
 int
 nvif_outp_dp_mst_id_get(struct nvif_outp *outp, u32 *id)
 {
-	struct nvif_outp_dp_mst_id_get_v0 args;
 	int ret;
 
-	args.version = 0;
-	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_MST_ID_GET, &args, sizeof(args));
-	NVIF_ERRON(ret, &outp->object, "[DP_MST_ID_GET] id:%08x", args.id);
-	if (ret)
-		return ret;
-
-	*id = args.id;
-	return 0;
+	ret = outp->impl->dp.mst_id_get(outp->priv, id);
+	NVIF_ERRON(ret, &outp->object, "[DP_MST_ID_GET] id:%08x", *id);
+	return ret;
 }
 
 int
