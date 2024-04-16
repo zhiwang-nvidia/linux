@@ -33,8 +33,7 @@
 
 static int
 nvkm_client_new_device(struct nvif_client_priv *client,
-		       const struct nvif_device_impl **pimpl, struct nvif_device_priv **ppriv,
-		       u64 handle)
+		       const struct nvif_device_impl **pimpl, struct nvif_device_priv **ppriv)
 {
 	struct nvkm_object *object;
 	int ret;
@@ -43,7 +42,8 @@ nvkm_client_new_device(struct nvif_client_priv *client,
 	if (ret)
 		return ret;
 
-	return nvkm_object_link_rb(client, &client->object, handle, object);
+	nvkm_object_link_(client, &client->object, object);
+	return 0;
 }
 
 static int

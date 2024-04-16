@@ -78,8 +78,7 @@ nvif_device_ctor(struct nvif_client *client, const char *name, struct nvif_devic
 
 	device->user.func = NULL;
 
-	ret = client->impl->device.new(client->priv, &device->impl, &device->priv,
-				       nvif_handle(&device->object));
+	ret = client->impl->device.new(client->priv, &device->impl, &device->priv);
 	NVIF_ERRON(ret, &client->object, "[NEW device]");
 	if (ret)
 		return ret;

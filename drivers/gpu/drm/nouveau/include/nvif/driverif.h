@@ -609,8 +609,7 @@ struct nvif_client_impl {
 
 	struct {
 		int (*new)(struct nvif_client_priv *,
-			   const struct nvif_device_impl **, struct nvif_device_priv **,
-			   u64 handle);
+			   const struct nvif_device_impl **, struct nvif_device_priv **);
 	} device;
 };
 #endif
