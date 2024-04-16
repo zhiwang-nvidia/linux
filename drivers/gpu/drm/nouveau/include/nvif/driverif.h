@@ -16,6 +16,7 @@ struct nvif_disp_priv;
 struct nvif_disp_caps_priv;
 struct nvif_conn_priv;
 struct nvif_outp_priv;
+struct nvif_head_priv;
 
 struct nvif_event_impl {
 	void (*del)(struct nvif_event_priv *);
@@ -348,6 +349,10 @@ struct nvif_outp_impl {
 	} dp;
 };
 
+struct nvif_head_impl {
+	void (*del)(struct nvif_head_priv *);
+};
+
 struct nvif_disp_impl {
 	void (*del)(struct nvif_disp_priv *);
 
@@ -371,6 +376,9 @@ struct nvif_disp_impl {
 
 	struct {
 		u32 mask;
+		int (*new)(struct nvif_disp_priv *, u8 id,
+			   const struct nvif_head_impl **, struct nvif_head_priv **,
+			   u64 handle);
 	} head;
 
 	struct {

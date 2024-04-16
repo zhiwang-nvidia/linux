@@ -6,6 +6,8 @@
 struct nvif_disp;
 
 struct nvif_head {
+	const struct nvif_head_impl *impl;
+	struct nvif_head_priv *priv;
 	struct nvif_object object;
 };
 

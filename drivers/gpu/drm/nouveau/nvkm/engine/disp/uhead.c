@@ -87,6 +87,19 @@ nvkm_uhead_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 	}
 }
 
+static void
+nvkm_uhead_del(struct nvif_head_priv *uhead)
+{
+	struct nvkm_object *object = &uhead->object;
+
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_head_impl
+nvkm_uhead_impl = {
+	.del = nvkm_uhead_del,
+};
+
 static void *
 nvkm_uhead_dtor(struct nvkm_object *object)
 {
@@ -106,18 +119,14 @@ nvkm_uhead = {
 	.uevent = nvkm_uhead_uevent,
 };
 
-#include "udisp.h"
 int
-nvkm_uhead_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nvkm_object **pobject)
+nvkm_uhead_new(struct nvkm_disp *disp, u8 id, const struct nvif_head_impl **pimpl,
+	       struct nvif_head_priv **ppriv, struct nvkm_object **pobject)
 {
-	struct nvkm_disp *disp = container_of(oclass->parent, struct nvif_disp_priv, object)->disp;
 	struct nvkm_head *head;
-	union nvif_head_args *args = argv;
 	struct nvif_head_priv *uhead;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	if (!(head = nvkm_head_find(disp, args->v0.id)))
+	if (!(head = nvkm_head_find(disp, id)))
 		return -EINVAL;
 
 	uhead = kzalloc(sizeof(*uhead), GFP_KERNEL);
@@ -133,8 +142,11 @@ nvkm_uhead_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	head->user = true;
 	spin_unlock(&disp->user.lock);
 
-	nvkm_object_ctor(&nvkm_uhead, oclass, &uhead->object);
+	nvkm_object_ctor(&nvkm_uhead, &(struct nvkm_oclass) {}, &uhead->object);
 	uhead->head = head;
+
+	*pimpl = &nvkm_uhead_impl;
+	*ppriv = uhead;
 	*pobject = &uhead->object;
 	return 0;
 }
