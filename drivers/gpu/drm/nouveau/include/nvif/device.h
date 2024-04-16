@@ -10,6 +10,8 @@ struct nvif_device {
 	const struct nvif_device_impl *impl;
 	struct nvif_device_priv *priv;
 	struct nvif_object object;
+	struct nvif_map map;
+
 	struct nv_device_info_v0 info;
 
 	struct nvif_fifo_runlist {

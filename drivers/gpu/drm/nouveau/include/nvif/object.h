@@ -22,6 +22,12 @@ struct nvif_object {
 	} map;
 };
 
+struct nvif_map {
+	const struct nvif_mapinfo *impl;
+	struct nvif_object *object;
+	void __iomem *ptr;
+};
+
 static inline bool
 nvif_object_constructed(struct nvif_object *object)
 {
@@ -43,6 +49,8 @@ int  nvif_object_ioctl(struct nvif_object *, void *, u32, void **);
 int  nvif_object_sclass_get(struct nvif_object *, struct nvif_sclass **);
 void nvif_object_sclass_put(struct nvif_sclass **);
 int  nvif_object_mthd(struct nvif_object *, u32, void *, u32);
+int nvif_object_map_cpu(struct nvif_object *, const struct nvif_mapinfo *, struct nvif_map *);
+int nvif_object_unmap_cpu(struct nvif_map *);
 int  nvif_object_map_handle(struct nvif_object *, void *, u32,
 			    u64 *handle, u64 *length);
 void nvif_object_unmap_handle(struct nvif_object *);

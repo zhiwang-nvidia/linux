@@ -13,8 +13,19 @@ struct nvif_driver {
 	void (*unmap)(struct nvif_client_priv *, void __iomem *ptr, u32 size);
 };
 
+struct nvif_mapinfo {
+	enum nvif_map_type {
+		NVIF_MAP_IO,
+		NVIF_MAP_VA,
+	} type;
+	u64 handle;
+	u64 length;
+};
+
 struct nvif_device_impl {
 	void (*del)(struct nvif_device_priv *);
+
+	struct nvif_mapinfo map;
 
 	struct {
 		s32 oclass;

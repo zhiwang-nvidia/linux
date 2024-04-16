@@ -223,18 +223,6 @@ nvkm_udevice_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 }
 
 static int
-nvkm_udevice_map(struct nvkm_object *object, void *argv, u32 argc,
-		 enum nvkm_object_map *type, u64 *addr, u64 *size)
-{
-	struct nvif_device_priv *udev = container_of(object, typeof(*udev), object);
-	struct nvkm_device *device = udev->device;
-	*type = NVKM_OBJECT_MAP_IO;
-	*addr = device->func->resource_addr(device, 0);
-	*size = device->func->resource_size(device, 0);
-	return 0;
-}
-
-static int
 nvkm_udevice_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvif_device_priv *udev = container_of(object, typeof(*udev), object);
@@ -333,7 +321,6 @@ nvkm_udevice = {
 	.init = nvkm_udevice_init,
 	.fini = nvkm_udevice_fini,
 	.mthd = nvkm_udevice_mthd,
-	.map = nvkm_udevice_map,
 	.sclass = nvkm_udevice_child_get,
 };
 
@@ -358,6 +345,9 @@ nvkm_udevice_new(struct nvkm_device *device,
 	}
 
 	udev->impl = nvkm_udevice_impl;
+	udev->impl.map.type = NVIF_MAP_IO;
+	udev->impl.map.handle = device->func->resource_addr(device, 0);
+	udev->impl.map.length = device->func->resource_size(device, 0);
 
 	if (device->vfn) {
 		udev->impl.usermode.oclass = device->vfn->user.base.oclass;

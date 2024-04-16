@@ -42,7 +42,7 @@ nvif_device_time(struct nvif_device *device)
 int
 nvif_device_map(struct nvif_device *device)
 {
-	return nvif_object_map(&device->object, NULL, 0);
+	return nvif_object_map_cpu(&device->object, &device->impl->map, &device->map);
 }
 
 void
@@ -52,8 +52,11 @@ nvif_device_dtor(struct nvif_device *device)
 		return;
 
 	nvif_user_dtor(device);
+
 	kfree(device->runlist);
 	device->runlist = NULL;
+
+	nvif_object_unmap_cpu(&device->map);
 
 	device->impl->del(device->priv);
 	device->impl = NULL;

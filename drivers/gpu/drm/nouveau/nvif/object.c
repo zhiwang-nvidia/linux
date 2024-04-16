@@ -179,6 +179,52 @@ nvif_object_unmap(struct nvif_object *object)
 }
 
 int
+nvif_object_unmap_cpu(struct nvif_map *map)
+{
+	struct nvif_client *client;
+
+	if (!map->ptr || map->impl->type == NVIF_MAP_VA)
+		return 0;
+	if (map->impl->type != NVIF_MAP_IO)
+		return -EINVAL;
+
+	client = map->object->client;
+	client->driver->unmap(client->priv, map->ptr, map->impl->length);
+	map->ptr = NULL;
+	return 0;
+}
+
+int
+nvif_object_map_cpu(struct nvif_object *object,
+		    const struct nvif_mapinfo *impl, struct nvif_map *map)
+{
+	struct nvif_client *client = object->client;
+	void *ptr = NULL;
+
+	switch (impl->type) {
+	case NVIF_MAP_IO:
+		ptr = client->driver->map(client->priv, impl->handle, impl->length);
+		break;
+	case NVIF_MAP_VA:
+		ptr = (void **)(unsigned long)impl->handle;
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	if (!ptr)
+		return -EFAULT;
+
+	map->object = object;
+	map->impl = impl;
+	map->ptr = ptr;
+
+	object->map.ptr = map->ptr; /*FIXME: needed by nvif_rd/wr */
+	return 0;
+}
+
+int
 nvif_object_map(struct nvif_object *object, void *argv, u32 argc)
 {
 	struct nvif_client *client = object->client;
