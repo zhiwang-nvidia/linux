@@ -24,7 +24,6 @@
 #include <nvif/printf.h>
 
 #include <nvif/class.h>
-#include <nvif/if0008.h>
 
 void
 nvif_mmu_dtor(struct nvif_mmu *mmu)
@@ -32,7 +31,6 @@ nvif_mmu_dtor(struct nvif_mmu *mmu)
 	if (!mmu->impl)
 		return;
 
-	kfree(mmu->kind);
 	mmu->impl->del(mmu->priv);
 	mmu->impl = NULL;
 }
@@ -44,7 +42,6 @@ nvif_mmu_ctor(struct nvif_device *device, const char *name, struct nvif_mmu *mmu
 	int ret;
 
 	mmu->impl = NULL;
-	mmu->kind = NULL;
 
 	ret = device->impl->mmu.new(device->priv, &mmu->impl, &mmu->priv,
 				    nvif_handle(&mmu->object));
@@ -53,33 +50,5 @@ nvif_mmu_ctor(struct nvif_device *device, const char *name, struct nvif_mmu *mmu
 		return ret;
 
 	nvif_object_ctor(&device->object, name ?: "nvifMmu", 0, oclass, &mmu->object);
-
-	mmu->kind_nr = mmu->impl->kind_nr;
-
-	mmu->kind = kmalloc_array(mmu->kind_nr, sizeof(*mmu->kind),
-				  GFP_KERNEL);
-	if (!mmu->kind && mmu->kind_nr)
-		goto done;
-
-	if (mmu->kind_nr) {
-		struct nvif_mmu_kind_v0 *kind;
-		size_t argc = struct_size(kind, data, mmu->kind_nr);
-
-		if (ret = -ENOMEM, !(kind = kmalloc(argc, GFP_KERNEL)))
-			goto done;
-		kind->version = 0;
-		kind->count = mmu->kind_nr;
-
-		ret = nvif_object_mthd(&mmu->object, NVIF_MMU_V0_KIND,
-				       kind, argc);
-		if (ret == 0)
-			memcpy(mmu->kind, kind->data, kind->count);
-		mmu->kind_inv = kind->kind_inv;
-		kfree(kind);
-	}
-
-done:
-	if (ret)
-		nvif_mmu_dtor(mmu);
 	return ret;
 }

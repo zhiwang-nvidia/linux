@@ -250,7 +250,7 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 domain,
 				return ERR_PTR(-EINVAL);
 			}
 
-			nvbo->comp = mmu->kind[nvbo->kind] != nvbo->kind;
+			nvbo->comp = mmu->impl->kind[nvbo->kind] != nvbo->kind;
 		} else if (cli->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 			nvbo->kind = (tile_flags & 0x00007f00) >> 8;
 			nvbo->comp = (tile_flags & 0x00030000) >> 16;
@@ -299,7 +299,7 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 domain,
 		/* Disable compression if suitable settings couldn't be found. */
 		if (nvbo->comp && !vmm->page[pi].comp) {
 			if (mmu->object.oclass >= NVIF_CLASS_MMU_GF100)
-				nvbo->kind = mmu->kind[nvbo->kind];
+				nvbo->kind = mmu->impl->kind[nvbo->kind];
 			nvbo->comp = 0;
 		}
 		nvbo->page = vmm->page[pi].shift;

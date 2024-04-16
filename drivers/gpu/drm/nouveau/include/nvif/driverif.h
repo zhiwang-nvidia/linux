@@ -83,6 +83,7 @@ struct nvif_mmu_impl {
 	u8 heap_nr;
 	u8 type_nr;
 
+	u8 kind_inv;
 	u16 kind_nr;
 
 	struct {
@@ -101,6 +102,8 @@ struct nvif_mmu_impl {
 		u8 type;
 		u8 heap;
 	} type[16];
+
+	const u8 *kind;
 
 	struct {
 		s32 oclass;

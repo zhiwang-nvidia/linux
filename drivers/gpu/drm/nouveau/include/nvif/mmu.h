@@ -8,10 +8,6 @@ struct nvif_mmu {
 	const struct nvif_mmu_impl *impl;
 	struct nvif_mmu_priv *priv;
 	struct nvif_object object;
-	u8  kind_inv;
-	u16 kind_nr;
-
-	u8 *kind;
 };
 
 int nvif_mmu_ctor(struct nvif_device *, const char *name, struct nvif_mmu *);
@@ -21,7 +17,7 @@ static inline bool
 nvif_mmu_kind_valid(struct nvif_mmu *mmu, u8 kind)
 {
 	if (kind) {
-		if (kind >= mmu->kind_nr || mmu->kind[kind] == mmu->kind_inv)
+		if (kind >= mmu->impl->kind_nr || mmu->impl->kind[kind] == mmu->impl->kind_inv)
 			return false;
 	}
 	return true;

@@ -104,7 +104,7 @@ nouveau_mem_host(struct ttm_resource *reg, struct ttm_tt *tt)
 		mem->comp = mem->kind = 0;
 	if (mem->comp && !(mmu->impl->type[type].type & NVIF_MEM_COMP)) {
 		if (mmu->object.oclass >= NVIF_CLASS_MMU_GF100)
-			mem->kind = mmu->kind[mem->kind];
+			mem->kind = mmu->impl->kind[mem->kind];
 		mem->comp = 0;
 	}
 
@@ -144,7 +144,7 @@ nouveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
 		ret = nvif_mem_ctor_type(mmu, "ttmVram",
 					 drm->ttm.type_vram, page, size,
 					 &(struct nv50_mem_v0) {
-						.bankswz = mmu->kind[mem->kind] == 2,
+						.bankswz = mmu->impl->kind[mem->kind] == 2,
 						.contig = contig,
 					 }, sizeof(struct nv50_mem_v0),
 					 &mem->mem);
