@@ -835,12 +835,12 @@ nouveau_bo_move_prep(struct nouveau_drm *drm, struct ttm_buffer_object *bo,
 	struct nvif_vmm *vmm = &drm->client.vmm.vmm;
 	int ret;
 
-	ret = nvif_vmm_get(vmm, LAZY, false, old_mem->mem.impl->page, 0,
+	ret = nvif_vmm_get(vmm, NVIF_VMM_GET_LAZY, false, old_mem->mem.impl->page, 0,
 			   old_mem->mem.impl->size, &old_mem->vma[0]);
 	if (ret)
 		return ret;
 
-	ret = nvif_vmm_get(vmm, LAZY, false, new_mem->mem.impl->page, 0,
+	ret = nvif_vmm_get(vmm, NVIF_VMM_GET_LAZY, false, new_mem->mem.impl->page, 0,
 			   new_mem->mem.impl->size, &old_mem->vma[1]);
 	if (ret)
 		goto done;

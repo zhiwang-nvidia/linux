@@ -66,44 +66,26 @@ nvif_vmm_map(struct nvif_vmm *vmm, u64 addr, u64 size, void *argv, u32 argc,
 void
 nvif_vmm_put(struct nvif_vmm *vmm, struct nvif_vma *vma)
 {
-	if (vma->size) {
-		WARN_ON(nvif_object_mthd(&vmm->object, NVIF_VMM_V0_PUT,
-					 &(struct nvif_vmm_put_v0) {
-						.addr = vma->addr,
-					 }, sizeof(struct nvif_vmm_put_v0)));
+	if (vmm && vma->size) {
+		WARN_ON(vmm->impl->put(vmm->priv, vma->addr));
 		vma->size = 0;
 	}
 }
 
 int
-nvif_vmm_get(struct nvif_vmm *vmm, enum nvif_vmm_get type, bool sparse,
+nvif_vmm_get(struct nvif_vmm *vmm, enum nvif_vmm_get_type type, bool sparse,
 	     u8 page, u8 align, u64 size, struct nvif_vma *vma)
 {
-	struct nvif_vmm_get_v0 args;
 	int ret;
 
-	args.version = vma->size = 0;
-	args.sparse = sparse;
-	args.page = page;
-	args.align = align;
-	args.size = size;
+	vma->size = 0;
 
-	switch (type) {
-	case ADDR: args.type = NVIF_VMM_GET_V0_ADDR; break;
-	case PTES: args.type = NVIF_VMM_GET_V0_PTES; break;
-	case LAZY: args.type = NVIF_VMM_GET_V0_LAZY; break;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
+	ret = vmm->impl->get(vmm->priv, type, sparse, page, align, size, &vma->addr);
+	if (ret)
+		return ret;
 
-	ret = nvif_object_mthd(&vmm->object, NVIF_VMM_V0_GET,
-			       &args, sizeof(args));
-	if (ret == 0) {
-		vma->addr = args.addr;
-		vma->size = args.size;
-	}
-	return ret;
+	vma->size = size;
+	return 0;
 }
 
 int

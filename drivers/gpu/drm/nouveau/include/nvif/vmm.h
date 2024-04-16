@@ -1,15 +1,9 @@
 #ifndef __NVIF_VMM_H__
 #define __NVIF_VMM_H__
 #include <nvif/object.h>
-#include <nvif/driverif.h> /* NVIF_VMM_TYPE */
+#include <nvif/driverif.h> /* NVIF_VMM_TYPE_*, NVIF_VMM_GET_* */
 struct nvif_mem;
 struct nvif_mmu;
-
-enum nvif_vmm_get {
-	ADDR,
-	PTES,
-	LAZY
-};
 
 struct nvif_vma {
 	u64 addr;
@@ -26,7 +20,7 @@ int nvif_vmm_ctor(struct nvif_mmu *, const char *name,
 		  enum nvif_vmm_type, u64 addr, u64 size, void *argv, u32 argc,
 		  struct nvif_vmm *);
 void nvif_vmm_dtor(struct nvif_vmm *);
-int nvif_vmm_get(struct nvif_vmm *, enum nvif_vmm_get, bool sparse,
+int nvif_vmm_get(struct nvif_vmm *, enum nvif_vmm_get_type, bool sparse,
 		 u8 page, u8 align, u64 size, struct nvif_vma *);
 void nvif_vmm_put(struct nvif_vmm *, struct nvif_vma *);
 int nvif_vmm_map(struct nvif_vmm *, u64 addr, u64 size, void *argv, u32 argc,

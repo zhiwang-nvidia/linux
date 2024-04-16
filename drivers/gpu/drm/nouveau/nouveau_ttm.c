@@ -138,7 +138,7 @@ nv04_gart_manager_new(struct ttm_resource_manager *man,
 
 	mem = nouveau_mem(*res);
 	ttm_resource_init(bo, place, *res);
-	ret = nvif_vmm_get(&drm->client.vmm.vmm, PTES, false, 12, 0,
+	ret = nvif_vmm_get(&drm->cli.vmm.vmm, NVIF_VMM_GET_PTES, false, 12, 0,
 			   (long)(*res)->size, &mem->vma[0]);
 	if (ret) {
 		nouveau_mem_del(man, *res);

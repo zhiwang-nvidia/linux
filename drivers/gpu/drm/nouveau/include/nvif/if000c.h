@@ -1,34 +1,12 @@
 #ifndef __NVIF_IF000C_H__
 #define __NVIF_IF000C_H__
 
-#define NVIF_VMM_V0_GET                                                    0x01
-#define NVIF_VMM_V0_PUT                                                    0x02
 #define NVIF_VMM_V0_MAP                                                    0x03
 #define NVIF_VMM_V0_UNMAP                                                  0x04
 #define NVIF_VMM_V0_PFNMAP                                                 0x05
 #define NVIF_VMM_V0_PFNCLR                                                 0x06
 #define NVIF_VMM_V0_RAW                                                    0x07
 #define NVIF_VMM_V0_MTHD(i)                                         ((i) + 0x80)
-
-struct nvif_vmm_get_v0 {
-	__u8  version;
-#define NVIF_VMM_GET_V0_ADDR                                               0x00
-#define NVIF_VMM_GET_V0_PTES                                               0x01
-#define NVIF_VMM_GET_V0_LAZY	                                           0x02
-	__u8  type;
-	__u8  sparse;
-	__u8  page;
-	__u8  align;
-	__u8  pad05[3];
-	__u64 size;
-	__u64 addr;
-};
-
-struct nvif_vmm_put_v0 {
-	__u8  version;
-	__u8  pad01[7];
-	__u64 addr;
-};
 
 struct nvif_vmm_map_v0 {
 	__u8  version;

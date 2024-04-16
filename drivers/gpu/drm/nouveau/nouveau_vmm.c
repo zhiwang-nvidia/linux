@@ -98,7 +98,7 @@ nouveau_vma_new(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm,
 
 	if (nvbo->bo.resource->mem_type != TTM_PL_SYSTEM &&
 	    mem->mem.impl->page == nvbo->page) {
-		ret = nvif_vmm_get(&vmm->vmm, LAZY, false, mem->mem.impl->page, 0,
+		ret = nvif_vmm_get(&vmm->vmm, NVIF_VMM_GET_LAZY, false, mem->mem.impl->page, 0,
 				   mem->mem.impl->size, &tmp);
 		if (ret)
 			goto done;
@@ -106,7 +106,7 @@ nouveau_vma_new(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm,
 		vma->addr = tmp.addr;
 		ret = nouveau_vma_map(vma, mem);
 	} else {
-		ret = nvif_vmm_get(&vmm->vmm, PTES, false, mem->mem.impl->page, 0,
+		ret = nvif_vmm_get(&vmm->vmm, NVIF_VMM_GET_PTES, false, mem->mem.impl->page, 0,
 				   mem->mem.impl->size, &tmp);
 		if (ret)
 			goto done;

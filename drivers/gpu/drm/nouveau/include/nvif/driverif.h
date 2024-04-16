@@ -95,6 +95,12 @@ enum nvif_vmm_type {
 	NVIF_VMM_TYPE_RAW,
 };
 
+enum nvif_vmm_get_type {
+	NVIF_VMM_GET_ADDR,
+	NVIF_VMM_GET_PTES,
+	NVIF_VMM_GET_LAZY,
+};
+
 struct nvif_vmm_impl {
 	void (*del)(struct nvif_vmm_priv *);
 
@@ -109,6 +115,10 @@ struct nvif_vmm_impl {
 		bool host;
 		bool comp;
 	} page[8];
+
+	int (*get)(struct nvif_vmm_priv *, enum nvif_vmm_get_type, bool sparse, u8 page,
+		   u8 align, u64 size, u64 *addr);
+	int (*put)(struct nvif_vmm_priv *, u64 addr);
 };
 
 struct nvif_mmu_impl {

@@ -238,23 +238,14 @@ fail:
 }
 
 static int
-nvkm_uvmm_mthd_put(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
+nvkm_uvmm_put(struct nvif_vmm_priv *uvmm, u64 addr)
 {
-	union {
-		struct nvif_vmm_put_v0 v0;
-	} *args = argv;
 	struct nvkm_vmm *vmm = uvmm->vmm;
 	struct nvkm_vma *vma;
-	int ret = -ENOSYS;
-	u64 addr;
-
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		addr = args->v0.addr;
-	} else
-		return ret;
+	int ret;
 
 	mutex_lock(&vmm->mutex.vmm);
-	vma = nvkm_vmm_node_search(vmm, args->v0.addr);
+	vma = nvkm_vmm_node_search(vmm, addr);
 	if (ret = -ENOENT, !vma || vma->addr != addr || vma->part) {
 		VMM_DEBUG(vmm, "lookup %016llx: %016llx %d", addr,
 			  vma ? vma->addr : ~0ULL, vma ? vma->part : 0);
@@ -274,27 +265,14 @@ done:
 }
 
 static int
-nvkm_uvmm_mthd_get(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
+nvkm_uvmm_get(struct nvif_vmm_priv *uvmm, enum nvif_vmm_get_type type, bool sparse,
+	      u8 page, u8 align, u64 size, u64 *addr)
 {
-	union {
-		struct nvif_vmm_get_v0 v0;
-	} *args = argv;
 	struct nvkm_vmm *vmm = uvmm->vmm;
 	struct nvkm_vma *vma;
-	int ret = -ENOSYS;
-	bool getref, mapref, sparse;
-	u8 page, align;
-	u64 size;
-
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		getref = args->v0.type == NVIF_VMM_GET_V0_PTES;
-		mapref = args->v0.type == NVIF_VMM_GET_V0_ADDR;
-		sparse = args->v0.sparse;
-		page = args->v0.page;
-		align = args->v0.align;
-		size = args->v0.size;
-	} else
-		return ret;
+	bool getref = type == NVIF_VMM_GET_PTES;
+	bool mapref = type == NVIF_VMM_GET_ADDR;
+	int ret;
 
 	mutex_lock(&vmm->mutex.vmm);
 	ret = nvkm_vmm_get_locked(vmm, getref, mapref, sparse,
@@ -303,8 +281,8 @@ nvkm_uvmm_mthd_get(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	if (ret)
 		return ret;
 
-	args->v0.addr = vma->addr;
-	return ret;
+	*addr = vma->addr;
+	return 0;
 }
 
 static inline int
@@ -474,8 +452,6 @@ nvkm_uvmm_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
 	struct nvif_vmm_priv *uvmm = container_of(object, typeof(*uvmm), object);
 	switch (mthd) {
-	case NVIF_VMM_V0_GET   : return nvkm_uvmm_mthd_get   (uvmm, argv, argc);
-	case NVIF_VMM_V0_PUT   : return nvkm_uvmm_mthd_put   (uvmm, argv, argc);
 	case NVIF_VMM_V0_MAP   : return nvkm_uvmm_mthd_map   (uvmm, argv, argc);
 	case NVIF_VMM_V0_UNMAP : return nvkm_uvmm_mthd_unmap (uvmm, argv, argc);
 	case NVIF_VMM_V0_PFNMAP: return nvkm_uvmm_mthd_pfnmap(uvmm, argv, argc);
@@ -505,6 +481,8 @@ nvkm_uvmm_del(struct nvif_vmm_priv *uvmm)
 static const struct nvif_vmm_impl
 nvkm_uvmm_impl = {
 	.del = nvkm_uvmm_del,
+	.get = nvkm_uvmm_get,
+	.put = nvkm_uvmm_put,
 };
 
 static void *
