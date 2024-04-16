@@ -230,7 +230,6 @@ gf100_fermi_mthd_zbc_depth(struct nvkm_object *object, void *data, u32 size)
 static int
 gf100_fermi_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
-	nvif_ioctl(object, "fermi mthd %08x\n", mthd);
 	switch (mthd) {
 	case FERMI_A_ZBC_COLOR:
 		return gf100_fermi_mthd_zbc_color(object, data, size);

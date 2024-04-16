@@ -46,6 +46,14 @@ struct nvkm_uobj {
 	int hash;
 };
 
+static int
+nvkm_uchan_object_mthd(struct nvif_engobj_priv *priv, u32 mthd, void *argv, u32 argc)
+{
+	struct nvkm_uobj *uobj = (void *)priv;
+
+	return nvkm_object_mthd(&uobj->oproxy.base, mthd, argv, argc);
+}
+
 static void
 nvkm_uchan_object_del(struct nvif_engobj_priv *priv)
 {
@@ -59,6 +67,7 @@ nvkm_uchan_object_del(struct nvif_engobj_priv *priv)
 static const struct nvif_engobj_impl
 nvkm_uchan_object_impl = {
 	.del = nvkm_uchan_object_del,
+	.mthd = nvkm_uchan_object_mthd,
 };
 
 static int
