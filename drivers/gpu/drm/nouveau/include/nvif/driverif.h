@@ -292,6 +292,12 @@ struct nvif_outp_impl {
 	} tmds;
 
 	struct {
+		int (*config)(struct nvif_outp_priv *, u8 head, bool enable, u8 max_ac_packet,
+			      u8 rekey, u32 khz, bool scdc, bool scdc_scrambling,
+			      bool scdc_low_rates);
+	} hdmi;
+
+	struct {
 		u8 acpi_edid;
 
 		int (*config)(struct nvif_outp_priv *, bool dual, bool bpc8);
