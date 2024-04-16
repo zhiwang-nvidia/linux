@@ -4,25 +4,11 @@
 
 #include <drm/display/drm_dp.h>
 
-#define NVIF_OUTP_V0_DP_TRAIN      0x73
 #define NVIF_OUTP_V0_DP_DRIVE      0x74
 #define NVIF_OUTP_V0_DP_SST        0x75
 #define NVIF_OUTP_V0_DP_MST_ID_GET 0x76
 #define NVIF_OUTP_V0_DP_MST_ID_PUT 0x77
 #define NVIF_OUTP_V0_DP_MST_VCPI   0x78
-
-union nvif_outp_dp_train_args {
-	struct nvif_outp_dp_train_v0 {
-		__u8  version;
-		__u8  retrain;
-		__u8  mst;
-		__u8  lttprs;
-		__u8  post_lt_adj;
-		__u8  link_nr;
-		__u32 link_bw;
-		__u8 dpcd[DP_RECEIVER_CAP_SIZE];
-	} v0;
-};
 
 union nvif_outp_dp_drive_args {
 	struct nvif_outp_dp_drive_v0 {

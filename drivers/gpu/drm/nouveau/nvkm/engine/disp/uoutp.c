@@ -136,25 +136,28 @@ nvkm_uoutp_mthd_dp_drive(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_dp_train(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_dp_train(struct nvif_outp_priv *uoutp, u8 dpcd[DP_RECEIVER_CAP_SIZE], u8 lttprs,
+		    u8 link_nr, u32 link_bw, bool mst, bool post_lt_adj, bool retrain)
 {
-	union nvif_outp_dp_train_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
+	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	if (!outp->func->dp.train)
-		return -EINVAL;
+	ret = nvkm_uoutp_lock_acquired(uoutp);
+	if (ret)
+		return ret;
 
-	if (!args->v0.retrain) {
-		memcpy(outp->dp.dpcd, args->v0.dpcd, sizeof(outp->dp.dpcd));
-		outp->dp.lttprs = args->v0.lttprs;
-		outp->dp.lt.nr = args->v0.link_nr;
-		outp->dp.lt.bw = args->v0.link_bw / 27000;
-		outp->dp.lt.mst = args->v0.mst;
-		outp->dp.lt.post_adj = args->v0.post_lt_adj;
+	if (!retrain) {
+		memcpy(outp->dp.dpcd, dpcd, sizeof(outp->dp.dpcd));
+		outp->dp.lttprs = lttprs;
+		outp->dp.lt.nr = link_nr;
+		outp->dp.lt.bw = link_bw / 27000;
+		outp->dp.lt.mst = mst;
+		outp->dp.lt.post_adj = post_lt_adj;
 	}
 
-	return outp->func->dp.train(outp, args->v0.retrain);
+	ret = outp->func->dp.train(outp, retrain);
+	nvkm_uoutp_unlock(uoutp);
+	return ret;
 }
 
 static int
@@ -545,7 +548,6 @@ static int
 nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_DP_TRAIN     : return nvkm_uoutp_mthd_dp_train     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_DRIVE     : return nvkm_uoutp_mthd_dp_drive     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_SST       : return nvkm_uoutp_mthd_dp_sst       (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_MST_ID_GET: return nvkm_uoutp_mthd_dp_mst_id_get(outp, argv, argc);
@@ -685,6 +687,7 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 		uoutp->impl.dp.aux_pwr = nvkm_uoutp_dp_aux_pwr;
 		uoutp->impl.dp.aux_xfer = nvkm_uoutp_dp_aux_xfer;
 		uoutp->impl.dp.rates = nvkm_uoutp_dp_rates;
+		uoutp->impl.dp.train = nvkm_uoutp_dp_train;
 		break;
 	default:
 		WARN_ON(1);

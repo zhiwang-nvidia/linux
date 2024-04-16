@@ -113,23 +113,13 @@ int
 nvif_outp_dp_train(struct nvif_outp *outp, u8 dpcd[DP_RECEIVER_CAP_SIZE], u8 lttprs,
 		   u8 link_nr, u32 link_bw, bool mst, bool post_lt_adj, bool retrain)
 {
-	struct nvif_outp_dp_train_v0 args;
 	int ret;
 
-	args.version = 0;
-	args.retrain = retrain;
-	args.mst = mst;
-	args.lttprs = lttprs;
-	args.post_lt_adj = post_lt_adj;
-	args.link_nr = link_nr;
-	args.link_bw = link_bw;
-	memcpy(args.dpcd, dpcd, sizeof(args.dpcd));
-
-	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_TRAIN, &args, sizeof(args));
+	ret = outp->impl->dp.train(outp->priv, dpcd, lttprs, link_nr, link_bw, mst,
+				   post_lt_adj, retrain);
 	NVIF_ERRON(ret, &outp->object,
 		   "[DP_TRAIN retrain:%d mst:%d lttprs:%d post_lt_adj:%d nr:%d bw:%d]",
-		   args.retrain, args.mst, args.lttprs, args.post_lt_adj, args.link_nr,
-		   args.link_bw);
+		   retrain, mst, lttprs, post_lt_adj, link_nr, link_bw);
 	return ret;
 }
 

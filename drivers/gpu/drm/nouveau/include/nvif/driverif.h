@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NVIF_DRIVERIF_H__
 #define __NVIF_DRIVERIF_H__
+#include <drm/display/drm_dp.h>
+
 struct nvif_event_priv;
 struct nvif_client_priv;
 struct nvif_device_priv;
@@ -334,6 +336,8 @@ struct nvif_outp_impl {
 		int (*aux_pwr)(struct nvif_outp_priv *, bool enable);
 		int (*aux_xfer)(struct nvif_outp_priv *, u8 type, u32 addr, u8 *data, u8 *size);
 		int (*rates)(struct nvif_outp_priv *, struct nvif_outp_dp_rate *, u8 rates);
+		int (*train)(struct nvif_outp_priv *, u8 dpcd[DP_RECEIVER_CAP_SIZE], u8 lttprs,
+			     u8 link_nr, u32 link_bw, bool mst, bool post_lt_adj, bool retrain);
 	} dp;
 };
 
