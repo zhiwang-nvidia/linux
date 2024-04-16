@@ -332,8 +332,7 @@ nouveau_channel_ctor(struct nouveau_cli *cli, bool priv, u64 runm,
 	ret = device->impl->fifo.chan.new(device->priv, device->impl->fifo.runl[chan->runlist].id,
 					  0, priv, BIT(0), vmm, ctxdma, offset, length,
 					  userd, userd_offset, chan->name,
-					  &chan->chan.impl, &chan->chan.priv,
-					  nvif_handle(&chan->chan.object));
+					  &chan->chan.impl, &chan->chan.priv);
 	if (ret) {
 		nouveau_channel_del(pchan);
 		return ret;

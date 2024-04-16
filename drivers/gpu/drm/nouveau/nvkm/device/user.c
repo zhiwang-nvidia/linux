@@ -102,7 +102,7 @@ nvkm_udevice_chan_new(struct nvif_device_priv *udev, u8 runl, u8 runq, bool priv
 		      struct nvif_vmm_priv *uvmm, struct nvif_ctxdma_priv *push,
 		      u64 offset, u64 length, struct nvif_mem_priv *userd, u16 userd_offset,
 		      const char *name, const struct nvif_chan_impl **pimpl,
-		      struct nvif_chan_priv **ppriv, u64 handle)
+		      struct nvif_chan_priv **ppriv)
 {
 	struct nvkm_vmm *vmm = nvkm_uvmm_ref(uvmm);
 	struct nvkm_object *object;
@@ -115,7 +115,8 @@ nvkm_udevice_chan_new(struct nvif_device_priv *udev, u8 runl, u8 runq, bool priv
 	if (ret)
 		return ret;
 
-	return nvkm_object_link_rb(udev->object.client, &udev->object, handle, object);
+	nvkm_object_link(&udev->object, object);
+	return 0;
 }
 
 static int

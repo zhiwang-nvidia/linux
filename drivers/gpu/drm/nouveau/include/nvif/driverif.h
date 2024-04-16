@@ -618,8 +618,7 @@ struct nvif_device_impl {
 				   struct nvif_vmm_priv *, struct nvif_ctxdma_priv *push,
 				   u64 offset, u64 length, struct nvif_mem_priv *userd,
 				   u16 userd_offset, const char *name,
-				   const struct nvif_chan_impl **, struct nvif_chan_priv **,
-				   u64 handle);
+				   const struct nvif_chan_impl **, struct nvif_chan_priv **);
 		} chan;
 	} fifo;
 };
