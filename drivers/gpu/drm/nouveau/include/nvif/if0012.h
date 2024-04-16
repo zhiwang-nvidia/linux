@@ -4,8 +4,6 @@
 
 #include <drm/display/drm_dp.h>
 
-#define NVIF_OUTP_V0_LVDS          0x40
-
 #define NVIF_OUTP_V0_HDMI          0x50
 
 #define NVIF_OUTP_V0_INFOFRAME     0x60
@@ -20,14 +18,6 @@
 #define NVIF_OUTP_V0_DP_MST_ID_GET 0x76
 #define NVIF_OUTP_V0_DP_MST_ID_PUT 0x77
 #define NVIF_OUTP_V0_DP_MST_VCPI   0x78
-
-union nvif_outp_lvds_args {
-	struct nvif_outp_lvds_v0 {
-		__u8  version;
-		__u8  dual;
-		__u8  bpc8;
-	} v0;
-};
 
 union nvif_outp_hdmi_args {
 	struct nvif_outp_hdmi_v0 {

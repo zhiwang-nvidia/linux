@@ -254,15 +254,10 @@ nvif_outp_hdmi(struct nvif_outp *outp, int head, bool enable, u8 max_ac_packet, 
 int
 nvif_outp_lvds(struct nvif_outp *outp, bool dual, bool bpc8)
 {
-	struct nvif_outp_lvds_v0 args;
 	int ret;
 
-	args.version = 0;
-	args.dual = dual;
-	args.bpc8 = bpc8;
-
-	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_LVDS, &args, sizeof(args));
-	NVIF_ERRON(ret, &outp->object, "[LVDS dual:%d 8bpc:%d]", args.dual, args.bpc8);
+	ret = outp->impl->lvds.config(outp->priv, dual, bpc8);
+	NVIF_ERRON(ret, &outp->object, "[LVDS dual:%d 8bpc:%d]", dual, bpc8);
 	return ret;
 }
 

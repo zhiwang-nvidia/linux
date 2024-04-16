@@ -305,17 +305,18 @@ nvkm_uoutp_mthd_hdmi(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_lvds(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_lvds(struct nvif_outp_priv *uoutp, bool dual, bool bpc8)
 {
-	union nvif_outp_lvds_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
+	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	if (outp->info.type != DCB_OUTPUT_LVDS)
-		return -EINVAL;
+	ret = nvkm_uoutp_lock_acquired(uoutp);
+	if (ret)
+		return ret;
 
-	outp->lvds.dual = !!args->v0.dual;
-	outp->lvds.bpc8 = !!args->v0.bpc8;
+	outp->lvds.dual = dual;
+	outp->lvds.bpc8 = bpc8;
+	nvkm_uoutp_unlock(uoutp);
 	return 0;
 }
 
@@ -521,7 +522,6 @@ static int
 nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_LVDS         : return nvkm_uoutp_mthd_lvds         (outp, argv, argc);
 	case NVIF_OUTP_V0_HDMI         : return nvkm_uoutp_mthd_hdmi         (outp, argv, argc);
 	case NVIF_OUTP_V0_INFOFRAME    : return nvkm_uoutp_mthd_infoframe    (outp, argv, argc);
 	case NVIF_OUTP_V0_HDA_ELD      : return nvkm_uoutp_mthd_hda_eld      (outp, argv, argc);
@@ -664,6 +664,7 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 		uoutp->impl.type = NVIF_OUTP_SOR;
 		uoutp->impl.proto = NVIF_OUTP_LVDS;
 		uoutp->impl.lvds.acpi_edid = outp->info.lvdsconf.use_acpi_for_edid;
+		uoutp->impl.lvds.config = nvkm_uoutp_lvds;
 		break;
 	case DCB_OUTPUT_DP:
 		if (!outp->info.location) {

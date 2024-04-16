@@ -293,6 +293,8 @@ struct nvif_outp_impl {
 
 	struct {
 		u8 acpi_edid;
+
+		int (*config)(struct nvif_outp_priv *, bool dual, bool bpc8);
 	} lvds;
 
 	struct {
