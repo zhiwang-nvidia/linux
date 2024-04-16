@@ -2,23 +2,10 @@
 #ifndef __NVIF_IF0012_H__
 #define __NVIF_IF0012_H__
 
-#include <drm/display/drm_dp.h>
-
-#define NVIF_OUTP_V0_DP_DRIVE      0x74
 #define NVIF_OUTP_V0_DP_SST        0x75
 #define NVIF_OUTP_V0_DP_MST_ID_GET 0x76
 #define NVIF_OUTP_V0_DP_MST_ID_PUT 0x77
 #define NVIF_OUTP_V0_DP_MST_VCPI   0x78
-
-union nvif_outp_dp_drive_args {
-	struct nvif_outp_dp_drive_v0 {
-		__u8  version;
-		__u8  pad01[2];
-		__u8  lanes;
-		__u8  pe[4];
-		__u8  vs[4];
-	} v0;
-};
 
 union nvif_outp_dp_sst_args {
 	struct nvif_outp_dp_sst_v0 {

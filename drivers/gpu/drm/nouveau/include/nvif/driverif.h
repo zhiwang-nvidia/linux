@@ -338,6 +338,7 @@ struct nvif_outp_impl {
 		int (*rates)(struct nvif_outp_priv *, struct nvif_outp_dp_rate *, u8 rates);
 		int (*train)(struct nvif_outp_priv *, u8 dpcd[DP_RECEIVER_CAP_SIZE], u8 lttprs,
 			     u8 link_nr, u32 link_bw, bool mst, bool post_lt_adj, bool retrain);
+		int (*drive)(struct nvif_outp_priv *, u8 lanes, u8 pe[4], u8 vs[4]);
 	} dp;
 };
 

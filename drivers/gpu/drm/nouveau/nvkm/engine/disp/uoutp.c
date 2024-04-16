@@ -123,16 +123,18 @@ nvkm_uoutp_mthd_dp_sst(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_dp_drive(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_dp_drive(struct nvif_outp_priv *uoutp, u8 lanes, u8 pe[4], u8 vs[4])
 {
-	union nvif_outp_dp_drive_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
+	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	if (!outp->func->dp.drive)
-		return -EINVAL;
+	ret = nvkm_uoutp_lock_acquired(uoutp);
+	if (ret)
+		return ret;
 
-	return outp->func->dp.drive(outp, args->v0.lanes, args->v0.pe, args->v0.vs);
+	ret = outp->func->dp.drive(outp, lanes, pe, vs);
+	nvkm_uoutp_unlock(uoutp);
+	return ret;
 }
 
 static int
@@ -548,7 +550,6 @@ static int
 nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_DP_DRIVE     : return nvkm_uoutp_mthd_dp_drive     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_SST       : return nvkm_uoutp_mthd_dp_sst       (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_MST_ID_GET: return nvkm_uoutp_mthd_dp_mst_id_get(outp, argv, argc);
 	case NVIF_OUTP_V0_DP_MST_ID_PUT: return nvkm_uoutp_mthd_dp_mst_id_put(outp, argv, argc);
@@ -688,6 +689,7 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 		uoutp->impl.dp.aux_xfer = nvkm_uoutp_dp_aux_xfer;
 		uoutp->impl.dp.rates = nvkm_uoutp_dp_rates;
 		uoutp->impl.dp.train = nvkm_uoutp_dp_train;
+		uoutp->impl.dp.drive = nvkm_uoutp_dp_drive;
 		break;
 	default:
 		WARN_ON(1);
