@@ -131,25 +131,7 @@ nouveau_abi16_obj_new(struct nouveau_abi16 *abi16, enum nouveau_abi16_obj_type t
 s32
 nouveau_abi16_swclass(struct nouveau_drm *drm)
 {
-	switch (drm->client.device.info.family) {
-	case NV_DEVICE_INFO_V0_TNT:
-		return NVIF_CLASS_SW_NV04;
-	case NV_DEVICE_INFO_V0_CELSIUS:
-	case NV_DEVICE_INFO_V0_KELVIN:
-	case NV_DEVICE_INFO_V0_RANKINE:
-	case NV_DEVICE_INFO_V0_CURIE:
-		return NVIF_CLASS_SW_NV10;
-	case NV_DEVICE_INFO_V0_TESLA:
-		return NVIF_CLASS_SW_NV50;
-	case NV_DEVICE_INFO_V0_FERMI:
-	case NV_DEVICE_INFO_V0_KEPLER:
-	case NV_DEVICE_INFO_V0_MAXWELL:
-	case NV_DEVICE_INFO_V0_PASCAL:
-	case NV_DEVICE_INFO_V0_VOLTA:
-		return NVIF_CLASS_SW_GF100;
-	}
-
-	return 0x0000;
+	return nvif_fifo_engine_oclass(&drm->device, NVIF_ENGINE_SW);
 }
 
 static void
@@ -510,9 +492,8 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16_ntfy *ntfy;
-	struct nvif_sclass *sclass;
 	s32 oclass = 0;
-	int ret, i;
+	int ret;
 
 	if (unlikely(!abi16))
 		return -ENOMEM;
@@ -524,56 +505,25 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	if (!chan)
 		return nouveau_abi16_put(abi16, -ENOENT);
 
-	ret = nvif_object_sclass_get(&chan->chan->chan.object, &sclass);
-	if (ret < 0)
-		return nouveau_abi16_put(abi16, ret);
-
 	if ((init->class & 0x00ff) == 0x006e) {
 		/* nvsw: compatibility with older 0x*6e class identifier */
-		for (i = 0; !oclass && i < ret; i++) {
-			switch (sclass[i].oclass) {
-			case NVIF_CLASS_SW_NV04:
-			case NVIF_CLASS_SW_NV10:
-			case NVIF_CLASS_SW_NV50:
-			case NVIF_CLASS_SW_GF100:
-				oclass = sclass[i].oclass;
-				break;
-			default:
-				break;
-			}
-		}
+		oclass = nvif_fifo_engine_oclass(&abi16->cli->drm->device, NVIF_ENGINE_SW);
 	} else
 	if ((init->class & 0x00ff) == 0x00b1) {
 		/* msvld: compatibility with incorrect version exposure */
-		for (i = 0; i < ret; i++) {
-			if ((sclass[i].oclass & 0x00ff) == 0x00b1) {
-				oclass = sclass[i].oclass;
-				break;
-			}
-		}
+		oclass = nvif_fifo_engine_oclass(&abi16->cli->drm->device, NVIF_ENGINE_MSVLD);
 	} else
 	if ((init->class & 0x00ff) == 0x00b2) { /* mspdec */
 		/* mspdec: compatibility with incorrect version exposure */
-		for (i = 0; i < ret; i++) {
-			if ((sclass[i].oclass & 0x00ff) == 0x00b2) {
-				oclass = sclass[i].oclass;
-				break;
-			}
-		}
+		oclass = nvif_fifo_engine_oclass(&abi16->cli->drm->device, NVIF_ENGINE_MSPDEC);
 	} else
 	if ((init->class & 0x00ff) == 0x00b3) { /* msppp */
 		/* msppp: compatibility with incorrect version exposure */
-		for (i = 0; i < ret; i++) {
-			if ((sclass[i].oclass & 0x00ff) == 0x00b3) {
-				oclass = sclass[i].oclass;
-				break;
-			}
-		}
+		oclass = nvif_fifo_engine_oclass(&abi16->cli->drm->device, NVIF_ENGINE_MSPPP);
 	} else {
 		oclass = init->class;
 	}
 
-	nvif_object_sclass_put(&sclass);
 	if (!oclass)
 		return nouveau_abi16_put(abi16, -EINVAL);
 
@@ -780,10 +730,11 @@ nouveau_abi16_ioctl_new(struct nouveau_abi16 *abi16, struct nvif_ioctl_v0 *ioctl
 static int
 nouveau_abi16_ioctl_sclass(struct nouveau_abi16 *abi16, struct nvif_ioctl_v0 *ioctl, u32 argc)
 {
+	const struct nvif_device_impl_fifo *fifo;
+	const struct nvif_device_impl_runl *runl;
 	struct nvif_ioctl_sclass_v0 *args;
 	struct nouveau_abi16_chan *chan;
-	struct nvif_sclass *sclass;
-	int ret;
+	int cnt = 0;
 
 	if (!ioctl->route || argc < sizeof(*args))
 		return -EINVAL;
@@ -797,18 +748,24 @@ nouveau_abi16_ioctl_sclass(struct nouveau_abi16 *abi16, struct nvif_ioctl_v0 *io
 	if (!chan)
 		return -EINVAL;
 
-	ret = nvif_object_sclass_get(&chan->chan->chan.object, &sclass);
-	if (ret < 0)
-		return ret;
+	fifo = &chan->chan->cli->drm->device.impl->fifo;
+	runl = &fifo->runl[chan->chan->chan.runl];
 
-	for (int i = 0; i < min_t(u8, args->count, ret); i++) {
-		args->oclass[i].oclass = sclass[i].oclass;
-		args->oclass[i].minver = sclass[i].minver;
-		args->oclass[i].maxver = sclass[i].maxver;
+	for (int engi = 0; engi < runl->engn_nr; engi++) {
+		const struct nvif_device_impl_engine *engine =
+			&fifo->engine[runl->engn[engi].engine];
+
+		for (int clsi = 0; clsi < engine->oclass_nr; clsi++) {
+			if (cnt < args->count) {
+				args->oclass[cnt].oclass = engine->oclass[clsi];
+				args->oclass[cnt].minver = -1;
+				args->oclass[cnt].maxver = -1;
+			}
+			cnt++;
+		}
 	}
-	args->count = ret;
 
-	nvif_object_sclass_put(&sclass);
+	args->count = cnt;
 	return 0;
 }
 

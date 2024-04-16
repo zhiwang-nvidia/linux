@@ -21,6 +21,19 @@
  */
 #include <nvif/fifo.h>
 
+s32
+nvif_fifo_engine_oclass(struct nvif_device *device, enum nvif_engine_type type)
+{
+	const struct nvif_device_impl_fifo *impl = &device->impl->fifo;
+
+	for (int i = 0; i < impl->engine_nr; i++) {
+		if (impl->engine[i].type == type)
+			return impl->engine[i].oclass[0];
+	}
+
+	return 0;
+}
+
 u64
 nvif_fifo_runlist(struct nvif_device *device, enum nvif_engine_type type)
 {

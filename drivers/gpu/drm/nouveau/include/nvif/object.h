@@ -3,12 +3,6 @@
 #define __NVIF_OBJECT_H__
 #include <nvif/os.h>
 
-struct nvif_sclass {
-	s32 oclass;
-	int minver;
-	int maxver;
-};
-
 struct nvif_object {
 	struct nvif_parent *parent;
 	struct nvif_client *client;
@@ -46,8 +40,6 @@ void nvif_object_ctor_1(struct nvif_object *parent, const char *name, u32 handle
 
 void nvif_object_dtor(struct nvif_object *);
 int  nvif_object_ioctl(struct nvif_object *, void *, u32, void **);
-int  nvif_object_sclass_get(struct nvif_object *, struct nvif_sclass **);
-void nvif_object_sclass_put(struct nvif_sclass **);
 int  nvif_object_mthd(struct nvif_object *, u32, void *, u32);
 int nvif_object_map_cpu(struct nvif_object *, const struct nvif_mapinfo *, struct nvif_map *);
 int nvif_object_unmap_cpu(struct nvif_map *);

@@ -16,4 +16,6 @@ nvif_fifo_runlist_ce(struct nvif_device *device)
 		runmce = runmgr;
 	return runmce;
 }
+
+s32 nvif_fifo_engine_oclass(struct nvif_device *, enum nvif_engine_type);
 #endif

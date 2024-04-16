@@ -46,57 +46,6 @@ nvif_object_ioctl(struct nvif_object *object, void *data, u32 size, void **hack)
 	return client->driver->ioctl(client->object.priv, data, size, hack);
 }
 
-void
-nvif_object_sclass_put(struct nvif_sclass **psclass)
-{
-	kfree(*psclass);
-	*psclass = NULL;
-}
-
-int
-nvif_object_sclass_get(struct nvif_object *object, struct nvif_sclass **psclass)
-{
-	struct {
-		struct nvif_ioctl_v0 ioctl;
-		struct nvif_ioctl_sclass_v0 sclass;
-	} *args = NULL;
-	int ret, cnt = 0, i;
-	u32 size;
-
-	while (1) {
-		size = sizeof(*args) + cnt * sizeof(args->sclass.oclass[0]);
-		if (!(args = kmalloc(size, GFP_KERNEL)))
-			return -ENOMEM;
-		args->ioctl.version = 0;
-		args->ioctl.type = NVIF_IOCTL_V0_SCLASS;
-		args->sclass.version = 0;
-		args->sclass.count = cnt;
-
-		ret = nvif_object_ioctl(object, args, size, NULL);
-		if (ret == 0 && args->sclass.count <= cnt)
-			break;
-		cnt = args->sclass.count;
-		kfree(args);
-		if (ret != 0)
-			return ret;
-	}
-
-	*psclass = kcalloc(args->sclass.count, sizeof(**psclass), GFP_KERNEL);
-	if (*psclass) {
-		for (i = 0; i < args->sclass.count; i++) {
-			(*psclass)[i].oclass = args->sclass.oclass[i].oclass;
-			(*psclass)[i].minver = args->sclass.oclass[i].minver;
-			(*psclass)[i].maxver = args->sclass.oclass[i].maxver;
-		}
-		ret = args->sclass.count;
-	} else {
-		ret = -ENOMEM;
-	}
-
-	kfree(args);
-	return ret;
-}
-
 int
 nvif_object_mthd(struct nvif_object *object, u32 mthd, void *data, u32 size)
 {

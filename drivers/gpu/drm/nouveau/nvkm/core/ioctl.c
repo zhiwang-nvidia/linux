@@ -60,32 +60,7 @@ static int
 nvkm_ioctl_sclass(struct nvkm_client *client,
 		  struct nvkm_object *object, void *data, u32 size)
 {
-	union {
-		struct nvif_ioctl_sclass_v0 v0;
-	} *args = data;
-	struct nvkm_oclass oclass = { .client = client };
-	int ret = -ENOSYS, i = 0;
-
-	nvif_ioctl(object, "sclass size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
-		nvif_ioctl(object, "sclass vers %d count %d\n",
-			   args->v0.version, args->v0.count);
-		if (size != args->v0.count * sizeof(args->v0.oclass[0]))
-			return -EINVAL;
-
-		while (nvkm_ioctl_sclass_(object, i, &oclass) >= 0) {
-			if (i < args->v0.count) {
-				args->v0.oclass[i].oclass = oclass.base.oclass;
-				args->v0.oclass[i].minver = oclass.base.minver;
-				args->v0.oclass[i].maxver = oclass.base.maxver;
-			}
-			i++;
-		}
-
-		args->v0.count = i;
-	}
-
-	return ret;
+	return -ENODEV;
 }
 
 static int
