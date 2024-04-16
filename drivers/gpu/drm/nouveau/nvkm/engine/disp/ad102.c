@@ -30,14 +30,13 @@ static const struct nvkm_disp_func
 ad102_disp = {
 	.uevent = &gv100_disp_chan_uevent,
 	.ramht_size = 0x2000,
-	.root = {  0, 0,AD102_DISP },
 	.user = {
-		{{-1,-1,GV100_DISP_CAPS                  }, gv100_disp_caps_new },
-		{{ 0, 0,GA102_DISP_CURSOR                }, nvkm_disp_chan_new, &gv100_disp_curs },
-		{{ 0, 0,GA102_DISP_WINDOW_IMM_CHANNEL_DMA}, nvkm_disp_wndw_new, &gv100_disp_wimm },
-		{{ 0, 0,AD102_DISP_CORE_CHANNEL_DMA      }, nvkm_disp_core_new, &gv100_disp_core },
-		{{ 0, 0,GA102_DISP_WINDOW_CHANNEL_DMA    }, nvkm_disp_wndw_new, &gv100_disp_wndw },
-		{}
+		.root = { AD102_DISP },
+		.caps = { GV100_DISP_CAPS                  ,  gv100_disp_caps_new },
+		.curs = { GA102_DISP_CURSOR                , &gv100_disp_curs },
+		.wimm = { GA102_DISP_WINDOW_IMM_CHANNEL_DMA, &gv100_disp_wimm },
+		.core = { AD102_DISP_CORE_CHANNEL_DMA      , &gv100_disp_core },
+		.wndw = { GA102_DISP_WINDOW_CHANNEL_DMA    , &gv100_disp_wndw },
 	},
 };
 

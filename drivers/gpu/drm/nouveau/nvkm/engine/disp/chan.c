@@ -187,15 +187,24 @@ static int
 nvkm_disp_chan_new_(struct nvkm_disp *disp, int nr, const struct nvkm_oclass *oclass,
 		    void *argv, u32 argc, struct nvkm_object **pobject)
 {
+	const struct nvkm_disp_func_chan *chans[] = {
+		&disp->func->user.core,
+		&disp->func->user.base,
+		&disp->func->user.ovly,
+		&disp->func->user.wndw,
+		&disp->func->user.wimm,
+		&disp->func->user.curs,
+		&disp->func->user.oimm,
+	};
 	const struct nvkm_disp_chan_user *user = NULL;
 	struct nvif_disp_chan_priv *uchan;
 	struct nvkm_disp_chan *chan;
 	union nvif_disp_chan_args *args = argv;
 	int ret, i;
 
-	for (i = 0; disp->func->user[i].ctor; i++) {
-		if (disp->func->user[i].base.oclass == oclass->base.oclass) {
-			user = disp->func->user[i].chan;
+	for (i = 0; i < ARRAY_SIZE(chans); i++) {
+		if (chans[i]->oclass == oclass->base.oclass) {
+			user = chans[i]->chan;
 			break;
 		}
 	}

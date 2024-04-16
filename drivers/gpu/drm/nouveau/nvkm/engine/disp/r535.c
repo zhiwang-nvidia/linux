@@ -1417,8 +1417,8 @@ r535_disp_init(struct nvkm_disp *disp)
 {
 	int ret;
 
-	ret = nvkm_gsp_rm_alloc(&disp->rm.device.object, disp->func->root.oclass << 16,
-				disp->func->root.oclass, 0, &disp->rm.object);
+	ret = nvkm_gsp_rm_alloc(&disp->rm.device.object, disp->func->user.root.oclass << 16,
+				disp->func->user.root.oclass, 0, &disp->rm.object);
 	if (ret)
 		return ret;
 
@@ -1674,7 +1674,7 @@ r535_disp_new(const struct nvkm_disp_func *hw, struct nvkm_device *device,
 	struct nvkm_disp_func *rm;
 	int ret;
 
-	if (!(rm = kzalloc(sizeof(*rm) + 6 * sizeof(rm->user[0]), GFP_KERNEL)))
+	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
 		return -ENOMEM;
 
 	rm->dtor = r535_disp_dtor;
@@ -1685,21 +1685,11 @@ r535_disp_new(const struct nvkm_disp_func *hw, struct nvkm_device *device,
 	rm->sor.cnt = r535_sor_cnt;
 	rm->sor.new = r535_sor_new;
 	rm->ramht_size = hw->ramht_size;
-
-	rm->root = hw->root;
-
-	for (int i = 0; hw->user[i].ctor; i++) {
-		switch (hw->user[i].base.oclass & 0xff) {
-		case 0x73: rm->user[i] = hw->user[i]; break;
-		case 0x7d: rm->user[i] = hw->user[i]; rm->user[i].chan = &r535_core; break;
-		case 0x7e: rm->user[i] = hw->user[i]; rm->user[i].chan = &r535_wndw; break;
-		case 0x7b: rm->user[i] = hw->user[i]; rm->user[i].chan = &r535_wimm; break;
-		case 0x7a: rm->user[i] = hw->user[i]; rm->user[i].chan = &r535_curs; break;
-		default:
-			WARN_ON(1);
-			continue;
-		}
-	}
+	rm->user = hw->user;
+	rm->user.core.chan = &r535_core;
+	rm->user.wndw.chan = &r535_wndw;
+	rm->user.wimm.chan = &r535_wimm;
+	rm->user.curs.chan = &r535_curs;
 
 	ret = nvkm_disp_new_(rm, device, type, inst, pdisp);
 	if (ret)

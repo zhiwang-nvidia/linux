@@ -133,14 +133,13 @@ ga102_disp = {
 	.head = { .cnt = gv100_head_cnt, .new = gv100_head_new },
 	.sor = { .cnt = gv100_sor_cnt, .new = ga102_sor_new },
 	.ramht_size = 0x2000,
-	.root = {  0, 0,GA102_DISP },
 	.user = {
-		{{-1,-1,GV100_DISP_CAPS                  }, gv100_disp_caps_new },
-		{{ 0, 0,GA102_DISP_CURSOR                }, nvkm_disp_chan_new, &gv100_disp_curs },
-		{{ 0, 0,GA102_DISP_WINDOW_IMM_CHANNEL_DMA}, nvkm_disp_wndw_new, &gv100_disp_wimm },
-		{{ 0, 0,GA102_DISP_CORE_CHANNEL_DMA      }, nvkm_disp_core_new, &gv100_disp_core },
-		{{ 0, 0,GA102_DISP_WINDOW_CHANNEL_DMA    }, nvkm_disp_wndw_new, &gv100_disp_wndw },
-		{}
+		.root = { GA102_DISP },
+		.caps = { GV100_DISP_CAPS                  ,  gv100_disp_caps_new },
+		.curs = { GA102_DISP_CURSOR                , &gv100_disp_curs },
+		.wimm = { GA102_DISP_WINDOW_IMM_CHANNEL_DMA, &gv100_disp_wimm },
+		.core = { GA102_DISP_CORE_CHANNEL_DMA      , &gv100_disp_core },
+		.wndw = { GA102_DISP_WINDOW_CHANNEL_DMA    , &gv100_disp_wndw },
 	},
 };
 

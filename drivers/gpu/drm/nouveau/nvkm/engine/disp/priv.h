@@ -35,14 +35,22 @@ struct nvkm_disp_func {
 
 	u16 ramht_size;
 
-	struct nvkm_sclass root;
+	struct {
+		struct {
+			s32 oclass;
+		} root;
 
-	struct nvkm_disp_user {
-		struct nvkm_sclass base;
-		int (*ctor)(const struct nvkm_oclass *, void *argv, u32 argc,
-			    struct nvkm_object **);
-		const struct nvkm_disp_chan_user *chan;
-	} user[];
+		struct {
+			s32 oclass;
+			int (*ctor)(const struct nvkm_oclass *, void *argv, u32 argc,
+				    struct nvkm_object **);
+		} caps;
+
+		struct nvkm_disp_func_chan {
+			s32 oclass;
+			const struct nvkm_disp_chan_user *chan;
+		} core, base, ovly, wndw, wimm, curs, oimm;
+	} user;
 };
 
 int nv50_disp_oneinit(struct nvkm_disp *);

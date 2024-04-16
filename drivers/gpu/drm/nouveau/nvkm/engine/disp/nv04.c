@@ -106,8 +106,9 @@ nv04_disp_intr(struct nvkm_disp *disp)
 static const struct nvkm_disp_func
 nv04_disp = {
 	.intr = nv04_disp_intr,
-	.root = { 0, 0, NV04_DISP },
-	.user = { {} },
+	.user = {
+		.root = { NV04_DISP },
+	}
 };
 
 int

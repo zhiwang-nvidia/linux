@@ -1242,14 +1242,13 @@ gf119_disp = {
 	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
 	.dac = { .cnt = gf119_dac_cnt, .new = gf119_dac_new },
 	.sor = { .cnt = gf119_sor_cnt, .new = gf119_sor_new },
-	.root = { 0,0,GF110_DISP },
 	.user = {
-		{{0,0,GF110_DISP_CURSOR             }, nvkm_disp_chan_new, &gf119_disp_curs },
-		{{0,0,GF110_DISP_OVERLAY            }, nvkm_disp_chan_new, &gf119_disp_oimm },
-		{{0,0,GF110_DISP_BASE_CHANNEL_DMA   }, nvkm_disp_chan_new, &gf119_disp_base },
-		{{0,0,GF110_DISP_CORE_CHANNEL_DMA   }, nvkm_disp_core_new, &gf119_disp_core },
-		{{0,0,GF110_DISP_OVERLAY_CONTROL_DMA}, nvkm_disp_chan_new, &gf119_disp_ovly },
-		{}
+		.root = { GF110_DISP },
+		.curs = { GF110_DISP_CURSOR             , &gf119_disp_curs },
+		.oimm = { GF110_DISP_OVERLAY            , &gf119_disp_oimm },
+		.base = { GF110_DISP_BASE_CHANNEL_DMA   , &gf119_disp_base },
+		.core = { GF110_DISP_CORE_CHANNEL_DMA   , &gf119_disp_core },
+		.ovly = { GF110_DISP_OVERLAY_CONTROL_DMA, &gf119_disp_ovly },
 	},
 };
 

@@ -330,14 +330,13 @@ g84_disp = {
 	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
 	.sor = { .cnt = nv50_sor_cnt, .new = g84_sor_new },
 	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
-	.root = { 0,0,G82_DISP },
 	.user = {
-		{{0,0,G82_DISP_CURSOR             }, nvkm_disp_chan_new, &nv50_disp_curs },
-		{{0,0,G82_DISP_OVERLAY            }, nvkm_disp_chan_new, &nv50_disp_oimm },
-		{{0,0,G82_DISP_BASE_CHANNEL_DMA   }, nvkm_disp_chan_new, & g84_disp_base },
-		{{0,0,G82_DISP_CORE_CHANNEL_DMA   }, nvkm_disp_core_new, & g84_disp_core },
-		{{0,0,G82_DISP_OVERLAY_CHANNEL_DMA}, nvkm_disp_chan_new, & g84_disp_ovly },
-		{}
+		.root = { G82_DISP },
+		.curs = { G82_DISP_CURSOR             , &nv50_disp_curs },
+		.oimm = { G82_DISP_OVERLAY            , &nv50_disp_oimm },
+		.base = { G82_DISP_BASE_CHANNEL_DMA   , & g84_disp_base },
+		.core = { G82_DISP_CORE_CHANNEL_DMA   , & g84_disp_core },
+		.ovly = { G82_DISP_OVERLAY_CHANNEL_DMA, & g84_disp_ovly },
 	},
 };
 

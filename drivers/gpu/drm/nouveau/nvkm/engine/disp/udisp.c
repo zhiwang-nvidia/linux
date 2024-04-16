@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "udisp.h"
+#include "chan.h"
 #include "conn.h"
 #include "head.h"
 #include "outp.h"
@@ -50,9 +51,51 @@ nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *scl
 		return 0;
 	}
 
-	if (disp->func->user[index].ctor) {
-		sclass->base = disp->func->user[index].base;
-		sclass->ctor = disp->func->user[index].ctor;
+	if (disp->func->user.caps.oclass && index-- == 0) {
+		sclass->base = (struct nvkm_sclass) { -1, -1, disp->func->user.caps.oclass };
+		sclass->ctor = disp->func->user.caps.ctor;
+		return 0;
+	}
+
+	if (disp->func->user.core.oclass && index-- == 0) {
+		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.core.oclass };
+		sclass->ctor = nvkm_disp_core_new;
+		return 0;
+	}
+
+	if (disp->func->user.base.oclass && index-- == 0) {
+		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.base.oclass };
+		sclass->ctor = nvkm_disp_chan_new;
+		return 0;
+	}
+
+	if (disp->func->user.ovly.oclass && index-- == 0) {
+		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.ovly.oclass };
+		sclass->ctor = nvkm_disp_chan_new;
+		return 0;
+	}
+
+	if (disp->func->user.curs.oclass && index-- == 0) {
+		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.curs.oclass };
+		sclass->ctor = nvkm_disp_chan_new;
+		return 0;
+	}
+
+	if (disp->func->user.oimm.oclass && index-- == 0) {
+		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.oimm.oclass };
+		sclass->ctor = nvkm_disp_chan_new;
+		return 0;
+	}
+
+	if (disp->func->user.wndw.oclass && index-- == 0) {
+		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.wndw.oclass };
+		sclass->ctor = nvkm_disp_wndw_new;
+		return 0;
+	}
+
+	if (disp->func->user.wimm.oclass && index-- == 0) {
+		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.wimm.oclass };
+		sclass->ctor = nvkm_disp_wndw_new;
 		return 0;
 	}
 

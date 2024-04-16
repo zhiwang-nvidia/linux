@@ -53,14 +53,13 @@ mcp77_disp = {
 	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
 	.sor = { .cnt = g94_sor_cnt, .new = mcp77_sor_new },
 	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
-	.root = { 0,0,GT206_DISP },
 	.user = {
-		{{0,0,  G82_DISP_CURSOR             }, nvkm_disp_chan_new, & nv50_disp_curs },
-		{{0,0,  G82_DISP_OVERLAY            }, nvkm_disp_chan_new, & nv50_disp_oimm },
-		{{0,0,GT200_DISP_BASE_CHANNEL_DMA   }, nvkm_disp_chan_new, &  g84_disp_base },
-		{{0,0,GT206_DISP_CORE_CHANNEL_DMA   }, nvkm_disp_core_new, &  g94_disp_core },
-		{{0,0,GT200_DISP_OVERLAY_CHANNEL_DMA}, nvkm_disp_chan_new, &gt200_disp_ovly },
-		{}
+		.root = { GT206_DISP },
+		.curs = {   G82_DISP_CURSOR             , & nv50_disp_curs },
+		.oimm = {   G82_DISP_OVERLAY            , & nv50_disp_oimm },
+		.base = { GT200_DISP_BASE_CHANNEL_DMA   , &  g84_disp_base },
+		.core = { GT206_DISP_CORE_CHANNEL_DMA   , &  g94_disp_core },
+		.ovly = { GT200_DISP_OVERLAY_CHANNEL_DMA, &gt200_disp_ovly },
 	},
 };
 

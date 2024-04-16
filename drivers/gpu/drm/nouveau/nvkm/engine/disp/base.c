@@ -84,7 +84,7 @@ nvkm_disp_class_get(struct nvkm_oclass *oclass, int index,
 {
 	struct nvkm_disp *disp = nvkm_disp(oclass->engine);
 	if (index == 0) {
-		oclass->base = disp->func->root;
+		oclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.root.oclass };
 		*class = &nvkm_disp_sclass;
 		return 0;
 	}

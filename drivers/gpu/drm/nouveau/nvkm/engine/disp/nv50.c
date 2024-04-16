@@ -1771,14 +1771,13 @@ nv50_disp = {
 	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
 	.sor = { .cnt = nv50_sor_cnt, .new = nv50_sor_new },
 	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
-	.root = { 0, 0, NV50_DISP },
 	.user = {
-		{{0,0,NV50_DISP_CURSOR             }, nvkm_disp_chan_new, &nv50_disp_curs },
-		{{0,0,NV50_DISP_OVERLAY            }, nvkm_disp_chan_new, &nv50_disp_oimm },
-		{{0,0,NV50_DISP_BASE_CHANNEL_DMA   }, nvkm_disp_chan_new, &nv50_disp_base },
-		{{0,0,NV50_DISP_CORE_CHANNEL_DMA   }, nvkm_disp_core_new, &nv50_disp_core },
-		{{0,0,NV50_DISP_OVERLAY_CHANNEL_DMA}, nvkm_disp_chan_new, &nv50_disp_ovly },
-		{}
+		.root = { NV50_DISP },
+		.curs = { NV50_DISP_CURSOR             , &nv50_disp_curs },
+		.oimm = { NV50_DISP_OVERLAY            , &nv50_disp_oimm },
+		.base = { NV50_DISP_BASE_CHANNEL_DMA   , &nv50_disp_base },
+		.core = { NV50_DISP_CORE_CHANNEL_DMA   , &nv50_disp_core },
+		.ovly = { NV50_DISP_OVERLAY_CHANNEL_DMA, &nv50_disp_ovly },
 	}
 };
 
