@@ -31,6 +31,13 @@
 #include <nvif/ioctl.h>
 #include <nvif/unpack.h>
 
+#define nvkm_control nvif_control_priv
+
+struct nvif_control_priv {
+	struct nvkm_object object;
+	struct nvkm_device *device;
+};
+
 static int
 nvkm_control_mthd_pstate_info(struct nvkm_control *ctrl, void *data, u32 size)
 {
@@ -169,7 +176,7 @@ nvkm_control_mthd_pstate_user(struct nvkm_control *ctrl, void *data, u32 size)
 static int
 nvkm_control_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
-	struct nvkm_control *ctrl = nvkm_control(object);
+	struct nvif_control_priv *ctrl = container_of(object, typeof(*ctrl), object);
 	switch (mthd) {
 	case NVIF_CONTROL_PSTATE_INFO:
 		return nvkm_control_mthd_pstate_info(ctrl, data, size);
@@ -192,7 +199,7 @@ static int
 nvkm_control_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 		 void *data, u32 size, struct nvkm_object **pobject)
 {
-	struct nvkm_control *ctrl;
+	struct nvif_control_priv *ctrl;
 
 	if (!(ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL)))
 		return -ENOMEM;
