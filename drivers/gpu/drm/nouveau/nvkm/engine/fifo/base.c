@@ -166,78 +166,6 @@ nvkm_fifo_init(struct nvkm_engine *engine)
 }
 
 static int
-nvkm_fifo_info(struct nvkm_engine *engine, u64 mthd, u64 *data)
-{
-	struct nvkm_fifo *fifo = nvkm_fifo(engine);
-	struct nvkm_runl *runl;
-	struct nvkm_engn *engn;
-	int ret;
-
-	ret = nvkm_subdev_oneinit(&fifo->engine.subdev);
-	if (ret)
-		return ret;
-
-	switch (mthd) {
-	case NV_DEVICE_HOST_CHANNELS: *data = fifo->chid ? fifo->chid->nr : 0; return 0;
-	case NV_DEVICE_HOST_RUNLISTS:
-		*data = 0;
-		nvkm_runl_foreach(runl, fifo)
-			*data |= BIT(runl->id);
-		return 0;
-	case NV_DEVICE_HOST_RUNLIST_ENGINES:
-		runl = nvkm_runl_get(fifo, *data, 0);
-		if (runl) {
-			*data = 0;
-			nvkm_runl_foreach_engn(engn, runl) {
-#define CASE(n) case NVKM_ENGINE_##n: *data |= NV_DEVICE_HOST_RUNLIST_ENGINES_##n; break
-				switch (engn->engine->subdev.type) {
-				case NVKM_ENGINE_DMAOBJ:
-					break;
-				CASE(SW    );
-				CASE(GR    );
-				CASE(MPEG  );
-				CASE(ME    );
-				CASE(CIPHER);
-				CASE(BSP   );
-				CASE(VP    );
-				CASE(CE    );
-				CASE(SEC   );
-				CASE(MSVLD );
-				CASE(MSPDEC);
-				CASE(MSPPP );
-				CASE(MSENC );
-				CASE(VIC   );
-				CASE(SEC2  );
-				CASE(NVDEC );
-				CASE(NVENC );
-				CASE(NVJPG );
-				CASE(OFA   );
-				default:
-					WARN_ON(1);
-					break;
-				}
-#undef CASE
-			}
-			return 0;
-		}
-		return -EINVAL;
-	case NV_DEVICE_HOST_RUNLIST_CHANNELS:
-		if (!fifo->chid) {
-			runl = nvkm_runl_get(fifo, *data, 0);
-			if (runl) {
-				*data = runl->chid->nr;
-				return 0;
-			}
-		}
-		return -EINVAL;
-	default:
-		break;
-	}
-
-	return -ENOSYS;
-}
-
-static int
 nvkm_fifo_oneinit(struct nvkm_engine *engine)
 {
 	struct nvkm_subdev *subdev = &engine->subdev;
@@ -365,7 +293,6 @@ nvkm_fifo = {
 	.dtor = nvkm_fifo_dtor,
 	.preinit = nvkm_fifo_preinit,
 	.oneinit = nvkm_fifo_oneinit,
-	.info = nvkm_fifo_info,
 	.init = nvkm_fifo_init,
 	.fini = nvkm_fifo_fini,
 	.base.sclass = nvkm_fifo_class_get,

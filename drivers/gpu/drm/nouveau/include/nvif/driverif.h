@@ -78,6 +78,49 @@ struct nvif_device_impl {
 	} disp;
 
 	struct nvif_device_impl_fifo {
+		u8  engine_nr;
+		u8  runl_nr;
+		u16 chan_nr; /* 0 == per-runlist */
+
+		struct nvif_device_impl_engine {
+			enum nvif_engine_type {
+				NVIF_ENGINE_SW,
+				NVIF_ENGINE_GR,
+				NVIF_ENGINE_MPEG,
+				NVIF_ENGINE_ME,
+				NVIF_ENGINE_CIPHER,
+				NVIF_ENGINE_BSP,
+				NVIF_ENGINE_VP,
+				NVIF_ENGINE_CE,
+				NVIF_ENGINE_SEC,
+				NVIF_ENGINE_MSVLD,
+				NVIF_ENGINE_MSPDEC,
+				NVIF_ENGINE_MSPPP,
+				NVIF_ENGINE_MSENC,
+				NVIF_ENGINE_VIC,
+				NVIF_ENGINE_SEC2,
+				NVIF_ENGINE_NVDEC,
+				NVIF_ENGINE_NVENC,
+				NVIF_ENGINE_NVJPG,
+				NVIF_ENGINE_OFA,
+			} type;
+
+			u8  oclass_nr;
+			s32 oclass[64];
+		} engine[8];
+
+		struct nvif_device_impl_runl {
+			u8  id;
+			u16 chan_nr;
+			u8  runq_nr;
+			u8  engn_nr;
+
+			struct {
+				u8 engine;
+				u8 inst;
+			} engn[8];
+		} runl[64];
+
 		struct {
 			s32 oclass;
 		} cgrp;

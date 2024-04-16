@@ -87,17 +87,6 @@ nvkm_engine_intr(struct nvkm_subdev *subdev)
 }
 
 static int
-nvkm_engine_info(struct nvkm_subdev *subdev, u64 mthd, u64 *data)
-{
-	struct nvkm_engine *engine = nvkm_engine(subdev);
-
-	if (engine->func->info)
-		return engine->func->info(engine, mthd, data);
-
-	return -ENOSYS;
-}
-
-static int
 nvkm_engine_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_engine *engine = nvkm_engine(subdev);
@@ -157,7 +146,6 @@ nvkm_engine = {
 	.oneinit = nvkm_engine_oneinit,
 	.init = nvkm_engine_init,
 	.fini = nvkm_engine_fini,
-	.info = nvkm_engine_info,
 	.intr = nvkm_engine_intr,
 };
 

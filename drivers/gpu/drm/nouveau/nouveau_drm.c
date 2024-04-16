@@ -295,14 +295,13 @@ nouveau_accel_ce_fini(struct nouveau_drm *drm)
 static void
 nouveau_accel_ce_init(struct nouveau_drm *drm)
 {
-	struct nvif_device *device = &drm->client.device;
 	u64 runm;
 	int ret = 0;
 
 	/* Allocate channel that has access to a (preferably async) copy
 	 * engine, to use for TTM buffer moves.
 	 */
-	runm = nvif_fifo_runlist_ce(device);
+	runm = nvif_fifo_runlist_ce(&drm->device);
 	if (!runm) {
 		NV_DEBUG(drm, "no ce runlist\n");
 		return;
@@ -325,12 +324,12 @@ nouveau_accel_gr_fini(struct nouveau_drm *drm)
 static void
 nouveau_accel_gr_init(struct nouveau_drm *drm)
 {
-	struct nvif_device *device = &drm->client.device;
+	struct nvif_device *device = &drm->device;
 	u64 runm;
 	int ret;
 
 	/* Allocate channel that has access to the graphics engine. */
-	runm = nvif_fifo_runlist(device, NV_DEVICE_HOST_RUNLIST_ENGINES_GR);
+	runm = nvif_fifo_runlist(device, NVIF_ENGINE_GR);
 	if (!runm) {
 		NV_DEBUG(drm, "no gr runlist\n");
 		return;

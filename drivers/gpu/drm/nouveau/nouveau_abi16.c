@@ -338,26 +338,26 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	 */
 	__nouveau_cli_disable_uvmm_noinit(cli);
 
-	engine = NV_DEVICE_HOST_RUNLIST_ENGINES_GR;
+	engine = NVIF_ENGINE_GR;
 
 	/* hack to allow channel engine type specification on kepler */
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
 		if (init->fb_ctxdma_handle == ~0) {
 			switch (init->tt_ctxdma_handle) {
 			case NOUVEAU_FIFO_ENGINE_GR:
-				engine = NV_DEVICE_HOST_RUNLIST_ENGINES_GR;
+				engine = NVIF_ENGINE_GR;
 				break;
 			case NOUVEAU_FIFO_ENGINE_VP:
-				engine = NV_DEVICE_HOST_RUNLIST_ENGINES_MSPDEC;
+				engine = NVIF_ENGINE_MSPDEC;
 				break;
 			case NOUVEAU_FIFO_ENGINE_PPP:
-				engine = NV_DEVICE_HOST_RUNLIST_ENGINES_MSPPP;
+				engine = NVIF_ENGINE_MSPPP;
 				break;
 			case NOUVEAU_FIFO_ENGINE_BSP:
-				engine = NV_DEVICE_HOST_RUNLIST_ENGINES_MSVLD;
+				engine = NVIF_ENGINE_MSVLD;
 				break;
 			case NOUVEAU_FIFO_ENGINE_CE:
-				engine = NV_DEVICE_HOST_RUNLIST_ENGINES_CE;
+				engine = NVIF_ENGINE_CE;
 				break;
 			default:
 				return nouveau_abi16_put(abi16, -ENOSYS);
@@ -368,7 +368,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		}
 	}
 
-	if (engine != NV_DEVICE_HOST_RUNLIST_ENGINES_CE)
+	if (engine != NVIF_ENGINE_CE)
 		runm = nvif_fifo_runlist(device, engine);
 	else
 		runm = nvif_fifo_runlist_ce(device);

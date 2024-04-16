@@ -14,11 +14,6 @@ struct nvif_device {
 
 	struct nv_device_info_v0 info;
 
-	struct nvif_fifo_runlist {
-		u64 engines;
-	} *runlist;
-	int runlists;
-
 	struct nvif_user user;
 };
 

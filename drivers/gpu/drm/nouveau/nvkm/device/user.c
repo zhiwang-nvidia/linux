@@ -46,62 +46,6 @@ struct nvif_device_priv {
 };
 
 static int
-nvkm_udevice_info_subdev(struct nvkm_device *device, u64 mthd, u64 *data)
-{
-	struct nvkm_subdev *subdev;
-	enum nvkm_subdev_type type;
-
-	switch (mthd & NV_DEVICE_INFO_UNIT) {
-	case NV_DEVICE_HOST(0): type = NVKM_ENGINE_FIFO; break;
-	default:
-		return -EINVAL;
-	}
-
-	subdev = nvkm_device_subdev(device, type, 0);
-	if (subdev)
-		return nvkm_subdev_info(subdev, mthd, data);
-	return -ENODEV;
-}
-
-static void
-nvkm_udevice_info_v1(struct nvkm_device *device,
-		     struct nv_device_info_v1_data *args)
-{
-	if (args->mthd & NV_DEVICE_INFO_UNIT) {
-		if (nvkm_udevice_info_subdev(device, args->mthd, &args->data))
-			args->mthd = NV_DEVICE_INFO_INVALID;
-		return;
-	}
-	args->mthd = NV_DEVICE_INFO_INVALID;
-}
-
-static int
-nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
-{
-	struct nvkm_object *object = &udev->object;
-	struct nvkm_device *device = udev->device;
-	union {
-		struct nv_device_info_v1 v1;
-	} *args = data;
-	int ret = -ENOSYS, i;
-
-	nvif_ioctl(object, "device info size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v1, 1, 1, true))) {
-		nvif_ioctl(object, "device info vers %d count %d\n",
-			   args->v1.version, args->v1.count);
-		if (args->v1.count * sizeof(args->v1.data[0]) == size) {
-			for (i = 0; i < args->v1.count; i++)
-				nvkm_udevice_info_v1(device, &args->v1.data[i]);
-			return 0;
-		}
-		return -EINVAL;
-	} else
-		return ret;
-
-	return 0;
-}
-
-static int
 nvkm_udevice_time(struct nvkm_udevice *udev, void *data, u32 size)
 {
 	struct nvkm_object *object = &udev->object;
@@ -140,8 +84,6 @@ nvkm_udevice_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	struct nvif_device_priv *udev = container_of(object, typeof(*udev), object);
 	nvif_ioctl(object, "device mthd %08x\n", mthd);
 	switch (mthd) {
-	case NV_DEVICE_V0_INFO:
-		return nvkm_udevice_info(udev, data, size);
 	case NV_DEVICE_V0_TIME:
 		return nvkm_udevice_time(udev, data, size);
 	default:

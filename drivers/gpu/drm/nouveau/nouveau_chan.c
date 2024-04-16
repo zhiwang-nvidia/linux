@@ -299,10 +299,12 @@ nouveau_channel_ctor(struct nouveau_cli *cli, bool priv, u64 runm,
 	if (ret)
 		return ret;
 
+	chan->runlist = __ffs64(runm);
+
 	/* create channel object */
 	args.chan.version = 0;
 	args.chan.namelen = sizeof(args.name);
-	args.chan.runlist = __ffs64(runm);
+	args.chan.runlist = cli->drm->device.impl->fifo.runl[chan->runlist].id;
 	args.chan.runq = 0;
 	args.chan.priv = priv;
 	args.chan.devm = BIT(0);
@@ -349,7 +351,6 @@ nouveau_channel_ctor(struct nouveau_cli *cli, bool priv, u64 runm,
 		return ret;
 	}
 
-	chan->runlist = args.chan.runlist;
 	chan->chid = args.chan.chid;
 	chan->inst = args.chan.inst;
 	chan->token = args.chan.token;
@@ -523,46 +524,18 @@ nouveau_channels_fini(struct nouveau_drm *drm)
 int
 nouveau_channels_init(struct nouveau_drm *drm)
 {
-	struct {
-		struct nv_device_info_v1 m;
-		struct {
-			struct nv_device_info_v1_data channels;
-			struct nv_device_info_v1_data runlists;
-		} v;
-	} args = {
-		.m.version = 1,
-		.m.count = sizeof(args.v) / sizeof(args.v.channels),
-		.v.channels.mthd = NV_DEVICE_HOST_CHANNELS,
-		.v.runlists.mthd = NV_DEVICE_HOST_RUNLISTS,
-	};
-	struct nvif_object *device = &drm->client.device.object;
-	int ret, i;
+	struct nvif_device *device = &drm->device;
+	int i;
 
-	ret = nvif_object_mthd(device, NV_DEVICE_V0_INFO, &args, sizeof(args));
-	if (ret ||
-	    args.v.runlists.mthd == NV_DEVICE_INFO_INVALID || !args.v.runlists.data ||
-	    args.v.channels.mthd == NV_DEVICE_INFO_INVALID)
-		return -ENODEV;
-
-	drm->chan_nr = drm->chan_total = args.v.channels.data;
-	drm->runl_nr = fls64(args.v.runlists.data);
+	drm->chan_nr = drm->chan_total = device->impl->fifo.chan_nr;
+	drm->runl_nr = device->impl->fifo.runl_nr;
 	drm->runl = kcalloc(drm->runl_nr, sizeof(*drm->runl), GFP_KERNEL);
 	if (!drm->runl)
 		return -ENOMEM;
 
 	if (drm->chan_nr == 0) {
 		for (i = 0; i < drm->runl_nr; i++) {
-			if (!(args.v.runlists.data & BIT(i)))
-				continue;
-
-			args.v.channels.mthd = NV_DEVICE_HOST_RUNLIST_CHANNELS;
-			args.v.channels.data = i;
-
-			ret = nvif_object_mthd(device, NV_DEVICE_V0_INFO, &args, sizeof(args));
-			if (ret || args.v.channels.mthd == NV_DEVICE_INFO_INVALID)
-				return -ENODEV;
-
-			drm->runl[i].chan_nr = args.v.channels.data;
+			drm->runl[i].chan_nr = device->impl->fifo.runl[i].chan_nr;
 			drm->runl[i].chan_id_base = drm->chan_total;
 			drm->runl[i].context_base = dma_fence_context_alloc(drm->runl[i].chan_nr);
 

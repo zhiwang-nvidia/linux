@@ -53,9 +53,6 @@ nvif_device_dtor(struct nvif_device *device)
 
 	nvif_user_dtor(device);
 
-	kfree(device->runlist);
-	device->runlist = NULL;
-
 	nvif_object_unmap_cpu(&device->map);
 
 	device->impl->del(device->priv);
@@ -67,7 +64,6 @@ nvif_device_ctor(struct nvif_client *client, const char *name, struct nvif_devic
 {
 	int ret;
 
-	device->runlist = NULL;
 	device->user.func = NULL;
 
 	ret = client->impl->device.new(client->priv, &device->impl, &device->priv,
