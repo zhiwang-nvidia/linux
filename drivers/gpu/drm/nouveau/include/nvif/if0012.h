@@ -4,7 +4,6 @@
 
 #include <drm/display/drm_dp.h>
 
-#define NVIF_OUTP_V0_INFOFRAME     0x60
 #define NVIF_OUTP_V0_HDA_ELD       0x61
 
 #define NVIF_OUTP_V0_DP_AUX_PWR    0x70
@@ -16,18 +15,6 @@
 #define NVIF_OUTP_V0_DP_MST_ID_GET 0x76
 #define NVIF_OUTP_V0_DP_MST_ID_PUT 0x77
 #define NVIF_OUTP_V0_DP_MST_VCPI   0x78
-
-union nvif_outp_infoframe_args {
-	struct nvif_outp_infoframe_v0 {
-		__u8 version;
-#define NVIF_OUTP_INFOFRAME_V0_AVI 0
-#define NVIF_OUTP_INFOFRAME_V0_VSI 1
-		__u8 type;
-		__u8 head;
-		__u8 pad03[5];
-		__u8 data[];
-	} v0;
-};
 
 union nvif_outp_hda_eld_args {
 	struct nvif_outp_hda_eld_v0 {

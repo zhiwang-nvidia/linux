@@ -214,13 +214,12 @@ nvif_outp_hda_eld(struct nvif_outp *outp, int head, void *data, u32 size)
 }
 
 int
-nvif_outp_infoframe(struct nvif_outp *outp, u8 type, struct nvif_outp_infoframe_v0 *args, u32 size)
+nvif_outp_infoframe(struct nvif_outp *outp, int head, enum nvif_outp_infoframe_type type,
+		    u8 *data, u8 size)
 {
 	int ret;
 
-	args->type = type;
-
-	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_INFOFRAME, args, sizeof(*args) + size);
+	ret = outp->impl->hdmi.infoframe(outp->priv, head, type, data, size);
 	NVIF_ERRON(ret, &outp->object, "[INFOFRAME type:%d size:%d]", type, size);
 	return ret;
 }

@@ -245,29 +245,35 @@ nvkm_uoutp_mthd_hda_eld(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_infoframe(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_infoframe(struct nvif_outp_priv *uoutp, u8 head,
+		     enum nvif_outp_infoframe_type type, u8 *data, u8 size)
 {
-	struct nvkm_ior *ior = outp->ior;
-	union nvif_outp_infoframe_args *args = argv;
-	ssize_t size = argc - sizeof(*args);
+	struct nvkm_ior *ior;
+	int ret;
 
-	if (argc < sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	if (!nvkm_head_find(outp->disp, args->v0.head))
+	if (!nvkm_head_find(uoutp->outp->disp, head))
 		return -EINVAL;
 
-	switch (ior->func->hdmi ? args->v0.type : 0xff) {
-	case NVIF_OUTP_INFOFRAME_V0_AVI:
-		ior->func->hdmi->infoframe_avi(ior, args->v0.head, &args->v0.data, size);
-		return 0;
-	case NVIF_OUTP_INFOFRAME_V0_VSI:
-		ior->func->hdmi->infoframe_vsi(ior, args->v0.head, &args->v0.data, size);
-		return 0;
+	ret = nvkm_uoutp_lock_acquired(uoutp);
+	if (ret)
+		return ret;
+
+	ior = uoutp->outp->ior;
+
+	switch (ior->func->hdmi ? type : 0xff) {
+	case NVIF_OUTP_INFOFRAME_AVI:
+		ior->func->hdmi->infoframe_avi(ior, head, data, size);
+		break;
+	case NVIF_OUTP_INFOFRAME_VSI:
+		ior->func->hdmi->infoframe_vsi(ior, head, data, size);
+		break;
 	default:
+		ret = -EINVAL;
 		break;
 	}
 
-	return -EINVAL;
+	nvkm_uoutp_unlock(uoutp);
+	return ret;
 }
 
 static int
@@ -533,7 +539,6 @@ static int
 nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_INFOFRAME    : return nvkm_uoutp_mthd_infoframe    (outp, argv, argc);
 	case NVIF_OUTP_V0_HDA_ELD      : return nvkm_uoutp_mthd_hda_eld      (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_TRAIN     : return nvkm_uoutp_mthd_dp_train     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_DRIVE     : return nvkm_uoutp_mthd_dp_drive     (outp, argv, argc);
@@ -670,6 +675,7 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 		}
 		uoutp->impl.proto = NVIF_OUTP_TMDS;
 		uoutp->impl.hdmi.config = nvkm_uoutp_hdmi;
+		uoutp->impl.hdmi.infoframe = nvkm_uoutp_infoframe;
 		break;
 	case DCB_OUTPUT_LVDS:
 		uoutp->impl.type = NVIF_OUTP_SOR;

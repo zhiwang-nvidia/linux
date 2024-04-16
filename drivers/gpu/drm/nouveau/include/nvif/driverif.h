@@ -244,6 +244,11 @@ struct nvif_conn_impl {
 		     const struct nvif_event_impl **, struct nvif_event_priv **);
 };
 
+enum nvif_outp_infoframe_type {
+	NVIF_OUTP_INFOFRAME_AVI,
+	NVIF_OUTP_INFOFRAME_VSI,
+};
+
 enum nvif_outp_detect_status {
 	NVIF_OUTP_DETECT_NOT_PRESENT,
 	NVIF_OUTP_DETECT_PRESENT,
@@ -295,6 +300,8 @@ struct nvif_outp_impl {
 		int (*config)(struct nvif_outp_priv *, u8 head, bool enable, u8 max_ac_packet,
 			      u8 rekey, u32 khz, bool scdc, bool scdc_scrambling,
 			      bool scdc_low_rates);
+		int (*infoframe)(struct nvif_outp_priv *, u8 head, enum nvif_outp_infoframe_type,
+				 u8 *data, u8 size);
 	} hdmi;
 
 	struct {
