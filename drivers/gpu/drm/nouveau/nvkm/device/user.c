@@ -32,12 +32,6 @@
 #include <engine/disp/priv.h>
 #include <engine/fifo/ufifo.h>
 
-#include <nvif/class.h>
-#include <nvif/cl0080.h>
-#include <nvif/unpack.h>
-
-#define nvkm_udevice nvif_device_priv
-
 struct nvif_device_priv {
 	struct nvkm_object object;
 	struct nvkm_device *device;
@@ -45,23 +39,10 @@ struct nvif_device_priv {
 	struct nvif_device_impl impl;
 };
 
-static int
-nvkm_udevice_time(struct nvkm_udevice *udev, void *data, u32 size)
+static u64
+nvkm_udevice_time(struct nvif_device_priv *udev)
 {
-	struct nvkm_object *object = &udev->object;
-	struct nvkm_device *device = udev->device;
-	union {
-		struct nv_device_time_v0 v0;
-	} *args = data;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(object, "device time size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(object, "device time vers %d\n", args->v0.version);
-		args->v0.time = nvkm_timer_read(device->timer);
-	}
-
-	return ret;
+	return nvkm_timer_read(udev->device->timer);
 }
 
 static void
@@ -76,21 +57,8 @@ nvkm_udevice_del(struct nvif_device_priv *udev)
 static const struct nvif_device_impl
 nvkm_udevice_impl = {
 	.del = nvkm_udevice_del,
+	.time = nvkm_udevice_time,
 };
-
-static int
-nvkm_udevice_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
-{
-	struct nvif_device_priv *udev = container_of(object, typeof(*udev), object);
-	nvif_ioctl(object, "device mthd %08x\n", mthd);
-	switch (mthd) {
-	case NV_DEVICE_V0_TIME:
-		return nvkm_udevice_time(udev, data, size);
-	default:
-		break;
-	}
-	return -EINVAL;
-}
 
 static int
 nvkm_udevice_fini(struct nvkm_object *object, bool suspend)
@@ -190,7 +158,6 @@ static const struct nvkm_object_func
 nvkm_udevice = {
 	.init = nvkm_udevice_init,
 	.fini = nvkm_udevice_fini,
-	.mthd = nvkm_udevice_mthd,
 	.sclass = nvkm_udevice_child_get,
 };
 

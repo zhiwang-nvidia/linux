@@ -61,6 +61,8 @@ struct nvif_device_impl {
 	u64 ram_size;
 	u64 ram_user;
 
+	u64 (*time)(struct nvif_device_priv *);
+
 	struct {
 		s32 oclass;
 	} usermode;

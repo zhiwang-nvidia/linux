@@ -3,7 +3,6 @@
 #define __NVIF_CL0080_H__
 
 #define NV_DEVICE_V0_INFO                                                  0x00
-#define NV_DEVICE_V0_TIME                                                  0x01
 
 struct nv_device_info_v0 {
 	__u8  version;
@@ -35,11 +34,5 @@ struct nv_device_info_v0 {
 	__u64 ram_user;
 	char  chip[16];
 	char  name[64];
-};
-
-struct nv_device_time_v0 {
-	__u8  version;
-	__u8  pad01[7];
-	__u64 time;
 };
 #endif
