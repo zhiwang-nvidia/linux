@@ -19,7 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#define nvkm_ucgrp(p) container_of((p), struct nvkm_ucgrp, object)
 #include "priv.h"
 #include "cgrp.h"
 #include "runl.h"
@@ -28,7 +27,7 @@
 
 #include <nvif/if0021.h>
 
-struct nvkm_ucgrp {
+struct nvif_cgrp_priv {
 	struct nvkm_object object;
 	struct nvkm_cgrp *cgrp;
 };
@@ -37,7 +36,7 @@ static int
 nvkm_ucgrp_chan_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		    struct nvkm_object **pobject)
 {
-	struct nvkm_cgrp *cgrp = nvkm_ucgrp(oclass->parent)->cgrp;
+	struct nvkm_cgrp *cgrp = container_of(oclass->parent, struct nvif_cgrp_priv, object)->cgrp;
 
 	return nvkm_uchan_new(cgrp->runl->fifo, cgrp, oclass, argv, argc, pobject);
 }
@@ -45,7 +44,7 @@ nvkm_ucgrp_chan_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 static int
 nvkm_ucgrp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *oclass)
 {
-	struct nvkm_cgrp *cgrp = nvkm_ucgrp(object)->cgrp;
+	struct nvkm_cgrp *cgrp = container_of(object, struct nvif_cgrp_priv, object)->cgrp;
 	struct nvkm_fifo *fifo = cgrp->runl->fifo;
 	const struct nvkm_fifo_func_chan *chan = &fifo->func->chan;
 	int c = 0;
@@ -65,7 +64,7 @@ nvkm_ucgrp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *ocl
 static void *
 nvkm_ucgrp_dtor(struct nvkm_object *object)
 {
-	struct nvkm_ucgrp *ucgrp = nvkm_ucgrp(object);
+	struct nvif_cgrp_priv *ucgrp = container_of(object, typeof(*ucgrp), object);
 
 	nvkm_cgrp_unref(&ucgrp->cgrp);
 	return ucgrp;
@@ -84,7 +83,7 @@ nvkm_ucgrp_new(struct nvkm_fifo *fifo, const struct nvkm_oclass *oclass, void *a
 	union nvif_cgrp_args *args = argv;
 	struct nvkm_runl *runl;
 	struct nvkm_vmm *vmm;
-	struct nvkm_ucgrp *ucgrp;
+	struct nvif_cgrp_priv *ucgrp;
 	int ret;
 
 	if (argc < sizeof(args->v0) || args->v0.version != 0)
