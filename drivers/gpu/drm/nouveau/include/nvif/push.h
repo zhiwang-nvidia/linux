@@ -27,15 +27,21 @@
 #include <nvhw/drf.h>
 
 struct nvif_push {
-	int (*wait)(struct nvif_push *push, u32 size);
-	void (*kick)(struct nvif_push *push);
-
 	struct nvif_mem mem;
+
+	struct {
+		u32 cur;
+		u32 put;
+		u32 max;
+	} hw;
 
 	u32 *bgn;
 	u32 *cur;
 	u32 *seg;
 	u32 *end;
+
+	int (*wait)(struct nvif_push *push, u32 size);
+	void (*kick)(struct nvif_push *push);
 };
 
 static inline __must_check int

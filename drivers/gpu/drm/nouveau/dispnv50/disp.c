@@ -135,8 +135,8 @@ nv50_dmac_kick(struct nvif_push *push)
 {
 	struct nv50_dmac *dmac = container_of(push, typeof(*dmac), push);
 
-	dmac->cur = push->cur - (u32 __iomem *)dmac->push.mem.object.map.ptr;
-	if (dmac->put != dmac->cur) {
+	push->hw.cur = push->cur - (u32 __iomem *)dmac->push.mem.object.map.ptr;
+	if (push->hw.put != push->hw.cur) {
 		/* Push buffer fetches are not coherent with BAR1, we need to ensure
 		 * writes have been flushed right through to VRAM before writing PUT.
 		 */
@@ -149,8 +149,8 @@ nv50_dmac_kick(struct nvif_push *push)
 			);
 		}
 
-		NVIF_WV32(&dmac->base.user, NV507C, PUT, PTR, dmac->cur);
-		dmac->put = dmac->cur;
+		NVIF_WV32(&dmac->base.user, NV507C, PUT, PTR, push->hw.cur);
+		push->hw.put = push->hw.cur;
 	}
 
 	push->bgn = push->cur;
@@ -159,22 +159,25 @@ nv50_dmac_kick(struct nvif_push *push)
 static int
 nv50_dmac_free(struct nv50_dmac *dmac)
 {
+	struct nvif_push *push = &dmac->push;
 	u32 get = NVIF_RV32(&dmac->base.user, NV507C, GET, PTR);
-	if (get > dmac->cur) /* NVIDIA stay 5 away from GET, do the same. */
-		return get - dmac->cur - 5;
-	return dmac->max - dmac->cur;
+	if (get > push->hw.cur) /* NVIDIA stay 5 away from GET, do the same. */
+		return get - push->hw.cur - 5;
+	return push->hw.max - push->hw.cur;
 }
 
 static int
 nv50_dmac_wind(struct nv50_dmac *dmac)
 {
+	struct nvif_push *push = &dmac->push;
+
 	/* Wait for GET to depart from the beginning of the push buffer to
 	 * prevent writing PUT == GET, which would be ignored by HW.
 	 */
 	u32 get = NVIF_RV32(&dmac->base.user, NV507C, GET, PTR);
 	if (get == 0) {
 		/* Corner-case, HW idle, but non-committed work pending. */
-		if (dmac->put == 0)
+		if (push->hw.put == 0)
 			nv50_dmac_kick(&dmac->push);
 
 		if (nvif_msec(dmac->base.device, 2000,
@@ -185,7 +188,7 @@ nv50_dmac_wind(struct nv50_dmac *dmac)
 	}
 
 	PUSH_RSVD(&dmac->push, PUSH_JUMP(&dmac->push, 0));
-	dmac->cur = 0;
+	push->hw.cur = 0;
 	return 0;
 }
 
@@ -195,17 +198,17 @@ nv50_dmac_wait(struct nvif_push *push, u32 size)
 	struct nv50_dmac *dmac = container_of(push, typeof(*dmac), push);
 	int free;
 
-	if (WARN_ON(size > dmac->max))
+	if (WARN_ON(size > push->hw.max))
 		return -EINVAL;
 
-	dmac->cur = push->cur - (u32 __iomem *)dmac->push.mem.object.map.ptr;
-	if (dmac->cur + size >= dmac->max) {
+	push->hw.cur = push->cur - (u32 __iomem *)dmac->push.mem.object.map.ptr;
+	if (push->hw.cur + size >= push->hw.max) {
 		int ret = nv50_dmac_wind(dmac);
 		if (ret)
 			return ret;
 
 		push->cur = dmac->push.mem.object.map.ptr;
-		push->cur = push->cur + dmac->cur;
+		push->cur = push->cur + push->hw.cur;
 		nv50_dmac_kick(push);
 	}
 
@@ -218,7 +221,7 @@ nv50_dmac_wait(struct nvif_push *push, u32 size)
 	}
 
 	push->bgn = dmac->push.mem.object.map.ptr;
-	push->bgn = push->bgn + dmac->cur;
+	push->bgn = push->bgn + push->hw.cur;
 	push->cur = push->bgn;
 	push->end = push->cur + free;
 	return 0;
@@ -261,13 +264,13 @@ nv50_dmac_create(struct nouveau_drm *drm,
 	dmac->push.bgn = dmac->push.mem.object.map.ptr;
 	dmac->push.cur = dmac->push.bgn;
 	dmac->push.end = dmac->push.bgn;
-	dmac->max = 0x1000/4 - 1;
+	dmac->push.hw.max = 0x1000/4 - 1;
 
 	/* EVO channels are affected by a HW bug where the last 12 DWORDs
 	 * of the push buffer aren't able to be used safely.
 	 */
 	if (disp->oclass < GV100_DISP)
-		dmac->max -= 12;
+		dmac->push.hw.max -= 12;
 
 	args->pushbuf = nvif_handle(&dmac->push.mem.object);
 

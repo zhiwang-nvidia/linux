@@ -66,10 +66,6 @@ struct nv50_dmac {
 
 	struct nvif_object sync;
 	struct nvif_object vram;
-
-	u32 cur;
-	u32 put;
-	u32 max;
 };
 
 struct nv50_outp_atom {
