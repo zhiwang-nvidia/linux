@@ -30,6 +30,22 @@
 #include <nvif/if000a.h>
 #include <nvif/unpack.h>
 
+struct nvif_mem_priv {
+	struct nvkm_object object;
+	struct nvkm_mmu *mmu;
+	u8 type:8;
+	bool mappable:1;
+	bool io:1;
+
+	struct nvkm_memory *memory;
+	struct list_head head;
+
+	union {
+		struct nvkm_vma *bar;
+		void *map;
+	};
+};
+
 static const struct nvkm_object_func nvkm_umem;
 struct nvkm_memory *
 nvkm_umem_search(struct nvkm_client *client, u64 handle)
@@ -37,7 +53,7 @@ nvkm_umem_search(struct nvkm_client *client, u64 handle)
 	struct nvkm_client *master = client->object.client;
 	struct nvkm_memory *memory = NULL;
 	struct nvkm_object *object;
-	struct nvkm_umem *umem;
+	struct nvif_mem_priv *umem;
 
 	object = nvkm_object_search(client, handle, &nvkm_umem);
 	if (IS_ERR(object)) {
@@ -52,7 +68,7 @@ nvkm_umem_search(struct nvkm_client *client, u64 handle)
 			spin_unlock(&master->lock);
 		}
 	} else {
-		umem = nvkm_umem(object);
+		umem = container_of(object, typeof(*umem), object);
 		memory = nvkm_memory_ref(umem->memory);
 	}
 
@@ -62,7 +78,7 @@ nvkm_umem_search(struct nvkm_client *client, u64 handle)
 static int
 nvkm_umem_unmap(struct nvkm_object *object)
 {
-	struct nvkm_umem *umem = nvkm_umem(object);
+	struct nvif_mem_priv *umem = container_of(object, typeof(*umem), object);
 
 	if (!umem->map)
 		return -EEXIST;
@@ -86,7 +102,7 @@ static int
 nvkm_umem_map(struct nvkm_object *object, void *argv, u32 argc,
 	      enum nvkm_object_map *type, u64 *handle, u64 *length)
 {
-	struct nvkm_umem *umem = nvkm_umem(object);
+	struct nvif_mem_priv *umem = container_of(object, typeof(*umem), object);
 	struct nvkm_mmu *mmu = umem->mmu;
 
 	if (!umem->mappable)
@@ -123,7 +139,8 @@ nvkm_umem_map(struct nvkm_object *object, void *argv, u32 argc,
 static void *
 nvkm_umem_dtor(struct nvkm_object *object)
 {
-	struct nvkm_umem *umem = nvkm_umem(object);
+	struct nvif_mem_priv *umem = container_of(object, typeof(*umem), object);
+
 	spin_lock(&umem->object.client->lock);
 	list_del_init(&umem->head);
 	spin_unlock(&umem->object.client->lock);
@@ -146,7 +163,7 @@ nvkm_umem_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	union {
 		struct nvif_mem_v0 v0;
 	} *args = argv;
-	struct nvkm_umem *umem;
+	struct nvif_mem_priv *umem;
 	int type, ret = -ENOSYS;
 	u8  page;
 	u64 size;
