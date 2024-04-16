@@ -296,7 +296,7 @@ nvif_outp_bl_get(struct nvif_outp *outp)
 void
 nvif_outp_release(struct nvif_outp *outp)
 {
-	int ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_RELEASE, NULL, 0);
+	int ret = outp->impl->release(outp->priv);
 	NVIF_ERRON(ret, &outp->object, "[RELEASE]");
 	outp->or.id = -1;
 }

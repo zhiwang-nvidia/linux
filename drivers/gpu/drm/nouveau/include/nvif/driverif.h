@@ -279,6 +279,7 @@ struct nvif_outp_impl {
 	int (*inherit)(struct nvif_outp_priv *, enum nvif_outp_proto,
 		       u8 *or, u8 *link, u8 *head, u8 *proto_evo);
 	int (*acquire)(struct nvif_outp_priv *, enum nvif_outp_type, bool hda, u8 *or, u8 *link);
+	int (*release)(struct nvif_outp_priv *);
 
 	int (*load_detect)(struct nvif_outp_priv *, u32 loadval, u8 *load);
 

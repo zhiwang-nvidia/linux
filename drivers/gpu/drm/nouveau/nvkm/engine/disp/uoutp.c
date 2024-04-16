@@ -359,16 +359,17 @@ nvkm_uoutp_mthd_bl_get(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_release(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_release(struct nvif_outp_priv *uoutp)
 {
-	union nvif_outp_release_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
+	int ret;
 
-	if (argc != sizeof(args->vn))
-		return -ENOSYS;
-	if (!outp->ior)
-		return -EINVAL;
+	ret = nvkm_uoutp_lock_acquired(uoutp);
+	if (ret)
+		return ret;
 
 	outp->func->release(outp);
+	nvkm_uoutp_unlock(uoutp);
 	return 0;
 }
 
@@ -530,7 +531,6 @@ static int
 nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_RELEASE      : return nvkm_uoutp_mthd_release      (outp, argv, argc);
 	case NVIF_OUTP_V0_LVDS         : return nvkm_uoutp_mthd_lvds         (outp, argv, argc);
 	case NVIF_OUTP_V0_HDMI         : return nvkm_uoutp_mthd_hdmi         (outp, argv, argc);
 	case NVIF_OUTP_V0_INFOFRAME    : return nvkm_uoutp_mthd_infoframe    (outp, argv, argc);
@@ -602,6 +602,7 @@ nvkm_uoutp_impl = {
 	.del = nvkm_uoutp_del,
 	.inherit = nvkm_uoutp_inherit,
 	.acquire = nvkm_uoutp_acquire,
+	.release = nvkm_uoutp_release,
 };
 
 static void *
