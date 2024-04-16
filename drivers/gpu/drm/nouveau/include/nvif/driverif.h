@@ -23,6 +23,21 @@ struct nvif_mapinfo {
 	u64 length;
 };
 
+struct nvif_control_pstate_attr {
+	u8  version;
+#define NVIF_CONTROL_PSTATE_ATTR_STATE_CURRENT                          (-1)
+	s8  state; /*  in: index of pstate to query
+		    * out: pstate identifier
+		    */
+	u8  index; /*  in: index of attribute to query
+		    * out: index of next attribute, or 0 if no more
+		    */
+	u32 min;
+	u32 max;
+	char  name[32];
+	char  unit[16];
+};
+
 struct nvif_control_pstate_info {
 	u8  version;
 	u8  count; /* out: number of power states */
@@ -41,6 +56,7 @@ struct nvif_control_impl {
 
 	struct {
 		void (*info)(struct nvif_control_priv *, struct nvif_control_pstate_info *);
+		int  (*attr)(struct nvif_control_priv *, struct nvif_control_pstate_attr *);
 	} pstate;
 };
 

@@ -72,26 +72,23 @@ nouveau_debugfs_pstate_get(struct seq_file *m, void *data)
 {
 	struct drm_device *drm = m->private;
 	struct nouveau_debugfs *debugfs = nouveau_debugfs(drm);
-	struct nvif_object *ctrl;
 	struct nvif_control_pstate_info info = {};
 	int ret, i;
 
 	if (!debugfs)
 		return -ENODEV;
 
-	ctrl = &debugfs->ctrl;
 	debugfs->impl->pstate.info(debugfs->priv, &info);
 
 	for (i = 0; i < info.count + 1; i++) {
 		const s32 state = i < info.count ? i :
-			NVIF_CONTROL_PSTATE_ATTR_V0_STATE_CURRENT;
-		struct nvif_control_pstate_attr_v0 attr = {
+			NVIF_CONTROL_PSTATE_ATTR_STATE_CURRENT;
+		struct nvif_control_pstate_attr attr = {
 			.state = state,
 			.index = 0,
 		};
 
-		ret = nvif_mthd(ctrl, NVIF_CONTROL_PSTATE_ATTR,
-				&attr, sizeof(attr));
+		ret = debugfs->impl->pstate.attr(debugfs->priv, &attr);
 		if (ret)
 			return ret;
 
@@ -104,8 +101,7 @@ nouveau_debugfs_pstate_get(struct seq_file *m, void *data)
 		attr.index = 0;
 		do {
 			attr.state = state;
-			ret = nvif_mthd(ctrl, NVIF_CONTROL_PSTATE_ATTR,
-					&attr, sizeof(attr));
+			ret = debugfs->impl->pstate.attr(debugfs->priv, &attr);
 			if (ret)
 				return ret;
 

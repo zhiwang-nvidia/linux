@@ -58,36 +58,26 @@ nvkm_control_pstate_info(struct nvif_control_priv *ctrl, struct nvif_control_pst
 }
 
 static int
-nvkm_control_mthd_pstate_attr(struct nvkm_control *ctrl, void *data, u32 size)
+nvkm_control_pstate_attr(struct nvif_control_priv *ctrl, struct nvif_control_pstate_attr *attr)
 {
-	union {
-		struct nvif_control_pstate_attr_v0 v0;
-	} *args = data;
 	struct nvkm_clk *clk = ctrl->device->clk;
 	const struct nvkm_domain *domain;
 	struct nvkm_pstate *pstate;
 	struct nvkm_cstate *cstate;
 	int i = 0, j = -1;
 	u32 lo, hi;
-	int ret = -ENOSYS;
 
-	nvif_ioctl(&ctrl->object, "control pstate attr size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(&ctrl->object,
-			   "control pstate attr vers %d state %d index %d\n",
-			   args->v0.version, args->v0.state, args->v0.index);
-		if (!clk)
-			return -ENODEV;
-		if (args->v0.state < NVIF_CONTROL_PSTATE_ATTR_V0_STATE_CURRENT)
-			return -EINVAL;
-		if (args->v0.state >= clk->state_nr)
-			return -EINVAL;
-	} else
-		return ret;
+	if (!clk)
+		return -ENODEV;
+	if (attr->state < NVIF_CONTROL_PSTATE_ATTR_STATE_CURRENT)
+		return -EINVAL;
+	if (attr->state >= clk->state_nr)
+		return -EINVAL;
+
 	domain = clk->domains;
 
 	while (domain->name != nv_clk_src_max) {
-		if (domain->mname && ++j == args->v0.index)
+		if (domain->mname && ++j == attr->index)
 			break;
 		domain++;
 	}
@@ -95,9 +85,9 @@ nvkm_control_mthd_pstate_attr(struct nvkm_control *ctrl, void *data, u32 size)
 	if (domain->name == nv_clk_src_max)
 		return -EINVAL;
 
-	if (args->v0.state != NVIF_CONTROL_PSTATE_ATTR_V0_STATE_CURRENT) {
+	if (attr->state != NVIF_CONTROL_PSTATE_ATTR_STATE_CURRENT) {
 		list_for_each_entry(pstate, &clk->states, head) {
-			if (i++ == args->v0.state)
+			if (i++ == attr->state)
 				break;
 		}
 
@@ -108,21 +98,21 @@ nvkm_control_mthd_pstate_attr(struct nvkm_control *ctrl, void *data, u32 size)
 			hi = max(hi, cstate->domain[domain->name]);
 		}
 
-		args->v0.state = pstate->pstate;
+		attr->state = pstate->pstate;
 	} else {
 		lo = max(nvkm_clk_read(clk, domain->name), 0);
 		hi = lo;
 	}
 
-	snprintf(args->v0.name, sizeof(args->v0.name), "%s", domain->mname);
-	snprintf(args->v0.unit, sizeof(args->v0.unit), "MHz");
-	args->v0.min = lo / domain->mdiv;
-	args->v0.max = hi / domain->mdiv;
+	snprintf(attr->name, sizeof(attr->name), "%s", domain->mname);
+	snprintf(attr->unit, sizeof(attr->unit), "MHz");
+	attr->min = lo / domain->mdiv;
+	attr->max = hi / domain->mdiv;
 
-	args->v0.index = 0;
+	attr->index = 0;
 	while ((++domain)->name != nv_clk_src_max) {
 		if (domain->mname) {
-			args->v0.index = ++j;
+			attr->index = ++j;
 			break;
 		}
 	}
@@ -164,8 +154,6 @@ nvkm_control_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	struct nvif_control_priv *ctrl = container_of(object, typeof(*ctrl), object);
 	switch (mthd) {
-	case NVIF_CONTROL_PSTATE_ATTR:
-		return nvkm_control_mthd_pstate_attr(ctrl, data, size);
 	case NVIF_CONTROL_PSTATE_USER:
 		return nvkm_control_mthd_pstate_user(ctrl, data, size);
 	default:
@@ -191,6 +179,7 @@ static const struct nvif_control_impl
 nvkm_control_impl = {
 	.del = nvkm_control_del,
 	.pstate.info = nvkm_control_pstate_info,
+	.pstate.attr = nvkm_control_pstate_attr,
 };
 
 int
