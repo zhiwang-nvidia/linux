@@ -29,20 +29,12 @@ int
 nvif_outp_dp_mst_vcpi(struct nvif_outp *outp, int head,
 		      u8 start_slot, u8 num_slots, u16 pbn, u16 aligned_pbn)
 {
-	struct nvif_outp_dp_mst_vcpi_v0 args;
 	int ret;
 
-	args.version = 0;
-	args.head = head;
-	args.start_slot = start_slot;
-	args.num_slots = num_slots;
-	args.pbn = pbn;
-	args.aligned_pbn = aligned_pbn;
-
-	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_MST_VCPI, &args, sizeof(args));
+	ret = outp->impl->dp.mst_vcpi(outp->priv, head, start_slot, num_slots, pbn, aligned_pbn);
 	NVIF_ERRON(ret, &outp->object,
 		   "[DP_MST_VCPI head:%d start_slot:%02x num_slots:%02x pbn:%04x aligned_pbn:%04x]",
-		   args.head, args.start_slot, args.num_slots, args.pbn, args.aligned_pbn);
+		   head, start_slot, num_slots, pbn, aligned_pbn);
 	return ret;
 }
 

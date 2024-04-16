@@ -343,6 +343,8 @@ struct nvif_outp_impl {
 			   u32 watermark, u32 hblanksym, u32 vblanksym);
 		int (*mst_id_get)(struct nvif_outp_priv *, u32 *id);
 		int (*mst_id_put)(struct nvif_outp_priv *, u32 id);
+		int (*mst_vcpi)(struct nvif_outp_priv *, u8 head,
+				u8 start_slot, u8 num_slots, u16 pbn, u16 aligned_pbn);
 	} dp;
 };
 

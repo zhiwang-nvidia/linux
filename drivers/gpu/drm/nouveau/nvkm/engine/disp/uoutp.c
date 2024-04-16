@@ -26,8 +26,6 @@
 
 #include <subdev/i2c.h>
 
-#include <nvif/if0012.h>
-
 struct nvif_outp_priv {
 	struct nvkm_object object;
 	struct nvkm_outp *outp;
@@ -61,18 +59,22 @@ nvkm_uoutp_lock_acquired(struct nvif_outp_priv *uoutp)
 }
 
 static int
-nvkm_uoutp_mthd_dp_mst_vcpi(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_dp_mst_vcpi(struct nvif_outp_priv *uoutp, u8 head,
+		       u8 start_slot, u8 num_slots, u16 pbn, u16 aligned_pbn)
 {
-	struct nvkm_ior *ior = outp->ior;
-	union nvif_outp_dp_mst_vcpi_args *args = argv;
+	struct nvkm_ior *ior;
+	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	if (!ior->func->dp || !ior->func->dp->vcpi || !nvkm_head_find(outp->disp, args->v0.head))
+	if (!nvkm_head_find(uoutp->outp->disp, head))
 		return -EINVAL;
 
-	ior->func->dp->vcpi(ior, args->v0.head, args->v0.start_slot, args->v0.num_slots,
-				 args->v0.pbn, args->v0.aligned_pbn);
+	ret = nvkm_uoutp_lock_acquired(uoutp);
+	if (ret)
+		return ret;
+
+	ior = uoutp->outp->ior;
+	ior->func->dp->vcpi(ior, head, start_slot, num_slots, pbn, aligned_pbn);
+	nvkm_uoutp_unlock(uoutp);
 	return 0;
 }
 
@@ -558,36 +560,6 @@ nvkm_uoutp_detect(struct nvif_outp_priv *uoutp, enum nvif_outp_detect_status *st
 	return 0;
 }
 
-static int
-nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
-{
-	switch (mthd) {
-	case NVIF_OUTP_V0_DP_MST_VCPI  : return nvkm_uoutp_mthd_dp_mst_vcpi  (outp, argv, argc);
-	default:
-		break;
-	}
-
-	return -EINVAL;
-}
-
-static int
-nvkm_uoutp_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
-{
-	struct nvkm_outp *outp = container_of(object, struct nvif_outp_priv, object)->outp;
-	struct nvkm_disp *disp = outp->disp;
-	int ret;
-
-	mutex_lock(&disp->super.mutex);
-
-	if (outp->ior)
-		ret = nvkm_uoutp_mthd_acquired(outp, mthd, argv, argc);
-	else
-		ret = -EIO;
-
-	mutex_unlock(&disp->super.mutex);
-	return ret;
-}
-
 static void
 nvkm_uoutp_del(struct nvif_outp_priv *uoutp)
 {
@@ -619,7 +591,6 @@ nvkm_uoutp_dtor(struct nvkm_object *object)
 static const struct nvkm_object_func
 nvkm_uoutp = {
 	.dtor = nvkm_uoutp_dtor,
-	.mthd = nvkm_uoutp_mthd,
 };
 
 int
@@ -703,6 +674,7 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 		if (outp->func->dp.mst_id_get) {
 			uoutp->impl.dp.mst_id_get = nvkm_uoutp_dp_mst_id_get;
 			uoutp->impl.dp.mst_id_put = nvkm_uoutp_dp_mst_id_put;
+			uoutp->impl.dp.mst_vcpi = nvkm_uoutp_dp_mst_vcpi;
 		}
 		break;
 	default:

@@ -3,7 +3,6 @@
 #define __NVIF_OUTP_H__
 #include <nvif/object.h>
 #include <nvif/driverif.h>
-#include <nvif/if0012.h>
 #include <drm/display/drm_dp.h>
 struct nvif_disp;
 
