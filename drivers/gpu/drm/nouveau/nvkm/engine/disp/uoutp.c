@@ -195,16 +195,15 @@ nvkm_uoutp_mthd_dp_aux_xfer(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_dp_aux_pwr(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_dp_aux_pwr(struct nvif_outp_priv *uoutp, bool enable)
 {
-	union nvif_outp_dp_aux_pwr_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
+	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	if (!outp->func->dp.aux_pwr)
-		return -EINVAL;
-
-	return outp->func->dp.aux_pwr(outp, !!args->v0.state);
+	nvkm_uoutp_lock(uoutp);
+	ret = outp->func->dp.aux_pwr(outp, enable);
+	nvkm_uoutp_unlock(uoutp);
+	return ret;
 }
 
 static int
@@ -564,7 +563,6 @@ static int
 nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc, bool *invalid)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_DP_AUX_PWR : return nvkm_uoutp_mthd_dp_aux_pwr (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_AUX_XFER: return nvkm_uoutp_mthd_dp_aux_xfer(outp, argv, argc);
 	case NVIF_OUTP_V0_DP_RATES   : return nvkm_uoutp_mthd_dp_rates   (outp, argv, argc);
 	default:
@@ -705,6 +703,7 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 		uoutp->impl.dp.increased_wm = outp->dp.increased_wm;
 		uoutp->impl.dp.link_nr = outp->info.dpconf.link_nr;
 		uoutp->impl.dp.link_bw = outp->info.dpconf.link_bw * 27000;
+		uoutp->impl.dp.aux_pwr = nvkm_uoutp_dp_aux_pwr;
 		break;
 	default:
 		WARN_ON(1);

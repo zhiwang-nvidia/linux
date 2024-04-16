@@ -325,6 +325,8 @@ struct nvif_outp_impl {
 		u8 increased_wm;
 		u8 link_nr;
 		u32 link_bw;
+
+		int (*aux_pwr)(struct nvif_outp_priv *, bool enable);
 	} dp;
 };
 
