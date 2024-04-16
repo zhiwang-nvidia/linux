@@ -15,7 +15,7 @@ struct nvif_object {
 	const char *name;
 	u32 handle;
 	s32 oclass;
-	void *priv; /*XXX: hack */
+	void *priv;
 	struct {
 		void __iomem *ptr;
 		u64 size;
