@@ -10,10 +10,10 @@ struct nvif_mem {
 	u64 size;
 };
 
-int nvif_mem_ctor_type(struct nvif_mmu *mmu, const char *name, s32 oclass,
+int nvif_mem_ctor_type(struct nvif_mmu *mmu, const char *name,
 		       int type, u8 page, u64 size, void *argv, u32 argc,
 		       struct nvif_mem *);
-int nvif_mem_ctor(struct nvif_mmu *mmu, const char *name, s32 oclass, u8 type,
+int nvif_mem_ctor(struct nvif_mmu *mmu, const char *name, u8 type,
 		  u8 page, u64 size, void *argv, u32 argc, struct nvif_mem *);
 void nvif_mem_dtor(struct nvif_mem *);
 

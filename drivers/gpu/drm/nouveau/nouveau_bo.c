@@ -1158,7 +1158,7 @@ nouveau_ttm_io_mem_free_locked(struct nouveau_drm *drm,
 {
 	struct nouveau_mem *mem = nouveau_mem(reg);
 
-	if (drm->client.mem->oclass >= NVIF_CLASS_MEM_NV50) {
+	if (drm->mmu.impl->mem.oclass >= NVIF_CLASS_MEM_NV50) {
 		switch (reg->mem_type) {
 		case TTM_PL_TT:
 			if (mem->kind)
@@ -1179,7 +1179,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource *reg)
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
 	struct nvkm_device *device = nvxx_device(drm);
 	struct nouveau_mem *mem = nouveau_mem(reg);
-	struct nvif_mmu *mmu = &drm->client.mmu;
+	struct nvif_mmu *mmu = &drm->mmu;
 	int ret;
 
 	mutex_lock(&drm->ttm.io_reserve_mutex);
@@ -1198,7 +1198,7 @@ retry:
 			reg->bus.caching = ttm_write_combined;
 		}
 #endif
-		if (drm->client.mem->oclass < NVIF_CLASS_MEM_NV50 ||
+		if (mmu->impl->mem.oclass < NVIF_CLASS_MEM_NV50 ||
 		    !mem->kind) {
 			/* untiled */
 			ret = 0;
@@ -1217,7 +1217,7 @@ retry:
 		else
 			reg->bus.caching = ttm_write_combined;
 
-		if (drm->client.mem->oclass >= NVIF_CLASS_MEM_NV50) {
+		if (mmu->impl->mem.oclass >= NVIF_CLASS_MEM_NV50) {
 			union {
 				struct nv50_mem_map_v0 nv50;
 				struct gf100_mem_map_v0 gf100;
@@ -1225,7 +1225,7 @@ retry:
 			u64 handle, length;
 			u32 argc = 0;
 
-			switch (mem->mem.object.oclass) {
+			switch (mmu->impl->mem.oclass) {
 			case NVIF_CLASS_MEM_NV50:
 				args.nv50.version = 0;
 				args.nv50.ro = 0;

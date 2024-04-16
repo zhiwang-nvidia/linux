@@ -28,6 +28,6 @@ struct nouveau_vmm {
 	struct nouveau_svmm *svmm;
 };
 
-int nouveau_vmm_init(struct nouveau_cli *, s32 oclass, struct nouveau_vmm *);
+int nouveau_vmm_init(struct nouveau_cli *, struct nouveau_vmm *);
 void nouveau_vmm_fini(struct nouveau_vmm *);
 #endif

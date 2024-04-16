@@ -42,12 +42,6 @@ nvif_mmu_dtor(struct nvif_mmu *mmu)
 int
 nvif_mmu_ctor(struct nvif_device *device, const char *name, struct nvif_mmu *mmu)
 {
-	static const struct nvif_mclass mems[] = {
-		{ NVIF_CLASS_MEM_GF100, -1 },
-		{ NVIF_CLASS_MEM_NV50 , -1 },
-		{ NVIF_CLASS_MEM_NV04 , -1 },
-		{}
-	};
 	const s32 oclass = device->impl->mmu.oclass;
 	int ret, i;
 
@@ -67,11 +61,6 @@ nvif_mmu_ctor(struct nvif_device *device, const char *name, struct nvif_mmu *mmu
 	mmu->heap_nr = mmu->impl->heap_nr;
 	mmu->type_nr = mmu->impl->type_nr;
 	mmu->kind_nr = mmu->impl->kind_nr;
-
-	ret = nvif_mclass(&mmu->object, mems);
-	if (ret < 0)
-		goto done;
-	mmu->mem = mems[ret].oclass;
 
 	mmu->heap = kmalloc_array(mmu->heap_nr, sizeof(*mmu->heap),
 				  GFP_KERNEL);

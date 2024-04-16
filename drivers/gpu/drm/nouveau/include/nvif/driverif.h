@@ -84,6 +84,14 @@ struct nvif_mmu_impl {
 	u8 type_nr;
 
 	u16 kind_nr;
+
+	struct {
+		s32 oclass;
+	} mem;
+
+	struct {
+		s32 oclass;
+	} vmm;
 };
 
 struct nvif_device_impl {

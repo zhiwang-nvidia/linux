@@ -12,7 +12,6 @@ struct nvif_mmu {
 	u8  type_nr;
 	u8  kind_inv;
 	u16 kind_nr;
-	s32 mem;
 
 	struct {
 		u64 size;

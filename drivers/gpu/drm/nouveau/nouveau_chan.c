@@ -327,7 +327,7 @@ nouveau_channel_ctor(struct nouveau_cli *cli, bool priv, u64 runm,
 
 	/* allocate userd */
 	if (oclass >= VOLTA_CHANNEL_GPFIFO_A) {
-		ret = nvif_mem_ctor(&cli->mmu, "abi16ChanUSERD", NVIF_CLASS_MEM_GF100,
+		ret = nvif_mem_ctor(&cli->mmu, "abi16ChanUSERD",
 				    NVIF_MEM_VRAM | NVIF_MEM_COHERENT | NVIF_MEM_MAPPABLE,
 				    0, PAGE_SIZE, NULL, 0, &chan->mem_userd);
 		if (ret)

@@ -100,8 +100,6 @@ struct nouveau_cli {
 
 	struct nouveau_sched *sched;
 
-	const struct nvif_mclass *mem;
-
 	struct list_head head;
 	void *abi16;
 	struct list_head objects;

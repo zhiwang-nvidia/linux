@@ -186,6 +186,10 @@ nvkm_ummu_new(struct nvkm_device *device, const struct nvif_mmu_impl **pimpl,
 	ummu->impl.type_nr = mmu->type_nr;
 	ummu->impl.kind_nr = kinds;
 
+	ummu->impl.mem.oclass = mmu->func->mem.user.oclass;
+
+	ummu->impl.vmm.oclass = mmu->func->vmm.user.oclass;
+
 	*pimpl = &ummu->impl;
 	*ppriv = ummu;
 	*pobject = &ummu->object;

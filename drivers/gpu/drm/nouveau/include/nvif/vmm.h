@@ -36,7 +36,7 @@ struct nvif_vmm {
 	int page_nr;
 };
 
-int nvif_vmm_ctor(struct nvif_mmu *, const char *name, s32 oclass,
+int nvif_vmm_ctor(struct nvif_mmu *, const char *name,
 		  enum nvif_vmm_type, u64 addr, u64 size, void *argv, u32 argc,
 		  struct nvif_vmm *);
 void nvif_vmm_dtor(struct nvif_vmm *);

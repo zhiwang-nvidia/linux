@@ -196,7 +196,7 @@ nvif_vmm_dtor(struct nvif_vmm *vmm)
 }
 
 int
-nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name, s32 oclass,
+nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name,
 	      enum nvif_vmm_type type, u64 addr, u64 size, void *argv, u32 argc,
 	      struct nvif_vmm *vmm)
 {
@@ -225,7 +225,7 @@ nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name, s32 oclass,
 	memcpy(args->data, argv, argc);
 
 	ret = nvif_object_ctor(&mmu->object, name ? name : "nvifVmm", 0,
-			       oclass, args, argn, &vmm->object);
+			       mmu->impl->vmm.oclass, args, argn, &vmm->object);
 	if (ret)
 		goto done;
 
