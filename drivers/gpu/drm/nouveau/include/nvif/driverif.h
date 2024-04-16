@@ -13,6 +13,7 @@ struct nvif_faultbuf_priv;
 struct nvif_disp_priv;
 struct nvif_disp_caps_priv;
 struct nvif_conn_priv;
+struct nvif_outp_priv;
 
 struct nvif_event_impl {
 	void (*del)(struct nvif_event_priv *);
@@ -243,6 +244,50 @@ struct nvif_conn_impl {
 		     const struct nvif_event_impl **, struct nvif_event_priv **);
 };
 
+struct nvif_outp_impl {
+	void (*del)(struct nvif_outp_priv *);
+
+	u8 id;
+
+	enum nvif_outp_type {
+		NVIF_OUTP_DAC,
+		NVIF_OUTP_SOR,
+		NVIF_OUTP_PIOR,
+	} type;
+
+	enum nvif_outp_proto {
+		NVIF_OUTP_RGB_CRT,
+		NVIF_OUTP_TMDS,
+		NVIF_OUTP_LVDS,
+		NVIF_OUTP_DP,
+	} proto;
+
+	u8 heads;
+#define NVIF_OUTP_DDC_INVALID 0xff
+	u8 ddc;
+	u8 conn;
+
+	struct {
+		u32 freq_max;
+	} rgb_crt;
+
+	struct {
+		u8 dual;
+	} tmds;
+
+	struct {
+		u8 acpi_edid;
+	} lvds;
+
+	struct {
+		u8 aux;
+		u8 mst;
+		u8 increased_wm;
+		u8 link_nr;
+		u32 link_bw;
+	} dp;
+};
+
 struct nvif_disp_impl {
 	void (*del)(struct nvif_disp_priv *);
 
@@ -260,6 +305,8 @@ struct nvif_disp_impl {
 
 	struct {
 		u32 mask;
+		int (*new)(struct nvif_disp_priv *, u8 id,
+			   const struct nvif_outp_impl **, struct nvif_outp_priv **, u64 handle);
 	} outp;
 
 	struct {

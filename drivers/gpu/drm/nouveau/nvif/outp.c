@@ -492,68 +492,25 @@ nvif_outp_detect(struct nvif_outp *outp)
 void
 nvif_outp_dtor(struct nvif_outp *outp)
 {
-	nvif_object_dtor(&outp->object);
+	if (!outp->impl)
+		return;
+
+	outp->impl->del(outp->priv);
+	outp->impl = NULL;
 }
 
 int
 nvif_outp_ctor(struct nvif_disp *disp, const char *name, int id, struct nvif_outp *outp)
 {
-	struct nvif_outp_v0 args;
 	int ret;
 
-	args.version = 0;
-	args.id = id;
-
-	ret = nvif_object_ctor(&disp->object, name ?: "nvifOutp", id, NVIF_CLASS_OUTP,
-			       &args, sizeof(args), &outp->object);
+	ret = disp->impl->outp.new(disp->priv, id, &outp->impl, &outp->priv,
+				   nvif_handle(&outp->object));
 	NVIF_ERRON(ret, &disp->object, "[NEW outp id:%d]", id);
 	if (ret)
 		return ret;
 
-	outp->id = args.id;
-
-	switch (args.type) {
-	case NVIF_OUTP_V0_TYPE_DAC : outp->info.type = NVIF_OUTP_DAC; break;
-	case NVIF_OUTP_V0_TYPE_SOR : outp->info.type = NVIF_OUTP_SOR; break;
-	case NVIF_OUTP_V0_TYPE_PIOR: outp->info.type = NVIF_OUTP_PIOR; break;
-		break;
-	default:
-		WARN_ON(1);
-		nvif_outp_dtor(outp);
-		return -EINVAL;
-	}
-
-	switch (args.proto) {
-	case NVIF_OUTP_V0_PROTO_RGB_CRT:
-		outp->info.proto = NVIF_OUTP_RGB_CRT;
-		outp->info.rgb_crt.freq_max = args.rgb_crt.freq_max;
-		break;
-	case NVIF_OUTP_V0_PROTO_TMDS:
-		outp->info.proto = NVIF_OUTP_TMDS;
-		outp->info.tmds.dual = args.tmds.dual;
-		break;
-	case NVIF_OUTP_V0_PROTO_LVDS:
-		outp->info.proto = NVIF_OUTP_LVDS;
-		outp->info.lvds.acpi_edid = args.lvds.acpi_edid;
-		break;
-	case NVIF_OUTP_V0_PROTO_DP:
-		outp->info.proto = NVIF_OUTP_DP;
-		outp->info.dp.aux = args.dp.aux;
-		outp->info.dp.mst = args.dp.mst;
-		outp->info.dp.increased_wm = args.dp.increased_wm;
-		outp->info.dp.link_nr = args.dp.link_nr;
-		outp->info.dp.link_bw = args.dp.link_bw;
-		break;
-	default:
-		WARN_ON(1);
-		nvif_outp_dtor(outp);
-		return -EINVAL;
-	}
-
-	outp->info.heads = args.heads;
-	outp->info.ddc = args.ddc;
-	outp->info.conn = args.conn;
-
+	nvif_object_ctor(&disp->object, name ?: "nvifOutp", id, 0, &outp->object);
 	outp->or.id = -1;
 	return 0;
 }

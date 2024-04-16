@@ -31,6 +31,8 @@
 struct nvif_outp_priv {
 	struct nvkm_object object;
 	struct nvkm_outp *outp;
+
+	struct nvif_outp_impl impl;
 };
 
 static int
@@ -568,6 +570,19 @@ done:
 	return ret;
 }
 
+static void
+nvkm_uoutp_del(struct nvif_outp_priv *uoutp)
+{
+	struct nvkm_object *object = &uoutp->object;
+
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_outp_impl
+nvkm_uoutp_impl = {
+	.del = nvkm_uoutp_del,
+};
+
 static void *
 nvkm_uoutp_dtor(struct nvkm_object *object)
 {
@@ -586,20 +601,15 @@ nvkm_uoutp = {
 	.mthd = nvkm_uoutp_mthd,
 };
 
-#include "udisp.h"
 int
-nvkm_uoutp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nvkm_object **pobject)
+nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimpl,
+	       struct nvif_outp_priv **ppriv, struct nvkm_object **pobject)
 {
-	struct nvkm_disp *disp = container_of(oclass->parent, struct nvif_disp_priv, object)->disp;
 	struct nvkm_outp *outt, *outp = NULL;
-	union nvif_outp_args *args = argv;
 	struct nvif_outp_priv *uoutp;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-
 	list_for_each_entry(outt, &disp->outps, head) {
-		if (outt->index == args->v0.id) {
+		if (outt->index == id) {
 			outp = outt;
 			break;
 		}
@@ -608,56 +618,62 @@ nvkm_uoutp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	if (!outp)
 		return -EINVAL;
 
+	uoutp = kzalloc(sizeof(*uoutp), GFP_KERNEL);
+	if (!uoutp)
+		return -ENOMEM;
+
+	nvkm_object_ctor(&nvkm_uoutp, &(struct nvkm_oclass) {}, &uoutp->object);
+	uoutp->outp = outp;
+	uoutp->impl = nvkm_uoutp_impl;
+	uoutp->impl.id = id;
+
 	switch (outp->info.type) {
 	case DCB_OUTPUT_ANALOG:
-		args->v0.type = NVIF_OUTP_V0_TYPE_DAC;
-		args->v0.proto = NVIF_OUTP_V0_PROTO_RGB_CRT;
-		args->v0.rgb_crt.freq_max = outp->info.crtconf.maxfreq;
+		uoutp->impl.type = NVIF_OUTP_DAC;
+		uoutp->impl.proto = NVIF_OUTP_RGB_CRT;
+		uoutp->impl.rgb_crt.freq_max = outp->info.crtconf.maxfreq;
 		break;
 	case DCB_OUTPUT_TMDS:
 		if (!outp->info.location) {
-			args->v0.type = NVIF_OUTP_V0_TYPE_SOR;
-			args->v0.tmds.dual = (outp->info.tmdsconf.sor.link == 3);
+			uoutp->impl.type = NVIF_OUTP_SOR;
+			uoutp->impl.tmds.dual = (outp->info.tmdsconf.sor.link == 3);
 		} else {
-			args->v0.type = NVIF_OUTP_V0_TYPE_PIOR;
-			args->v0.tmds.dual = 0;
+			uoutp->impl.type = NVIF_OUTP_PIOR;
+			uoutp->impl.tmds.dual = 0;
 		}
-		args->v0.proto = NVIF_OUTP_V0_PROTO_TMDS;
+		uoutp->impl.proto = NVIF_OUTP_TMDS;
 		break;
 	case DCB_OUTPUT_LVDS:
-		args->v0.type = NVIF_OUTP_V0_TYPE_SOR;
-		args->v0.proto = NVIF_OUTP_V0_PROTO_LVDS;
-		args->v0.lvds.acpi_edid = outp->info.lvdsconf.use_acpi_for_edid;
+		uoutp->impl.type = NVIF_OUTP_SOR;
+		uoutp->impl.proto = NVIF_OUTP_LVDS;
+		uoutp->impl.lvds.acpi_edid = outp->info.lvdsconf.use_acpi_for_edid;
 		break;
 	case DCB_OUTPUT_DP:
 		if (!outp->info.location) {
-			args->v0.type = NVIF_OUTP_V0_TYPE_SOR;
-			args->v0.dp.aux = outp->info.i2c_index;
+			uoutp->impl.type = NVIF_OUTP_SOR;
+			uoutp->impl.dp.aux = outp->info.i2c_index;
 		} else {
-			args->v0.type = NVIF_OUTP_V0_TYPE_PIOR;
-			args->v0.dp.aux = NVKM_I2C_AUX_EXT(outp->info.extdev);
+			uoutp->impl.type = NVIF_OUTP_PIOR;
+			uoutp->impl.dp.aux = NVKM_I2C_AUX_EXT(outp->info.extdev);
 		}
-		args->v0.proto = NVIF_OUTP_V0_PROTO_DP;
-		args->v0.dp.mst = outp->dp.mst;
-		args->v0.dp.increased_wm = outp->dp.increased_wm;
-		args->v0.dp.link_nr = outp->info.dpconf.link_nr;
-		args->v0.dp.link_bw = outp->info.dpconf.link_bw * 27000;
+		uoutp->impl.proto = NVIF_OUTP_DP;
+		uoutp->impl.dp.mst = outp->dp.mst;
+		uoutp->impl.dp.increased_wm = outp->dp.increased_wm;
+		uoutp->impl.dp.link_nr = outp->info.dpconf.link_nr;
+		uoutp->impl.dp.link_bw = outp->info.dpconf.link_bw * 27000;
 		break;
 	default:
 		WARN_ON(1);
+		kfree(uoutp);
 		return -EINVAL;
 	}
 
 	if (outp->info.location)
-		args->v0.ddc = NVKM_I2C_BUS_EXT(outp->info.extdev);
+		uoutp->impl.ddc = NVKM_I2C_BUS_EXT(outp->info.extdev);
 	else
-		args->v0.ddc = outp->info.i2c_index;
-	args->v0.heads = outp->info.heads;
-	args->v0.conn = outp->info.connector;
-
-	uoutp = kzalloc(sizeof(*uoutp), GFP_KERNEL);
-	if (!uoutp)
-		return -ENOMEM;
+		uoutp->impl.ddc = outp->info.i2c_index;
+	uoutp->impl.heads = outp->info.heads;
+	uoutp->impl.conn = outp->info.connector;
 
 	spin_lock(&disp->user.lock);
 	if (outp->user) {
@@ -668,8 +684,8 @@ nvkm_uoutp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	outp->user = true;
 	spin_unlock(&disp->user.lock);
 
-	nvkm_object_ctor(&nvkm_uoutp, oclass, &uoutp->object);
-	uoutp->outp = outp;
+	*pimpl = &uoutp->impl;
+	*ppriv = uoutp;
 	*pobject = &uoutp->object;
 	return 0;
 }

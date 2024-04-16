@@ -4,43 +4,6 @@
 
 #include <drm/display/drm_dp.h>
 
-union nvif_outp_args {
-	struct nvif_outp_v0 {
-		__u8 version;
-		__u8 id;	/* DCB device index. */
-#define NVIF_OUTP_V0_TYPE_DAC  0x00
-#define NVIF_OUTP_V0_TYPE_SOR  0x01
-#define NVIF_OUTP_V0_TYPE_PIOR 0x02
-		__u8 type;
-#define NVIF_OUTP_V0_PROTO_RGB_CRT 0x00
-#define NVIF_OUTP_V0_PROTO_TMDS    0x01
-#define NVIF_OUTP_V0_PROTO_LVDS    0x02
-#define NVIF_OUTP_V0_PROTO_DP      0x03
-	        __u8 proto;
-	        __u8 heads;
-	        __u8 ddc;
-	        __u8 conn;
-		union {
-			struct {
-				__u32 freq_max;
-			} rgb_crt;
-			struct {
-				__u8  dual;
-			} tmds;
-			struct {
-				__u8  acpi_edid;
-			} lvds;
-			struct {
-				__u8  aux;
-				__u8  mst;
-				__u8  increased_wm;
-				__u8  link_nr;
-				__u32 link_bw;
-			} dp;
-		};
-	} v0;
-};
-
 #define NVIF_OUTP_V0_DETECT        0x00
 #define NVIF_OUTP_V0_EDID_GET      0x01
 
