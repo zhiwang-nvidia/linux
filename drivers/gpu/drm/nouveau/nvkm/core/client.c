@@ -93,7 +93,7 @@ nvkm_client_child_get(struct nvkm_object *object, int index,
 static void *
 nvkm_client_dtor(struct nvkm_object *object)
 {
-	return nvkm_client(object);
+	return container_of(object, struct nvkm_client, object);
 }
 
 static const struct nvkm_object_func
