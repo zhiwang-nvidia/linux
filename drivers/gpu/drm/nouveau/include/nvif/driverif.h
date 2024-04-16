@@ -14,5 +14,11 @@ struct nvif_driver {
 
 struct nvif_client_impl {
 	void (*del)(struct nvif_client_priv *);
+
+	struct {
+		int (*new)(struct nvif_client_priv *parent,
+			   const struct nvif_client_impl **, struct nvif_client_priv **,
+			   u64 handle);
+	} client;
 };
 #endif

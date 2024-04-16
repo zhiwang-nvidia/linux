@@ -247,10 +247,15 @@ void
 nvkm_object_del(struct nvkm_object **pobject)
 {
 	struct nvkm_object *object = *pobject;
+
 	if (object && !WARN_ON(!object->func)) {
 		*pobject = nvkm_object_dtor(object);
 		nvkm_object_remove(object);
+
+		spin_lock_irq(&object->client->obj_lock);
 		list_del(&object->head);
+		spin_unlock_irq(&object->client->obj_lock);
+
 		kfree(*pobject);
 		*pobject = NULL;
 	}
@@ -297,4 +302,32 @@ nvkm_object_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 	const struct nvkm_object_func *func =
 		oclass->base.func ? oclass->base.func : &nvkm_object_func;
 	return nvkm_object_new_(func, oclass, data, size, pobject);
+}
+
+void
+nvkm_object_link_(struct nvif_client_priv *client, struct nvkm_object *parent,
+		  struct nvkm_object *object)
+{
+	object->client = client;
+
+	spin_lock_irq(&client->obj_lock);
+	list_add_tail(&object->head, &parent->tree);
+	spin_unlock_irq(&client->obj_lock);
+}
+
+int
+nvkm_object_link_rb(struct nvif_client_priv *client, struct nvkm_object *parent, u64 handle,
+		    struct nvkm_object *object)
+{
+	nvkm_object_link_(client, parent, object);
+
+	object->object = handle;
+
+	if (!nvkm_object_insert(object)) {
+		nvkm_object_fini(object, false);
+		nvkm_object_del(&object);
+		return -EEXIST;
+	}
+
+	return 0;
 }

@@ -28,45 +28,24 @@
 #include <nvif/class.h>
 #include <nvif/driverif.h>
 #include <nvif/event.h>
-#include <nvif/if0000.h>
 #include <nvif/unpack.h>
 
 static int
-nvkm_uclient_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		 struct nvkm_object **pobject)
+nvkm_client_new_client(struct nvif_client_priv *parent,
+		       const struct nvif_client_impl **pimpl, struct nvif_client_priv **ppriv,
+		       u64 handle)
 {
-	union {
-		struct nvif_client_v0 v0;
-	} *args = argv;
 	struct nvkm_client *client;
-	int ret = -ENOSYS;
+	int ret;
 
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))){
-		const struct nvif_client_impl *impl;
-
-		args->v0.name[sizeof(args->v0.name) - 1] = 0;
-		ret = nvkm_client_new(args->v0.name, oclass->client->device,
-				      oclass->client->event, &impl, &client);
-		if (ret)
-			return ret;
-	} else
+	ret = nvkm_client_new("client", parent->device, parent->event, pimpl, &client);
+	if (ret)
 		return ret;
 
-	client->object.client = oclass->client;
-	client->object.handle = oclass->handle;
-	client->object.object = oclass->object;
-	client->debug = oclass->client->debug;
-	*pobject = &client->object;
-	return 0;
-}
+	*ppriv = client;
 
-static const struct nvkm_sclass
-nvkm_uclient_sclass = {
-	.oclass = NVIF_CLASS_CLIENT,
-	.minver = 0,
-	.maxver = 0,
-	.ctor = nvkm_uclient_new,
-};
+	return nvkm_object_link_rb(parent, &parent->object, handle, &client->object);
+}
 
 static void
 nvkm_client_del(struct nvif_client_priv *client)
@@ -79,6 +58,7 @@ nvkm_client_del(struct nvif_client_priv *client)
 const struct nvif_client_impl
 nvkm_client_impl = {
 	.del = nvkm_client_del,
+	.client.new = nvkm_client_new_client,
 };
 
 static int
@@ -95,8 +75,7 @@ nvkm_client_child_get(struct nvkm_object *object, int index,
 	const struct nvkm_sclass *sclass;
 
 	switch (index) {
-	case 0: sclass = &nvkm_uclient_sclass; break;
-	case 1: sclass = &nvkm_udevice_sclass; break;
+	case 0: sclass = &nvkm_udevice_sclass; break;
 	default:
 		return -EINVAL;
 	}
@@ -122,7 +101,7 @@ int
 nvkm_client_new(const char *name, struct nvkm_device *device, int (*event)(u64, void *, u32),
 		const struct nvif_client_impl **pimpl, struct nvif_client_priv **ppriv)
 {
-	struct nvkm_oclass oclass = { .base = nvkm_uclient_sclass };
+	struct nvkm_oclass oclass = {};
 	struct nvkm_client *client;
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);

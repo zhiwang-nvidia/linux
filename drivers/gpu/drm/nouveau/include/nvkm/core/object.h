@@ -58,6 +58,16 @@ int nvkm_object_unmap(struct nvkm_object *);
 int nvkm_object_bind(struct nvkm_object *, struct nvkm_gpuobj *, int align,
 		     struct nvkm_gpuobj **);
 
+void nvkm_object_link_(struct nvif_client_priv *, struct nvkm_object *parent, struct nvkm_object *);
+int nvkm_object_link_rb(struct nvif_client_priv *, struct nvkm_object *parent, u64 handle,
+		        struct nvkm_object *);
+
+static inline void
+nvkm_object_link(struct nvkm_object *parent, struct nvkm_object *object)
+{
+	nvkm_object_link_(parent->client, parent, object);
+}
+
 bool nvkm_object_insert(struct nvkm_object *);
 void nvkm_object_remove(struct nvkm_object *);
 struct nvkm_object *nvkm_object_search(struct nvkm_client *, u64 object,
