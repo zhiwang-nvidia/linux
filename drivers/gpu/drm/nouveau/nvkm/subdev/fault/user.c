@@ -28,10 +28,15 @@
 #include <nvif/clb069.h>
 #include <nvif/unpack.h>
 
+struct nvif_faultbuf_priv {
+	struct nvkm_object object;
+	struct nvkm_fault_buffer *buffer;
+};
+
 static int
 nvkm_ufault_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
 {
-	struct nvkm_fault_buffer *buffer = nvkm_fault_buffer(object);
+	struct nvkm_fault_buffer *buffer = container_of(object, struct nvif_faultbuf_priv, object)->buffer;
 	union nvif_clb069_event_args *args = argv;
 
 	if (!uevent)
@@ -47,7 +52,7 @@ static int
 nvkm_ufault_map(struct nvkm_object *object, void *argv, u32 argc,
 		enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
-	struct nvkm_fault_buffer *buffer = nvkm_fault_buffer(object);
+	struct nvkm_fault_buffer *buffer = container_of(object, struct nvif_faultbuf_priv, object)->buffer;
 	struct nvkm_device *device = buffer->fault->subdev.device;
 	*type = NVKM_OBJECT_MAP_IO;
 	*addr = device->func->resource_addr(device, 3) + buffer->addr;
@@ -58,7 +63,9 @@ nvkm_ufault_map(struct nvkm_object *object, void *argv, u32 argc,
 static int
 nvkm_ufault_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nvkm_fault_buffer *buffer = nvkm_fault_buffer(object);
+	struct nvif_faultbuf_priv *ufault = container_of(object, typeof(*ufault), object);
+	struct nvkm_fault_buffer *buffer = ufault->buffer;
+
 	buffer->fault->func->buffer.fini(buffer);
 	return 0;
 }
@@ -66,7 +73,9 @@ nvkm_ufault_fini(struct nvkm_object *object, bool suspend)
 static int
 nvkm_ufault_init(struct nvkm_object *object)
 {
-	struct nvkm_fault_buffer *buffer = nvkm_fault_buffer(object);
+	struct nvif_faultbuf_priv *ufault = container_of(object, typeof(*ufault), object);
+	struct nvkm_fault_buffer *buffer = ufault->buffer;
+
 	buffer->fault->func->buffer.init(buffer);
 	return 0;
 }
@@ -74,7 +83,7 @@ nvkm_ufault_init(struct nvkm_object *object)
 static void *
 nvkm_ufault_dtor(struct nvkm_object *object)
 {
-	return NULL;
+	return container_of(object, struct nvif_faultbuf_priv, object);
 }
 
 static const struct nvkm_object_func
@@ -94,6 +103,7 @@ nvkm_ufault_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 		struct nvif_clb069_v0 v0;
 	} *args = argv;
 	struct nvkm_fault *fault = device->fault;
+	struct nvif_faultbuf_priv *ufault;
 	struct nvkm_fault_buffer *buffer = fault->buffer[fault->func->user.rp];
 	int ret = -ENOSYS;
 
@@ -104,7 +114,13 @@ nvkm_ufault_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 	} else
 		return ret;
 
-	nvkm_object_ctor(&nvkm_ufault, oclass, &buffer->object);
-	*pobject = &buffer->object;
+	ufault = kzalloc(sizeof(*ufault), GFP_KERNEL);
+	if (!ufault)
+		return -ENOMEM;
+
+	nvkm_object_ctor(&nvkm_ufault, oclass, &ufault->object);
+	ufault->buffer = fault->buffer[fault->func->user.rp];
+
+	*pobject = &ufault->object;
 	return 0;
 }

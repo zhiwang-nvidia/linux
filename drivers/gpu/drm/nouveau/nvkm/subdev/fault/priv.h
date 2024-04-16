@@ -1,6 +1,5 @@
 #ifndef __NVKM_FAULT_PRIV_H__
 #define __NVKM_FAULT_PRIV_H__
-#define nvkm_fault_buffer(p) container_of((p), struct nvkm_fault_buffer, object)
 #define nvkm_fault(p) container_of((p), struct nvkm_fault, subdev)
 #include <subdev/fault.h>
 
@@ -8,7 +7,6 @@
 #include <core/object.h>
 
 struct nvkm_fault_buffer {
-	struct nvkm_object object;
 	struct nvkm_fault *fault;
 	int id;
 	int entries;
