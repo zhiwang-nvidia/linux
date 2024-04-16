@@ -29,6 +29,13 @@
 #include <nvif/if000c.h>
 #include <nvif/unpack.h>
 
+#define nvkm_uvmm nvif_vmm_priv
+
+struct nvif_vmm_priv {
+	struct nvkm_object object;
+	struct nvkm_vmm *vmm;
+};
+
 static const struct nvkm_object_func nvkm_uvmm;
 struct nvkm_vmm *
 nvkm_uvmm_search(struct nvkm_client *client, u64 handle)
@@ -39,7 +46,7 @@ nvkm_uvmm_search(struct nvkm_client *client, u64 handle)
 	if (IS_ERR(object))
 		return (void *)object;
 
-	return nvkm_vmm_ref(nvkm_uvmm(object)->vmm);
+	return nvkm_vmm_ref(container_of(object, struct nvif_vmm_priv, object)->vmm);
 }
 
 static int
@@ -327,7 +334,7 @@ nvkm_uvmm_mthd_page(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 }
 
 static inline int
-nvkm_uvmm_page_index(struct nvkm_uvmm *uvmm, u64 size, u8 shift, u8 *refd)
+nvkm_uvmm_page_index(struct nvif_vmm_priv *uvmm, u64 size, u8 shift, u8 *refd)
 {
 	struct nvkm_vmm *vmm = uvmm->vmm;
 	const struct nvkm_vmm_page *page;
@@ -491,7 +498,7 @@ nvkm_uvmm_mthd_raw(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 static int
 nvkm_uvmm_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
-	struct nvkm_uvmm *uvmm = nvkm_uvmm(object);
+	struct nvif_vmm_priv *uvmm = container_of(object, typeof(*uvmm), object);
 	switch (mthd) {
 	case NVIF_VMM_V0_PAGE  : return nvkm_uvmm_mthd_page  (uvmm, argv, argc);
 	case NVIF_VMM_V0_GET   : return nvkm_uvmm_mthd_get   (uvmm, argv, argc);
@@ -517,7 +524,8 @@ nvkm_uvmm_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 static void *
 nvkm_uvmm_dtor(struct nvkm_object *object)
 {
-	struct nvkm_uvmm *uvmm = nvkm_uvmm(object);
+	struct nvif_vmm_priv *uvmm = container_of(object, typeof(*uvmm), object);
+
 	nvkm_vmm_unref(&uvmm->vmm);
 	return uvmm;
 }
@@ -538,7 +546,7 @@ nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		struct nvif_vmm_v0 v0;
 	} *args = argv;
 	const struct nvkm_vmm_page *page;
-	struct nvkm_uvmm *uvmm;
+	struct nvif_vmm_priv *uvmm;
 	int ret = -ENOSYS;
 	u64 addr, size;
 	bool managed, raw;
