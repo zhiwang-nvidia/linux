@@ -70,7 +70,7 @@ nouveau_vram_manager_new(struct ttm_resource_manager *man,
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	int ret;
 
-	if (drm->client.device.info.ram_size == 0)
+	if (drm->device.impl->ram_size == 0)
 		return -ENOMEM;
 
 	ret = nouveau_mem_new(drm, nvbo->kind, nvbo->comp, res);
@@ -180,7 +180,7 @@ nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)
 static int
 nouveau_ttm_init_vram(struct nouveau_drm *drm)
 {
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->device.impl->family >= NVIF_DEVICE_TESLA) {
 		struct ttm_resource_manager *man = kzalloc(sizeof(*man), GFP_KERNEL);
 
 		if (!man)
@@ -204,7 +204,7 @@ nouveau_ttm_fini_vram(struct nouveau_drm *drm)
 {
 	struct ttm_resource_manager *man = ttm_manager_type(&drm->ttm.bdev, TTM_PL_VRAM);
 
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->device.impl->family >= NVIF_DEVICE_TESLA) {
 		ttm_resource_manager_set_used(man, false);
 		ttm_resource_manager_evict_all(&drm->ttm.bdev, man);
 		ttm_resource_manager_cleanup(man);
@@ -221,7 +221,7 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 	unsigned long size_pages = drm->gem.gart_available >> PAGE_SHIFT;
 	const struct ttm_resource_manager_func *func = NULL;
 
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
+	if (drm->device.impl->family >= NVIF_DEVICE_TESLA)
 		func = &nouveau_gart_manager;
 	else if (!drm->agp.bridge)
 		func = &nv04_gart_manager;
@@ -246,8 +246,7 @@ nouveau_ttm_fini_gtt(struct nouveau_drm *drm)
 {
 	struct ttm_resource_manager *man = ttm_manager_type(&drm->ttm.bdev, TTM_PL_TT);
 
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA &&
-	    drm->agp.bridge)
+	if (drm->device.impl->family < NVIF_DEVICE_TESLA && drm->agp.bridge)
 		ttm_range_man_fini(&drm->ttm.bdev, TTM_PL_TT);
 	else {
 		ttm_resource_manager_set_used(man, false);
@@ -271,15 +270,15 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	if (ret)
 		return ret;
 
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
-	    drm->client.device.info.chipset != 0x50) {
+	if (drm->device.impl->family >= NVIF_DEVICE_TESLA &&
+	    drm->device.impl->chipset != 0x50) {
 		ret = nouveau_ttm_init_host(drm, NVIF_MEM_KIND);
 		if (ret)
 			return ret;
 	}
 
-	if (drm->client.device.info.platform != NV_DEVICE_INFO_V0_SOC &&
-	    drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->device.impl->platform != NVIF_DEVICE_SOC &&
+	    drm->device.impl->family >= NVIF_DEVICE_TESLA) {
 		typei = nvif_mmu_type(mmu, NVIF_MEM_VRAM | NVIF_MEM_MAPPABLE |
 					   NVIF_MEM_KIND |
 					   NVIF_MEM_COMP |
@@ -310,7 +309,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	}
 
 	/* VRAM init */
-	drm->gem.vram_available = drm->client.device.info.ram_user;
+	drm->gem.vram_available = drm->device.impl->ram_user;
 
 	arch_io_reserve_memtype_wc(device->func->resource_addr(device, 1),
 				   device->func->resource_size(device, 1));

@@ -27,6 +27,7 @@
 #include <nvif/ioctl.h>
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
+#include <nvif/cl0080.h>
 #include <nvif/unpack.h>
 
 #include "nouveau_drv.h"
@@ -211,7 +212,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &drm->client.device;
+	struct nvif_device *device = &drm->device;
 	struct nvkm_device *nvkm_device = nvxx_device(drm);
 	struct nvkm_gr *gr = nvxx_gr(drm);
 	struct drm_nouveau_getparam *getparam = data;
@@ -219,27 +220,27 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 
 	switch (getparam->param) {
 	case NOUVEAU_GETPARAM_CHIPSET_ID:
-		getparam->value = device->info.chipset;
+		getparam->value = device->impl->chipset;
 		break;
 	case NOUVEAU_GETPARAM_PCI_VENDOR:
-		if (device->info.platform != NV_DEVICE_INFO_V0_SOC)
+		if (device->impl->platform != NVIF_DEVICE_SOC)
 			getparam->value = pdev->vendor;
 		else
 			getparam->value = 0;
 		break;
 	case NOUVEAU_GETPARAM_PCI_DEVICE:
-		if (device->info.platform != NV_DEVICE_INFO_V0_SOC)
+		if (device->impl->platform != NVIF_DEVICE_SOC)
 			getparam->value = pdev->device;
 		else
 			getparam->value = 0;
 		break;
 	case NOUVEAU_GETPARAM_BUS_TYPE:
-		switch (device->info.platform) {
-		case NV_DEVICE_INFO_V0_AGP : getparam->value = 0; break;
-		case NV_DEVICE_INFO_V0_PCI : getparam->value = 1; break;
-		case NV_DEVICE_INFO_V0_PCIE: getparam->value = 2; break;
-		case NV_DEVICE_INFO_V0_SOC : getparam->value = 3; break;
-		case NV_DEVICE_INFO_V0_IGP :
+		switch (device->impl->platform) {
+		case NVIF_DEVICE_AGP : getparam->value = 0; break;
+		case NVIF_DEVICE_PCI : getparam->value = 1; break;
+		case NVIF_DEVICE_PCIE: getparam->value = 2; break;
+		case NVIF_DEVICE_SOC : getparam->value = 3; break;
+		case NVIF_DEVICE_IGP :
 			if (!pci_is_pcie(pdev))
 				getparam->value = 1;
 			else
@@ -324,7 +325,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	engine = NVIF_ENGINE_GR;
 
 	/* hack to allow channel engine type specification on kepler */
-	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
+	if (device->impl->family >= NVIF_DEVICE_KEPLER) {
 		if (init->fb_ctxdma_handle == ~0) {
 			switch (init->tt_ctxdma_handle) {
 			case NOUVEAU_FIFO_ENGINE_GR:
@@ -386,7 +387,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 
 	init->channel = chan->chan->chid;
 
-	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA)
+	if (device->impl->family >= NVIF_DEVICE_TESLA)
 		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM |
 					NOUVEAU_GEM_DOMAIN_GART;
 	else
@@ -395,7 +396,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	else
 		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_GART;
 
-	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
+	if (device->impl->family < NVIF_DEVICE_CELSIUS) {
 		init->subchan[0].handle = 0x00000000;
 		init->subchan[0].grclass = 0x0000;
 		init->subchan[1].handle = chan->chan->nvsw.object.handle;
@@ -411,14 +412,14 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	 *
 	 * Userspace was fixed prior to adding Ampere support.
 	 */
-	switch (device->info.family) {
-	case NV_DEVICE_INFO_V0_VOLTA:
+	switch (device->impl->family) {
+	case NVIF_DEVICE_VOLTA:
 		ret = nvif_engobj_ctor(&chan->chan->chan, "abi16CeWar", 0, VOLTA_DMA_COPY_A,
 				       &chan->ce);
 		if (ret)
 			goto done;
 		break;
-	case NV_DEVICE_INFO_V0_TURING:
+	case NVIF_DEVICE_TURING:
 		ret = nvif_engobj_ctor(&chan->chan->chan, "abi16CeWar", 0, TURING_DMA_COPY_A,
 				       &chan->ce);
 		if (ret)
@@ -437,7 +438,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (ret)
 		goto done;
 
-	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
+	if (device->impl->family >= NVIF_DEVICE_TESLA) {
 		ret = nouveau_vma_new(chan->ntfy, chan->chan->vmm,
 				      &chan->ntfy_vma);
 		if (ret)
@@ -559,7 +560,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	device = &abi16->cli->device;
 
 	/* completely unnecessary for these chipsets... */
-	if (unlikely(device->info.family >= NV_DEVICE_INFO_V0_FERMI))
+	if (unlikely(device->impl->family >= NVIF_DEVICE_FERMI))
 		return nouveau_abi16_put(abi16, -EINVAL);
 
 	chan = nouveau_abi16_chan(abi16, info->channel);
@@ -579,7 +580,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 
 	args.start = ntfy->node->offset;
 	args.limit = ntfy->node->offset + ntfy->node->length - 1;
-	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
+	if (device->impl->family >= NVIF_DEVICE_TESLA) {
 		args.target = NV_DMA_V0_TARGET_VM;
 		args.access = NV_DMA_V0_ACCESS_VM;
 		args.start += chan->ntfy_vma->addr;
@@ -644,6 +645,7 @@ static int
 nouveau_abi16_ioctl_mthd(struct nouveau_abi16 *abi16, struct nvif_ioctl_v0 *ioctl, u32 argc)
 {
 	struct nouveau_cli *cli = abi16->cli;
+	struct nvif_device *device = &cli->drm->device;
 	struct nvif_ioctl_mthd_v0 *args;
 	struct nouveau_abi16_obj *obj;
 	struct nv_device_info_v0 *info;
@@ -665,8 +667,14 @@ nouveau_abi16_ioctl_mthd(struct nouveau_abi16 *abi16, struct nvif_ioctl_v0 *ioct
 	if (info->version != 0x00)
 		return -EINVAL;
 
-	info = &cli->device.info;
-	memcpy(args->data, info, sizeof(*info));
+	info->platform = device->impl->platform;
+	info->chipset = device->impl->chipset;
+	info->revision = device->impl->revision;
+	info->family = device->impl->family;
+	info->ram_size = device->impl->ram_size;
+	info->ram_user = device->impl->ram_user;
+	strscpy(info->chip, device->impl->chip, sizeof(info->chip));
+	strscpy(info->name, device->impl->name, sizeof(info->name));
 	return 0;
 }
 

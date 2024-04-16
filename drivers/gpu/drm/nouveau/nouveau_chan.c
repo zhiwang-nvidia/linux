@@ -190,7 +190,7 @@ nouveau_channel_prep(struct nouveau_cli *cli,
 	 */
 	chan->push.addr = chan->push.buffer->offset;
 
-	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
+	if (device->impl->family >= NVIF_DEVICE_TESLA) {
 		ret = nouveau_vma_new(chan->push.buffer, chan->vmm,
 				      &chan->push.vma);
 		if (ret) {
@@ -200,7 +200,7 @@ nouveau_channel_prep(struct nouveau_cli *cli,
 
 		chan->push.addr = chan->push.vma->addr;
 
-		if (device->info.family >= NV_DEVICE_INFO_V0_FERMI)
+		if (device->impl->family >= NVIF_DEVICE_FERMI)
 			return 0;
 
 		args.target = NV_DMA_V0_TARGET_VM;
@@ -209,7 +209,7 @@ nouveau_channel_prep(struct nouveau_cli *cli,
 		args.limit = chan->vmm->vmm.impl->limit - 1;
 	} else
 	if (chan->push.buffer->bo.resource->mem_type == TTM_PL_VRAM) {
-		if (device->info.family == NV_DEVICE_INFO_V0_TNT) {
+		if (device->impl->family == NVIF_DEVICE_TNT) {
 			/* nv04 vram pushbuf hack, retarget to its location in
 			 * the framebuffer bar rather than direct vram access..
 			 * nfi why this exists, it came from the -nv ddx.
@@ -217,12 +217,12 @@ nouveau_channel_prep(struct nouveau_cli *cli,
 			args.target = NV_DMA_V0_TARGET_PCI;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = nvxx_device(drm)->func->resource_addr(nvxx_device(drm), 1);
-			args.limit = args.start + device->info.ram_user - 1;
+			args.limit = args.start + device->impl->ram_user - 1;
 		} else {
 			args.target = NV_DMA_V0_TARGET_VRAM;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
-			args.limit = device->info.ram_user - 1;
+			args.limit = device->impl->ram_user - 1;
 		}
 	} else {
 		if (drm->agp.bridge) {
@@ -379,8 +379,8 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	}
 
 	/* allocate dma objects to cover all allowed vram, and gart */
-	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
-		if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
+	if (device->impl->family < NVIF_DEVICE_FERMI) {
+		if (device->impl->family >= NVIF_DEVICE_TESLA) {
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_VM;
 			args.start = 0;
@@ -389,7 +389,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.target = NV_DMA_V0_TARGET_VRAM;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
-			args.limit = device->info.ram_user - 1;
+			args.limit = device->impl->ram_user - 1;
 		}
 
 		ret = nvif_chan_ctxdma_ctor(&chan->chan, "abi16ChanVramCtxDma", vram,
@@ -398,7 +398,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 		if (ret)
 			return ret;
 
-		if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		if (device->impl->family >= NVIF_DEVICE_TESLA) {
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_VM;
 			args.start = 0;
@@ -457,7 +457,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 		PUSH_DATA(&chan->chan.push, 0x00000000);
 
 	/* allocate software object class (used for fences on <= nv05) */
-	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
+	if (device->impl->family < NVIF_DEVICE_CELSIUS) {
 		ret = nvif_engobj_ctor(&chan->chan, "abi16NvswFence", 0x006e,
 				       NVIF_CLASS_SW_NV04, &chan->nvsw);
 		if (ret)

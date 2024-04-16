@@ -591,7 +591,7 @@ nouveau_dmem_init(struct nouveau_drm *drm)
 	int ret;
 
 	/* This only make sense on PASCAL or newer */
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_PASCAL)
+	if (drm->device.impl->family < NVIF_DEVICE_PASCAL)
 		return;
 
 	if (!(drm->dmem = kzalloc(sizeof(*drm->dmem), GFP_KERNEL)))

@@ -155,7 +155,7 @@ nouveau_decode_mod(struct nouveau_drm *drm,
 		*tile_mode = (uint32_t)(modifier & 0xF);
 		*kind = (uint8_t)((modifier >> 12) & 0xFF);
 
-		if (drm->client.device.info.chipset >= 0xc0)
+		if (drm->device.impl->chipset >= 0xc0)
 			*tile_mode <<= 4;
 	}
 }
@@ -196,9 +196,8 @@ nouveau_validate_decode_mod(struct nouveau_drm *drm,
 	struct nouveau_display *disp = nouveau_display(drm->dev);
 	int mod;
 
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->device.impl->family < NVIF_DEVICE_TESLA)
 		return -EINVAL;
-	}
 
 	BUG_ON(!disp->format_modifiers);
 
@@ -240,9 +239,9 @@ nouveau_get_height_in_blocks(struct nouveau_drm *drm,
 	uint32_t log_gob_height;
 	uint32_t log_block_height;
 
-	BUG_ON(drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA);
+	BUG_ON(drm->device.impl->family < NVIF_DEVICE_TESLA);
 
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_FERMI)
+	if (drm->device.impl->family < NVIF_DEVICE_FERMI)
 		log_gob_height = 2;
 	else
 		log_gob_height = 3;
@@ -260,9 +259,9 @@ nouveau_check_bl_size(struct nouveau_drm *drm, struct nouveau_bo *nvbo,
 	uint32_t gob_size, bw, bh;
 	uint64_t bl_size;
 
-	BUG_ON(drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA);
+	BUG_ON(drm->device.impl->family < NVIF_DEVICE_TESLA);
 
-	if (drm->client.device.info.chipset >= 0xc0) {
+	if (drm->device.impl->chipset >= 0xc0) {
 		if (tile_mode & 0xF)
 			return -EINVAL;
 		tile_mode >>= 4;
@@ -271,7 +270,7 @@ nouveau_check_bl_size(struct nouveau_drm *drm, struct nouveau_bo *nvbo,
 	if (tile_mode & 0xFFFFFFF0)
 		return -EINVAL;
 
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_FERMI)
+	if (drm->device.impl->family < NVIF_DEVICE_FERMI)
 		gob_size = 256;
 	else
 		gob_size = 512;
@@ -307,7 +306,7 @@ nouveau_framebuffer_new(struct drm_device *dev,
 	int ret;
 
         /* YUV overlays have special requirements pre-NV50 */
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA &&
+	if (drm->device.impl->family < NVIF_DEVICE_TESLA &&
 
 	    (mode_cmd->pixel_format == DRM_FORMAT_YUYV ||
 	     mode_cmd->pixel_format == DRM_FORMAT_UYVY ||
@@ -698,15 +697,15 @@ nouveau_display_create(struct drm_device *dev)
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_CELSIUS) {
+	if (drm->device.impl->family < NVIF_DEVICE_CELSIUS) {
 		dev->mode_config.max_width = 2048;
 		dev->mode_config.max_height = 2048;
 	} else
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->device.impl->family < NVIF_DEVICE_TESLA) {
 		dev->mode_config.max_width = 4096;
 		dev->mode_config.max_height = 4096;
 	} else
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_FERMI) {
+	if (drm->device.impl->family < NVIF_DEVICE_FERMI) {
 		dev->mode_config.max_width = 8192;
 		dev->mode_config.max_height = 8192;
 	} else {
@@ -717,7 +716,7 @@ nouveau_display_create(struct drm_device *dev)
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.prefer_shadow = 1;
 
-	if (drm->client.device.info.chipset < 0x11)
+	if (drm->device.impl->chipset < 0x11)
 		dev->mode_config.async_page_flip = false;
 	else
 		dev->mode_config.async_page_flip = true;
@@ -854,7 +853,7 @@ nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 	args->size = roundup(args->size, PAGE_SIZE);
 
 	/* Use VRAM if there is any ; otherwise fallback to system memory */
-	if (nouveau_drm(dev)->client.device.info.ram_size != 0)
+	if (nouveau_drm(dev)->device.impl->ram_size != 0)
 		domain = NOUVEAU_GEM_DOMAIN_VRAM;
 	else
 		domain = NOUVEAU_GEM_DOMAIN_GART;

@@ -135,7 +135,7 @@ nv_two_heads(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	const int impl = to_pci_dev(dev->dev)->device & 0x0ff0;
 
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS && impl != 0x0100 &&
+	if (drm->device.impl->family >= NVIF_DEVICE_CELSIUS && impl != 0x0100 &&
 	    impl != 0x0150 && impl != 0x01a0 && impl != 0x0200)
 		return true;
 
@@ -154,7 +154,7 @@ nv_two_reg_pll(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	const int impl = to_pci_dev(dev->dev)->device & 0x0ff0;
 
-	if (impl == 0x0310 || impl == 0x0340 || drm->client.device.info.family >= NV_DEVICE_INFO_V0_CURIE)
+	if (impl == 0x0310 || impl == 0x0340 || drm->device.impl->family >= NVIF_DEVICE_CURIE)
 		return true;
 	return false;
 }

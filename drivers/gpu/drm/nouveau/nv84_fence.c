@@ -215,7 +215,7 @@ nv84_fence_create(struct nouveau_drm *drm)
 	mutex_init(&priv->mutex);
 
 	/* Use VRAM if there is any ; otherwise fallback to system memory */
-	domain = drm->client.device.info.ram_size != 0 ?
+	domain = drm->device.impl->ram_size != 0 ?
 		NOUVEAU_GEM_DOMAIN_VRAM :
 		 /*
 		  * fences created in sysmem must be non-cached or we

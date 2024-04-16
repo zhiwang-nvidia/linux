@@ -164,13 +164,12 @@ static inline uint8_t NVReadVgaCrtc5758(struct drm_device *dev, int head, uint8_
 static inline uint8_t NVReadPRMVIO(struct drm_device *dev,
 					int head, uint32_t reg)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 	uint8_t val;
 
 	/* Only NV4x have two pvio ranges; other twoHeads cards MUST call
 	 * NVSetOwner for the relevant head to be programmed */
-	if (head && drm->client.device.info.family == NV_DEVICE_INFO_V0_CURIE)
+	if (head && device->impl->family == NVIF_DEVICE_CURIE)
 		reg += NV_PRMVIO_SIZE;
 
 	val = nvif_rd08(device, reg);
@@ -180,12 +179,11 @@ static inline uint8_t NVReadPRMVIO(struct drm_device *dev,
 static inline void NVWritePRMVIO(struct drm_device *dev,
 					int head, uint32_t reg, uint8_t value)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 
 	/* Only NV4x have two pvio ranges; other twoHeads cards MUST call
 	 * NVSetOwner for the relevant head to be programmed */
-	if (head && drm->client.device.info.family == NV_DEVICE_INFO_V0_CURIE)
+	if (head && device->impl->family == NVIF_DEVICE_CURIE)
 		reg += NV_PRMVIO_SIZE;
 
 	nvif_wr08(device, reg, value);
@@ -258,10 +256,9 @@ static inline void NVVgaProtect(struct drm_device *dev, int head, bool protect)
 static inline bool
 nv_heads_tied(struct drm_device *dev)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvif_device *device = &nouveau_drm(dev)->device;
 
-	if (drm->client.device.info.chipset == 0x11)
+	if (device->impl->chipset == 0x11)
 		return !!(nvif_rd32(device, NV_PBUS_DEBUG_1) & (1 << 28));
 
 	return NVReadVgaCrtc(dev, 0, NV_CIO_CRE_44) & 0x4;
@@ -317,7 +314,7 @@ NVLockVgaCrtcs(struct drm_device *dev, bool lock)
 	NVWriteVgaCrtc(dev, 0, NV_CIO_SR_LOCK_INDEX,
 		       lock ? NV_CIO_SR_LOCK_VALUE : NV_CIO_SR_UNLOCK_RW_VALUE);
 	/* NV11 has independently lockable extended crtcs, except when tied */
-	if (drm->client.device.info.chipset == 0x11 && !nv_heads_tied(dev))
+	if (drm->device.impl->chipset == 0x11 && !nv_heads_tied(dev))
 		NVWriteVgaCrtc(dev, 1, NV_CIO_SR_LOCK_INDEX,
 			       lock ? NV_CIO_SR_LOCK_VALUE :
 				      NV_CIO_SR_UNLOCK_RW_VALUE);
@@ -334,7 +331,7 @@ static inline int nv_cursor_width(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
-	return drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS ? NV10_CURSOR_SIZE : NV04_CURSOR_SIZE;
+	return drm->device.impl->family >= NVIF_DEVICE_CELSIUS ? NV10_CURSOR_SIZE : NV04_CURSOR_SIZE;
 }
 
 static inline void
@@ -356,7 +353,7 @@ nv_set_crtc_base(struct drm_device *dev, int head, uint32_t offset)
 
 	NVWriteCRTC(dev, head, NV_PCRTC_START, offset);
 
-	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_TNT) {
+	if (drm->device.impl->family == NVIF_DEVICE_TNT) {
 		/*
 		 * Hilarious, the 24th bit doesn't want to stick to
 		 * PCRTC_START...
@@ -381,7 +378,7 @@ nv_show_cursor(struct drm_device *dev, int head, bool show)
 		*curctl1 &= ~MASK(NV_CIO_CRE_HCUR_ADDR1_ENABLE);
 	NVWriteVgaCrtc(dev, head, NV_CIO_CRE_HCUR_ADDR1_INDEX, *curctl1);
 
-	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_CURIE)
+	if (drm->device.impl->family == NVIF_DEVICE_CURIE)
 		nv_fix_nv40_hw_cursor(dev, head);
 }
 
@@ -397,7 +394,7 @@ nv_pitch_align(struct drm_device *dev, uint32_t width, int bpp)
 		bpp = 8;
 
 	/* Alignment requirements taken from the Haiku driver */
-	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_TNT)
+	if (drm->device.impl->family == NVIF_DEVICE_TNT)
 		mask = 128 / bpp - 1;
 	else
 		mask = 512 / bpp - 1;

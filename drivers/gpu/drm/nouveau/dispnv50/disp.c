@@ -2637,7 +2637,7 @@ nv50_display_create(struct drm_device *dev)
 	if (disp->disp->object.oclass >= TU102_DISP)
 		nouveau_display(dev)->format_modifiers = wndwc57e_modifiers;
 	else
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_FERMI)
+	if (drm->device.impl->family >= NVIF_DEVICE_FERMI)
 		nouveau_display(dev)->format_modifiers = disp90xx_modifiers;
 	else
 		nouveau_display(dev)->format_modifiers = disp50xx_modifiers;

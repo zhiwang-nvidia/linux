@@ -12,13 +12,13 @@ static unsigned int
 nouveau_vga_set_decode(struct pci_dev *pdev, bool state)
 {
 	struct nouveau_drm *drm = nouveau_drm(pci_get_drvdata(pdev));
-	struct nvif_object *device = &drm->client.device.object;
+	struct nvif_device *device = &drm->device;
 
-	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_CURIE &&
-	    drm->client.device.info.chipset >= 0x4c)
+	if (device->impl->family == NVIF_DEVICE_CURIE &&
+	    device->impl->chipset >= 0x4c)
 		nvif_wr32(device, 0x088060, state);
 	else
-	if (drm->client.device.info.chipset >= 0x40)
+	if (device->impl->chipset >= 0x40)
 		nvif_wr32(device, 0x088054, state);
 	else
 		nvif_wr32(device, 0x001854, state);

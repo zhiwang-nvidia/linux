@@ -175,23 +175,23 @@ static void
 nouveau_bo_fixup_align(struct nouveau_bo *nvbo, int *align, u64 *size)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct nvif_device *device = &drm->client.device;
+	struct nvif_device *device = &drm->device;
 
-	if (device->info.family < NV_DEVICE_INFO_V0_TESLA) {
+	if (device->impl->family < NVIF_DEVICE_TESLA) {
 		if (nvbo->mode) {
-			if (device->info.chipset >= 0x40) {
+			if (device->impl->chipset >= 0x40) {
 				*align = 65536;
 				*size = roundup_64(*size, 64 * nvbo->mode);
 
-			} else if (device->info.chipset >= 0x30) {
+			} else if (device->impl->chipset >= 0x30) {
 				*align = 32768;
 				*size = roundup_64(*size, 64 * nvbo->mode);
 
-			} else if (device->info.chipset >= 0x20) {
+			} else if (device->impl->chipset >= 0x20) {
 				*align = 16384;
 				*size = roundup_64(*size, 64 * nvbo->mode);
 
-			} else if (device->info.chipset >= 0x10) {
+			} else if (device->impl->chipset >= 0x10) {
 				*align = 16384;
 				*size = roundup_64(*size, 32 * nvbo->mode);
 			}
@@ -243,7 +243,7 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 domain,
 	nvbo->contig = !(tile_flags & NOUVEAU_GEM_TILE_NONCONTIG);
 	if (!nouveau_cli_uvmm(cli) || internal) {
 		/* for BO noVM allocs, don't assign kinds */
-		if (cli->device.info.family >= NV_DEVICE_INFO_V0_FERMI) {
+		if (drm->device.impl->family >= NVIF_DEVICE_FERMI) {
 			nvbo->kind = (tile_flags & 0x0000ff00) >> 8;
 			if (!nvif_mmu_kind_valid(mmu, nvbo->kind)) {
 				kfree(nvbo);
@@ -251,7 +251,7 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 domain,
 			}
 
 			nvbo->comp = mmu->impl->kind[nvbo->kind] != nvbo->kind;
-		} else if (cli->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		} else if (drm->device.impl->family >= NVIF_DEVICE_TESLA) {
 			nvbo->kind = (tile_flags & 0x00007f00) >> 8;
 			nvbo->comp = (tile_flags & 0x00030000) >> 16;
 			if (!nvif_mmu_kind_valid(mmu, nvbo->kind)) {
@@ -272,7 +272,7 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 domain,
 			 *
 			 * Skip page sizes that can't support needed domains.
 			 */
-			if (cli->device.info.family > NV_DEVICE_INFO_V0_CURIE &&
+			if (drm->device.impl->family > NVIF_DEVICE_CURIE &&
 			    (domain & NOUVEAU_GEM_DOMAIN_VRAM) && !vmm->impl->page[i].vram)
 				continue;
 			if ((domain & NOUVEAU_GEM_DOMAIN_GART) &&
@@ -408,10 +408,10 @@ static void
 set_placement_range(struct nouveau_bo *nvbo, uint32_t domain)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	u64 vram_size = drm->client.device.info.ram_size;
+	u64 vram_size = drm->device.impl->ram_size;
 	unsigned i, fpfn, lpfn;
 
-	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
+	if (drm->device.impl->family == NVIF_DEVICE_CELSIUS &&
 	    nvbo->mode && (domain & NOUVEAU_GEM_DOMAIN_VRAM) &&
 	    nvbo->bo.base.size < vram_size / 4) {
 		/*
@@ -476,7 +476,7 @@ int nouveau_bo_pin_locked(struct nouveau_bo *nvbo, uint32_t domain, bool contig)
 
 	dma_resv_assert_held(bo->base.resv);
 
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
+	if (drm->device.impl->family >= NVIF_DEVICE_TESLA &&
 	    domain == NOUVEAU_GEM_DOMAIN_VRAM && contig) {
 		if (!nvbo->contig) {
 			nvbo->contig = true;
@@ -873,7 +873,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict,
 	 * old nvkm_mem node, these will get cleaned up after ttm has
 	 * destroyed the ttm_resource
 	 */
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->device.impl->family >= NVIF_DEVICE_TESLA) {
 		ret = nouveau_bo_move_prep(drm, bo, new_reg);
 		if (ret)
 			return ret;
@@ -1034,7 +1034,7 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_resource *new_reg,
 	if (new_reg->mem_type != TTM_PL_VRAM)
 		return 0;
 
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS) {
+	if (drm->device.impl->family >= NVIF_DEVICE_CELSIUS) {
 		*new_tile = nv10_bo_set_tiling(dev, offset, bo->base.size,
 					       nvbo->mode, nvbo->zeta);
 	}
@@ -1087,7 +1087,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 	if (ret)
 		goto out_ntfy;
 
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->device.impl->family < NVIF_DEVICE_TESLA) {
 		ret = nouveau_bo_vm_bind(bo, new_reg, &new_tile);
 		if (ret)
 			goto out_ntfy;
@@ -1137,7 +1137,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 	}
 
 out:
-	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->device.impl->family < NVIF_DEVICE_TESLA) {
 		if (ret)
 			nouveau_bo_vm_cleanup(bo, NULL, &new_tile);
 		else
@@ -1210,7 +1210,7 @@ retry:
 		reg->bus.is_iomem = true;
 
 		/* Some BARs do not support being ioremapped WC */
-		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
+		if (drm->device.impl->family >= NVIF_DEVICE_TESLA &&
 		    mmu->impl->type[drm->ttm.type_vram].type & NVIF_MEM_UNCACHED)
 			reg->bus.caching = ttm_uncached;
 		else
@@ -1305,7 +1305,7 @@ vm_fault_t nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	 * nothing to do here.
 	 */
 	if (bo->resource->mem_type != TTM_PL_VRAM) {
-		if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA ||
+		if (drm->device.impl->family < NVIF_DEVICE_TESLA ||
 		    !nvbo->kind)
 			return 0;
 
@@ -1316,7 +1316,7 @@ vm_fault_t nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 
 	} else {
 		/* make sure bo is in mappable vram */
-		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA ||
+		if (drm->device.impl->family >= NVIF_DEVICE_TESLA ||
 		    bo->resource->start + PFN_UP(bo->resource->size) < mappable)
 			return 0;
 

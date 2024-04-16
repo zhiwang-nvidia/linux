@@ -118,7 +118,7 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct nouveau_drm *drm = nouveau_drm(plane->dev);
-	struct nvif_object *dev = &drm->client.device.object;
+	struct nvif_device *dev = &drm->device;
 	struct nouveau_plane *nv_plane =
 		container_of(plane, struct nouveau_plane, base);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
@@ -127,7 +127,7 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	bool flip = nv_plane->flip;
 	int soff = NV_PCRTC0_SIZE * nv_crtc->index;
 	int soff2 = NV_PCRTC0_SIZE * !nv_crtc->index;
-	unsigned shift = drm->client.device.info.chipset >= 0x30 ? 1 : 3;
+	unsigned shift = dev->impl->chipset >= 0x30 ? 1 : 3;
 	unsigned format = 0;
 	int ret;
 
@@ -286,7 +286,7 @@ nv10_overlay_init(struct drm_device *device)
 	if (!plane)
 		return;
 
-	switch (drm->client.device.info.chipset) {
+	switch (drm->device.impl->chipset) {
 	case 0x10:
 	case 0x11:
 	case 0x15:
@@ -511,9 +511,10 @@ err:
 void
 nouveau_overlay_init(struct drm_device *device)
 {
-	struct nvif_device *dev = &nouveau_drm(device)->client.device;
-	if (dev->info.chipset < 0x10)
+	struct nvif_device *dev = &nouveau_drm(device)->device;
+
+	if (dev->impl->chipset < 0x10)
 		nv04_overlay_init(device);
-	else if (dev->info.chipset <= 0x40)
+	else if (dev->impl->chipset <= 0x40)
 		nv10_overlay_init(device);
 }

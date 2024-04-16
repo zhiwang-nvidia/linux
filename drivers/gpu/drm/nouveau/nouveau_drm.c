@@ -311,11 +311,11 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 	 * synchronisation of page flips, as well as to implement fences
 	 * on TNT/TNT2 HW that lacks any kind of support in host.
 	 */
-	if (device->info.family < NV_DEVICE_INFO_V0_TESLA) {
+	if (device->impl->family < NVIF_DEVICE_TESLA) {
 		ret = nvif_engobj_ctor(&drm->channel->chan, "drmNvSw", NVDRM_NVSW,
 				       nouveau_abi16_swclass(drm), &drm->channel->nvsw);
 
-		if (ret == 0 && device->info.chipset >= 0x11) {
+		if (ret == 0 && device->impl->chipset >= 0x11) {
 			ret = nvif_engobj_ctor(&drm->channel->chan, "drmBlit", 0x005f, 0x009f,
 					       &drm->channel->blit);
 		}
@@ -325,7 +325,7 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 
 			ret = PUSH_WAIT(push, 8);
 			if (ret == 0) {
-				if (device->info.chipset >= 0x11) {
+				if (device->impl->chipset >= 0x11) {
 					PUSH_NVSQ(push, NV05F, 0x0000, 0x005f);
 					PUSH_NVSQ(push, NV09F, 0x0120, 0,
 							       0x0124, 1,
@@ -346,7 +346,7 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 	 * even if notification is never requested, so, allocate a ctxdma on
 	 * any GPU where it's possible we'll end up using M2MF for BO moves.
 	 */
-	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
+	if (device->impl->family < NVIF_DEVICE_FERMI) {
 		ret = nvkm_gpuobj_new(nvxx_device(drm), 32, 0, false, NULL, &drm->notify);
 		if (ret) {
 			NV_ERROR(drm, "failed to allocate notifier, %d\n", ret);
@@ -434,7 +434,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	}
 
 	/* Volta requires access to a doorbell register for kickoff. */
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_VOLTA) {
+	if (device->impl->family >= NVIF_DEVICE_VOLTA) {
 		ret = nvif_user_ctor(&drm->device, "drmUsermode");
 		if (ret)
 			return;
@@ -578,7 +578,7 @@ nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 	 * nosnoop capability.  hopefully won't cause issues until a
 	 * better fix is found - assuming there is one...
 	 */
-	if (drm->client.device.info.chipset == 0xc1)
+	if (drm->device.impl->chipset == 0xc1)
 		nvif_mask(&drm->client.device.object, 0x00088080, 0x00000800, 0x00000000);
 
 	nouveau_vga_init(drm);
@@ -801,7 +801,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	if (ret)
 		goto fail_drm_dev_init;
 
-	if (nouveau_drm(drm_dev)->client.device.info.ram_size <= 32 * 1024 * 1024)
+	if (nouveau_drm(drm_dev)->device.impl->ram_size <= 32 * 1024 * 1024)
 		drm_fbdev_ttm_setup(drm_dev, 8);
 	else
 		drm_fbdev_ttm_setup(drm_dev, 32);

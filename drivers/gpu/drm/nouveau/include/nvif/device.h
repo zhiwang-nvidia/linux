@@ -2,7 +2,6 @@
 #ifndef __NVIF_DEVICE_H__
 #define __NVIF_DEVICE_H__
 #include <nvif/object.h>
-#include <nvif/cl0080.h>
 #include <nvif/driverif.h>
 #include <nvif/user.h>
 struct nvif_ctxdma;
@@ -12,8 +11,6 @@ struct nvif_device {
 	struct nvif_device_priv *priv;
 	struct nvif_object object;
 	struct nvif_map map;
-
-	struct nv_device_info_v0 info;
 
 	struct nvif_user user;
 };

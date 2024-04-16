@@ -81,18 +81,18 @@ nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct drm_framebuffer *fb)
 	args.base.target = NV_DMA_V0_TARGET_VRAM;
 	args.base.access = NV_DMA_V0_ACCESS_RDWR;
 	args.base.start  = 0;
-	args.base.limit  = drm->client.device.info.ram_user - 1;
+	args.base.limit  = drm->device.impl->ram_user - 1;
 
-	if (drm->client.device.info.chipset < 0x80) {
+	if (drm->device.impl->chipset < 0x80) {
 		args.nv50.part = NV50_DMA_V0_PART_256;
 		argc += sizeof(args.nv50);
 	} else
-	if (drm->client.device.info.chipset < 0xc0) {
+	if (drm->device.impl->chipset < 0xc0) {
 		args.nv50.part = NV50_DMA_V0_PART_256;
 		args.nv50.kind = kind;
 		argc += sizeof(args.nv50);
 	} else
-	if (drm->client.device.info.chipset < 0xd0) {
+	if (drm->device.impl->chipset < 0xd0) {
 		args.gf100.kind = kind;
 		argc += sizeof(args.gf100);
 	} else {
@@ -295,7 +295,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 
 		if (asyw->image.kind) {
 			asyw->image.layout = NV507C_SURFACE_SET_STORAGE_MEMORY_LAYOUT_BLOCKLINEAR;
-			if (drm->client.device.info.chipset >= 0xc0)
+			if (drm->device.impl->chipset >= 0xc0)
 				asyw->image.blockh = tile_mode >> 4;
 			else
 				asyw->image.blockh = tile_mode;
@@ -666,7 +666,7 @@ static bool nv50_plane_format_mod_supported(struct drm_plane *plane,
 	struct nouveau_drm *drm = nouveau_drm(plane->dev);
 	uint8_t i;
 
-	if (drm->client.device.info.chipset < 0xc0) {
+	if (drm->device.impl->chipset < 0xc0) {
 		const struct drm_format_info *info = drm_format_info(format);
 		const uint8_t kind = (modifier >> 12) & 0xff;
 

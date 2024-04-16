@@ -1048,7 +1048,7 @@ nouveau_svm_init(struct nouveau_drm *drm)
 	 * otherwise clients will have a trivial way to trash the GPU
 	 * for everyone.
 	 */
-	if (drm->client.device.info.family > NV_DEVICE_INFO_V0_PASCAL)
+	if (drm->device.impl->family > NVIF_DEVICE_PASCAL)
 		return;
 
 	switch (drm->device.impl->faultbuf.oclass) {

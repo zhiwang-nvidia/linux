@@ -513,13 +513,13 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 		return;
 	nv_connector->detected_encoder = nv_encoder;
 
-	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->device.impl->family >= NVIF_DEVICE_TESLA) {
 		if (nv_encoder->dcb->type == DCB_OUTPUT_DP)
 			connector->interlace_allowed =
 				nv_encoder->caps.dp_interlace;
 		else
 			connector->interlace_allowed =
-				drm->client.device.info.family < NV_DEVICE_INFO_V0_VOLTA;
+				drm->device.impl->family < NVIF_DEVICE_VOLTA;
 		connector->doublescan_allowed = true;
 	} else
 	if (nv_encoder->dcb->type == DCB_OUTPUT_LVDS ||
@@ -528,8 +528,8 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 		connector->interlace_allowed = false;
 	} else {
 		connector->doublescan_allowed = true;
-		if (drm->client.device.info.family == NV_DEVICE_INFO_V0_KELVIN ||
-		    (drm->client.device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
+		if (drm->device.impl->family == NVIF_DEVICE_KELVIN ||
+		    (drm->device.impl->family == NVIF_DEVICE_CELSIUS &&
 		     (pdev->device & 0x0ff0) != 0x0100 &&
 		     (pdev->device & 0x0ff0) != 0x0150))
 			/* HW is broken */
@@ -1045,7 +1045,7 @@ get_tmds_link_bandwidth(struct drm_connector *connector)
 		/* Note: these limits are conservative, some Fermi's
 		 * can do 297 MHz. Unclear how this can be determined.
 		 */
-		if (drm->client.device.info.chipset >= 0x120) {
+		if (drm->device.impl->chipset >= 0x120) {
 			const int max_tmds_clock =
 				info->hdmi.scdc.scrambling.supported ?
 				594000 : 340000;
@@ -1053,18 +1053,18 @@ get_tmds_link_bandwidth(struct drm_connector *connector)
 				min(info->max_tmds_clock, max_tmds_clock) :
 				max_tmds_clock;
 		}
-		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_KEPLER)
+		if (drm->device.impl->family >= NVIF_DEVICE_KEPLER)
 			return 297000;
-		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_FERMI)
+		if (drm->device.impl->family >= NVIF_DEVICE_FERMI)
 			return 225000;
 	}
 
 	if (dcb->location != DCB_LOC_ON_CHIP ||
-	    drm->client.device.info.chipset >= 0x46)
+	    drm->device.impl->chipset >= 0x46)
 		return 165000 * duallink_scale;
-	else if (drm->client.device.info.chipset >= 0x40)
+	else if (drm->device.impl->chipset >= 0x40)
 		return 155000 * duallink_scale;
-	else if (drm->client.device.info.chipset >= 0x18)
+	else if (drm->device.impl->chipset >= 0x18)
 		return 135000 * duallink_scale;
 	else
 		return 112000 * duallink_scale;
@@ -1348,7 +1348,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		 * figure out something suitable ourselves
 		 */
 		if (nv_connector->type == DCB_CONNECTOR_NONE &&
-		    !WARN_ON(drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)) {
+		    !WARN_ON(drm->device.impl->family >= NVIF_DEVICE_TESLA)) {
 			struct dcb_table *dcbt = &drm->vbios.dcb;
 			u32 encoders = 0;
 			int i;
