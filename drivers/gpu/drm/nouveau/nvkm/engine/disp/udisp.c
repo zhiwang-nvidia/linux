@@ -80,8 +80,7 @@ nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *scl
 
 static int
 nvkm_udisp_head_new(struct nvif_disp_priv *udisp, u8 id,
-		    const struct nvif_head_impl **pimpl, struct nvif_head_priv **ppriv,
-		    u64 handle)
+		    const struct nvif_head_impl **pimpl, struct nvif_head_priv **ppriv)
 {
 	struct nvkm_object *object;
 	int ret;
@@ -90,7 +89,8 @@ nvkm_udisp_head_new(struct nvif_disp_priv *udisp, u8 id,
 	if (ret)
 		return ret;
 
-	return nvkm_object_link_rb(udisp->object.client, &udisp->object, handle, object);
+	nvkm_object_link(&udisp->object, object);
+	return 0;
 }
 
 static int

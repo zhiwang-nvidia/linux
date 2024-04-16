@@ -55,8 +55,7 @@ nvif_head_ctor(struct nvif_disp *disp, const char *name, int id, struct nvif_hea
 {
 	int ret;
 
-	ret = disp->impl->head.new(disp->priv, id, &head->impl, &head->priv,
-				   nvif_handle(&head->object));
+	ret = disp->impl->head.new(disp->priv, id, &head->impl, &head->priv);
 	NVIF_ERRON(ret, &disp->object, "[NEW head id:%d]", id);
 	if (ret)
 		return ret;
