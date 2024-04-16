@@ -19,7 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#define nvkm_uchan(p) container_of((p), struct nvkm_uchan, object)
 #include "priv.h"
 #include "cgrp.h"
 #include "chan.h"
@@ -33,7 +32,7 @@
 
 #include <nvif/if0020.h>
 
-struct nvkm_uchan {
+struct nvif_chan_priv {
 	struct nvkm_object object;
 	struct nvkm_chan *chan;
 };
@@ -41,7 +40,7 @@ struct nvkm_uchan {
 static int
 nvkm_uchan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
 {
-	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
+	struct nvkm_chan *chan = container_of(object, struct nvif_chan_priv, object)->chan;
 	struct nvkm_runl *runl = chan->cgrp->runl;
 	union nvif_chan_event_args *args = argv;
 
@@ -154,7 +153,7 @@ static int
 nvkm_uchan_object_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		      struct nvkm_object **pobject)
 {
-	struct nvkm_chan *chan = nvkm_uchan(oclass->parent)->chan;
+	struct nvkm_chan *chan = container_of(oclass->parent, struct nvif_chan_priv, object)->chan;
 	struct nvkm_cgrp *cgrp = chan->cgrp;
 	struct nvkm_engn *engn;
 	struct nvkm_uobj *uobj;
@@ -203,7 +202,7 @@ nvkm_uchan_object_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 static int
 nvkm_uchan_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *oclass)
 {
-	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
+	struct nvkm_chan *chan = container_of(object, struct nvif_chan_priv, object)->chan;
 	struct nvkm_engn *engn;
 	int ret, runq = 0;
 
@@ -255,7 +254,7 @@ static int
 nvkm_uchan_map(struct nvkm_object *object, void *argv, u32 argc,
 	       enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
-	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
+	struct nvkm_chan *chan = container_of(object, struct nvif_chan_priv, object)->chan;
 	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
 
 	if (chan->func->userd->bar < 0)
@@ -271,7 +270,7 @@ nvkm_uchan_map(struct nvkm_object *object, void *argv, u32 argc,
 static int
 nvkm_uchan_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
+	struct nvkm_chan *chan = container_of(object, struct nvif_chan_priv, object)->chan;
 
 	nvkm_chan_block(chan);
 	nvkm_chan_remove(chan, true);
@@ -285,7 +284,7 @@ nvkm_uchan_fini(struct nvkm_object *object, bool suspend)
 static int
 nvkm_uchan_init(struct nvkm_object *object)
 {
-	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
+	struct nvkm_chan *chan = container_of(object, struct nvif_chan_priv, object)->chan;
 
 	if (atomic_read(&chan->errored))
 		return 0;
@@ -301,7 +300,7 @@ nvkm_uchan_init(struct nvkm_object *object)
 static void *
 nvkm_uchan_dtor(struct nvkm_object *object)
 {
-	struct nvkm_uchan *uchan = nvkm_uchan(object);
+	struct nvif_chan_priv *uchan = container_of(object, typeof(*uchan), object);
 
 	nvkm_chan_del(&uchan->chan);
 	return uchan;
@@ -323,7 +322,7 @@ nvkm_uchan_chan(struct nvkm_object *object)
 	if (WARN_ON(object->func != &nvkm_uchan))
 		return NULL;
 
-	return nvkm_uchan(object)->chan;
+	return container_of(object, struct nvif_chan_priv, object)->chan;
 }
 
 int
@@ -335,7 +334,7 @@ nvkm_uchan_new(struct nvkm_fifo *fifo, struct nvkm_cgrp *cgrp, const struct nvkm
 	struct nvkm_vmm *vmm = NULL;
 	struct nvkm_dmaobj *ctxdma = NULL;
 	struct nvkm_memory *userd = NULL;
-	struct nvkm_uchan *uchan;
+	struct nvif_chan_priv *uchan;
 	struct nvkm_chan *chan;
 	int ret;
 
