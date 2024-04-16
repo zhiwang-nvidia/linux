@@ -57,8 +57,7 @@ nvif_conn_ctor(struct nvif_disp *disp, const char *name, int id, struct nvif_con
 {
 	int ret;
 
-	ret = disp->impl->conn.new(disp->priv, id, &conn->impl, &conn->priv,
-				   nvif_handle(&conn->object));
+	ret = disp->impl->conn.new(disp->priv, id, &conn->impl, &conn->priv);
 	NVIF_ERRON(ret, &disp->object, "[NEW conn id:%d]", id);
 	if (ret)
 		return ret;
