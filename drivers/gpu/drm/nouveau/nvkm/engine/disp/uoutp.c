@@ -19,8 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#define nvkm_uoutp(p) container_of((p), struct nvkm_outp, object)
-#include "outp.h"
+#include "uoutp.h"
 #include "dp.h"
 #include "head.h"
 #include "ior.h"
@@ -28,6 +27,11 @@
 #include <subdev/i2c.h>
 
 #include <nvif/if0012.h>
+
+struct nvif_outp_priv {
+	struct nvkm_object object;
+	struct nvkm_outp *outp;
+};
 
 static int
 nvkm_uoutp_mthd_dp_mst_vcpi(struct nvkm_outp *outp, void *argv, u32 argc)
@@ -543,7 +547,7 @@ nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc
 static int
 nvkm_uoutp_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
-	struct nvkm_outp *outp = nvkm_uoutp(object);
+	struct nvkm_outp *outp = container_of(object, struct nvif_outp_priv, object)->outp;
 	struct nvkm_disp *disp = outp->disp;
 	bool invalid = false;
 	int ret;
@@ -567,13 +571,13 @@ done:
 static void *
 nvkm_uoutp_dtor(struct nvkm_object *object)
 {
-	struct nvkm_outp *outp = nvkm_uoutp(object);
-	struct nvkm_disp *disp = outp->disp;
+	struct nvif_outp_priv *uoutp = container_of(object, typeof(*uoutp), object);
+	struct nvkm_disp *disp = uoutp->outp->disp;
 
 	spin_lock(&disp->user.lock);
-	outp->object.func = NULL;
+	uoutp->outp->user = false;
 	spin_unlock(&disp->user.lock);
-	return NULL;
+	return uoutp;
 }
 
 static const struct nvkm_object_func
@@ -589,7 +593,7 @@ nvkm_uoutp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	struct nvkm_disp *disp = container_of(oclass->parent, struct nvif_disp_priv, object)->disp;
 	struct nvkm_outp *outt, *outp = NULL;
 	union nvif_outp_args *args = argv;
-	int ret;
+	struct nvif_outp_priv *uoutp;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
 		return -ENOSYS;
@@ -604,63 +608,68 @@ nvkm_uoutp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	if (!outp)
 		return -EINVAL;
 
-	ret = -EBUSY;
-	spin_lock(&disp->user.lock);
-	if (!outp->object.func) {
-		switch (outp->info.type) {
-		case DCB_OUTPUT_ANALOG:
-			args->v0.type = NVIF_OUTP_V0_TYPE_DAC;
-			args->v0.proto = NVIF_OUTP_V0_PROTO_RGB_CRT;
-			args->v0.rgb_crt.freq_max = outp->info.crtconf.maxfreq;
-			break;
-		case DCB_OUTPUT_TMDS:
-			if (!outp->info.location) {
-				args->v0.type = NVIF_OUTP_V0_TYPE_SOR;
-				args->v0.tmds.dual = (outp->info.tmdsconf.sor.link == 3);
-			} else {
-				args->v0.type = NVIF_OUTP_V0_TYPE_PIOR;
-				args->v0.tmds.dual = 0;
-			}
-			args->v0.proto = NVIF_OUTP_V0_PROTO_TMDS;
-			break;
-		case DCB_OUTPUT_LVDS:
+	switch (outp->info.type) {
+	case DCB_OUTPUT_ANALOG:
+		args->v0.type = NVIF_OUTP_V0_TYPE_DAC;
+		args->v0.proto = NVIF_OUTP_V0_PROTO_RGB_CRT;
+		args->v0.rgb_crt.freq_max = outp->info.crtconf.maxfreq;
+		break;
+	case DCB_OUTPUT_TMDS:
+		if (!outp->info.location) {
 			args->v0.type = NVIF_OUTP_V0_TYPE_SOR;
-			args->v0.proto = NVIF_OUTP_V0_PROTO_LVDS;
-			args->v0.lvds.acpi_edid = outp->info.lvdsconf.use_acpi_for_edid;
-			break;
-		case DCB_OUTPUT_DP:
-			if (!outp->info.location) {
-				args->v0.type = NVIF_OUTP_V0_TYPE_SOR;
-				args->v0.dp.aux = outp->info.i2c_index;
-			} else {
-				args->v0.type = NVIF_OUTP_V0_TYPE_PIOR;
-				args->v0.dp.aux = NVKM_I2C_AUX_EXT(outp->info.extdev);
-			}
-			args->v0.proto = NVIF_OUTP_V0_PROTO_DP;
-			args->v0.dp.mst = outp->dp.mst;
-			args->v0.dp.increased_wm = outp->dp.increased_wm;
-			args->v0.dp.link_nr = outp->info.dpconf.link_nr;
-			args->v0.dp.link_bw = outp->info.dpconf.link_bw * 27000;
-			break;
-		default:
-			WARN_ON(1);
-			ret = -EINVAL;
-			goto done;
+			args->v0.tmds.dual = (outp->info.tmdsconf.sor.link == 3);
+		} else {
+			args->v0.type = NVIF_OUTP_V0_TYPE_PIOR;
+			args->v0.tmds.dual = 0;
 		}
-
-		if (outp->info.location)
-			args->v0.ddc = NVKM_I2C_BUS_EXT(outp->info.extdev);
-		else
-			args->v0.ddc = outp->info.i2c_index;
-		args->v0.heads = outp->info.heads;
-		args->v0.conn = outp->info.connector;
-
-		nvkm_object_ctor(&nvkm_uoutp, oclass, &outp->object);
-		*pobject = &outp->object;
-		ret = 0;
+		args->v0.proto = NVIF_OUTP_V0_PROTO_TMDS;
+		break;
+	case DCB_OUTPUT_LVDS:
+		args->v0.type = NVIF_OUTP_V0_TYPE_SOR;
+		args->v0.proto = NVIF_OUTP_V0_PROTO_LVDS;
+		args->v0.lvds.acpi_edid = outp->info.lvdsconf.use_acpi_for_edid;
+		break;
+	case DCB_OUTPUT_DP:
+		if (!outp->info.location) {
+			args->v0.type = NVIF_OUTP_V0_TYPE_SOR;
+			args->v0.dp.aux = outp->info.i2c_index;
+		} else {
+			args->v0.type = NVIF_OUTP_V0_TYPE_PIOR;
+			args->v0.dp.aux = NVKM_I2C_AUX_EXT(outp->info.extdev);
+		}
+		args->v0.proto = NVIF_OUTP_V0_PROTO_DP;
+		args->v0.dp.mst = outp->dp.mst;
+		args->v0.dp.increased_wm = outp->dp.increased_wm;
+		args->v0.dp.link_nr = outp->info.dpconf.link_nr;
+		args->v0.dp.link_bw = outp->info.dpconf.link_bw * 27000;
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
 	}
 
-done:
+	if (outp->info.location)
+		args->v0.ddc = NVKM_I2C_BUS_EXT(outp->info.extdev);
+	else
+		args->v0.ddc = outp->info.i2c_index;
+	args->v0.heads = outp->info.heads;
+	args->v0.conn = outp->info.connector;
+
+	uoutp = kzalloc(sizeof(*uoutp), GFP_KERNEL);
+	if (!uoutp)
+		return -ENOMEM;
+
+	spin_lock(&disp->user.lock);
+	if (outp->user) {
+		spin_unlock(&disp->user.lock);
+		kfree(uoutp);
+		return -EBUSY;
+	}
+	outp->user = true;
 	spin_unlock(&disp->user.lock);
-	return ret;
+
+	nvkm_object_ctor(&nvkm_uoutp, oclass, &uoutp->object);
+	uoutp->outp = outp;
+	*pobject = &uoutp->object;
+	return 0;
 }

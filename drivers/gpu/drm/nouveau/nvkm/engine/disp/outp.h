@@ -63,10 +63,11 @@ struct nvkm_outp {
 		} dp;
 	};
 
-	struct nvkm_object object;
 	struct {
 		struct nvkm_head *head;
 	} asy;
+
+	bool user; /* protected by disp->user.lock */
 };
 
 int nvkm_outp_new_(const struct nvkm_outp_func *, struct nvkm_disp *, int index,
