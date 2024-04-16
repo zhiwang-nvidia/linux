@@ -47,44 +47,31 @@ nvkm_uhead_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_
 }
 
 static int
-nvkm_uhead_mthd_scanoutpos(struct nvkm_head *head, void *argv, u32 argc)
+nvkm_uhead_scanoutpos(struct nvif_head_priv *uhead, s64 time[2],
+		      u16 *vblanks, u16 *vblanke, u16 *vtotal, u16 *vline,
+		      u16 *hblanks, u16 *hblanke, u16 *htotal, u16 *hline)
 {
-	union nvif_head_scanoutpos_args *args = argv;
-
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+	struct nvkm_head *head = uhead->head;
 
 	head->func->state(head, &head->arm);
-	args->v0.vtotal  = head->arm.vtotal;
-	args->v0.vblanks = head->arm.vblanks;
-	args->v0.vblanke = head->arm.vblanke;
-	args->v0.htotal  = head->arm.htotal;
-	args->v0.hblanks = head->arm.hblanks;
-	args->v0.hblanke = head->arm.hblanke;
+	*vtotal  = head->arm.vtotal;
+	*vblanks = head->arm.vblanks;
+	*vblanke = head->arm.vblanke;
+	*htotal  = head->arm.htotal;
+	*hblanks = head->arm.hblanks;
+	*hblanke = head->arm.hblanke;
 
 	/* We don't support reading htotal/vtotal on pre-NV50 VGA,
 	 * so we have to give up and trigger the timestamping
 	 * fallback in the drm core.
 	 */
-	if (!args->v0.vtotal || !args->v0.htotal)
+	if (!*vtotal || !*htotal)
 		return -ENOTSUPP;
 
-	args->v0.time[0] = ktime_to_ns(ktime_get());
-	head->func->rgpos(head, &args->v0.hline, &args->v0.vline);
-	args->v0.time[1] = ktime_to_ns(ktime_get());
+	time[0] = ktime_to_ns(ktime_get());
+	head->func->rgpos(head, hline, vline);
+	time[1] = ktime_to_ns(ktime_get());
 	return 0;
-}
-
-static int
-nvkm_uhead_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
-{
-	struct nvkm_head *head = container_of(object, struct nvif_head_priv, object)->head;
-
-	switch (mthd) {
-	case NVIF_HEAD_V0_SCANOUTPOS: return nvkm_uhead_mthd_scanoutpos(head, argv, argc);
-	default:
-		return -EINVAL;
-	}
 }
 
 static void
@@ -98,6 +85,7 @@ nvkm_uhead_del(struct nvif_head_priv *uhead)
 static const struct nvif_head_impl
 nvkm_uhead_impl = {
 	.del = nvkm_uhead_del,
+	.scanoutpos = nvkm_uhead_scanoutpos,
 };
 
 static void *
@@ -115,7 +103,6 @@ nvkm_uhead_dtor(struct nvkm_object *object)
 static const struct nvkm_object_func
 nvkm_uhead = {
 	.dtor = nvkm_uhead_dtor,
-	.mthd = nvkm_uhead_mthd,
 	.uevent = nvkm_uhead_uevent,
 };
 

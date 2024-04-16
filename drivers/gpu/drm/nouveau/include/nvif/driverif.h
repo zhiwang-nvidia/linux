@@ -351,6 +351,10 @@ struct nvif_outp_impl {
 
 struct nvif_head_impl {
 	void (*del)(struct nvif_head_priv *);
+
+	int (*scanoutpos)(struct nvif_head_priv *, s64 time[2],
+			  u16 *vblanks, u16 *vblanke, u16 *vtotal, u16 *vline,
+			  u16 *hblanks, u16 *hblanke, u16 *htotal, u16 *hline);
 };
 
 struct nvif_disp_impl {

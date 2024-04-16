@@ -85,18 +85,20 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 {
 	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
 	struct nvif_head *head = &nouveau_crtc(crtc)->head;
-	struct nvif_head_scanoutpos_v0 args;
+	u16 vblanks, vblanke, vtotal, vline;
+	u16 hblanks, hblanke, htotal, hline;
+	s64 time[2];
 	int retry = 20;
 	bool ret = false;
 
-	args.version = 0;
-
 	do {
-		ret = nvif_mthd(&head->object, NVIF_HEAD_V0_SCANOUTPOS, &args, sizeof(args));
+		ret = head->impl->scanoutpos(head->priv, time,
+					     &vblanks, &vblanke, &vtotal, &vline,
+					     &hblanks, &hblanke, &htotal, &hline);
 		if (ret != 0)
 			return false;
 
-		if (args.vline) {
+		if (vline) {
 			ret = true;
 			break;
 		}
@@ -104,10 +106,10 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 		if (retry) ndelay(vblank->linedur_ns);
 	} while (retry--);
 
-	*hpos = args.hline;
-	*vpos = calc(args.vblanks, args.vblanke, args.vtotal, args.vline);
-	if (stime) *stime = ns_to_ktime(args.time[0]);
-	if (etime) *etime = ns_to_ktime(args.time[1]);
+	*hpos = hline;
+	*vpos = calc(vblanks, vblanke, vtotal, vline);
+	if (stime) *stime = ns_to_ktime(time[0]);
+	if (etime) *etime = ns_to_ktime(time[1]);
 
 	return ret;
 }
