@@ -42,7 +42,6 @@
 
 #include <nvif/class.h>
 #include <nvif/if0011.h>
-#include <nvif/if0013.h>
 #include <dispnv50/crc.h>
 
 int

@@ -24,17 +24,20 @@
 #include <nvif/driverif.h>
 #include <nvif/printf.h>
 
-#include <nvif/class.h>
-#include <nvif/if0013.h>
-
 int
 nvif_head_vblank_event_ctor(struct nvif_head *head, const char *name, nvif_event_func func,
 			    bool wait, struct nvif_event *event)
 {
-	int ret = nvif_event_ctor(&head->object, name ?: "nvifHeadVBlank", nvif_head_id(head),
-				  func, wait, NULL, 0, event);
+	int ret;
+
+	ret = head->impl->vblank(head->priv, nvif_handle(&event->object),
+				 &event->impl, &event->priv);
 	NVIF_ERRON(ret, &head->object, "[NEW EVENT:VBLANK]");
-	return ret;
+	if (ret)
+		return ret;
+
+	nvif_event_ctor(&head->object, name ?: "nvifHeadVblank", nvif_head_id(head), func, event);
+	return 0;
 }
 
 void

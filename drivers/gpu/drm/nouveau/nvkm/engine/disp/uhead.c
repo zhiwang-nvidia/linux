@@ -22,8 +22,6 @@
 #include "uhead.h"
 #include <core/event.h>
 
-#include <nvif/if0013.h>
-
 #include <nvif/event.h>
 
 struct nvif_head_priv {
@@ -32,18 +30,13 @@ struct nvif_head_priv {
 };
 
 static int
-nvkm_uhead_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
+nvkm_uhead_vblank(struct nvif_head_priv *uhead, u64 handle,
+		  const struct nvif_event_impl **pimpl, struct nvif_event_priv **ppriv)
 {
-	struct nvkm_head *head = container_of(object, struct nvif_head_priv, object)->head;
-	union nvif_head_event_args *args = argv;
+	struct nvkm_head *head = uhead->head;
 
-	if (!uevent)
-		return 0;
-	if (argc != sizeof(args->vn))
-		return -ENOSYS;
-
-	return nvkm_uevent_add(uevent, &head->disp->vblank, head->id,
-			       NVKM_DISP_HEAD_EVENT_VBLANK, NULL);
+	return nvkm_uevent_new_(&uhead->object, handle, &head->disp->vblank, false, head->id,
+				NVKM_DISP_HEAD_EVENT_VBLANK, NULL, pimpl, ppriv);
 }
 
 static int
@@ -86,6 +79,7 @@ static const struct nvif_head_impl
 nvkm_uhead_impl = {
 	.del = nvkm_uhead_del,
 	.scanoutpos = nvkm_uhead_scanoutpos,
+	.vblank = nvkm_uhead_vblank,
 };
 
 static void *
@@ -103,7 +97,6 @@ nvkm_uhead_dtor(struct nvkm_object *object)
 static const struct nvkm_object_func
 nvkm_uhead = {
 	.dtor = nvkm_uhead_dtor,
-	.uevent = nvkm_uhead_uevent,
 };
 
 int
