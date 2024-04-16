@@ -354,71 +354,65 @@ nvif_outp_acquire_dac(struct nvif_outp *outp)
 }
 
 static int
-nvif_outp_inherit(struct nvif_outp *outp,
-		  u8 proto,
-		  struct nvif_outp_inherit_v0 *args,
-		  u8 *proto_out)
+nvif_outp_inherit(struct nvif_outp *outp, enum nvif_outp_proto proto, u8 *head, u8 *proto_evo)
 {
+	u8 or, link;
 	int ret;
 
-	args->version = 0;
-	args->proto = proto;
-
-	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_INHERIT, args, sizeof(*args));
+	ret = outp->impl->inherit(outp->priv, proto, &or, &link, head, proto_evo);
 	if (ret)
 		return ret;
 
-	outp->or.id = args->or;
-	outp->or.link = args->link;
-	*proto_out = args->proto;
+	outp->or.id = or;
+	outp->or.link = link;
 	return 0;
 }
 
 int
 nvif_outp_inherit_lvds(struct nvif_outp *outp, u8 *proto_out)
 {
-	struct nvif_outp_inherit_v0 args;
+	u8 head;
 	int ret;
 
-	ret = nvif_outp_inherit(outp, NVIF_OUTP_INHERIT_V0_LVDS, &args, proto_out);
+	ret = nvif_outp_inherit(outp, NVIF_OUTP_LVDS, &head, proto_out);
 	NVIF_ERRON(ret && ret != -ENODEV, &outp->object, "[INHERIT proto:LVDS] ret:%d", ret);
-	return ret ?: args.head;
+	return ret ?: head;
 }
 
 int
 nvif_outp_inherit_tmds(struct nvif_outp *outp, u8 *proto_out)
 {
-	struct nvif_outp_inherit_v0 args;
+	u8 head;
 	int ret;
 
-	ret = nvif_outp_inherit(outp, NVIF_OUTP_INHERIT_V0_TMDS, &args, proto_out);
+	ret = nvif_outp_inherit(outp, NVIF_OUTP_TMDS, &head, proto_out);
 	NVIF_ERRON(ret && ret != -ENODEV, &outp->object, "[INHERIT proto:TMDS] ret:%d", ret);
-	return ret ?: args.head;
+	return ret ?: head;
 }
 
 int
 nvif_outp_inherit_dp(struct nvif_outp *outp, u8 *proto_out)
 {
-	struct nvif_outp_inherit_v0 args;
+	u8 head;
 	int ret;
 
-	ret = nvif_outp_inherit(outp, NVIF_OUTP_INHERIT_V0_DP, &args, proto_out);
+	ret = nvif_outp_inherit(outp, NVIF_OUTP_DP, &head, proto_out);
 	NVIF_ERRON(ret && ret != -ENODEV, &outp->object, "[INHERIT proto:DP] ret:%d", ret);
 
 	// TODO: Get current link info
 
-	return ret ?: args.head;
+	return ret ?: head;
 }
 
 int
 nvif_outp_inherit_rgb_crt(struct nvif_outp *outp, u8 *proto_out)
 {
-	struct nvif_outp_inherit_v0 args;
+	u8 head;
 	int ret;
 
-	ret = nvif_outp_inherit(outp, NVIF_OUTP_INHERIT_V0_RGB_CRT, &args, proto_out);
+	ret = nvif_outp_inherit(outp, NVIF_OUTP_RGB_CRT, &head, proto_out);
 	NVIF_ERRON(ret && ret != -ENODEV, &outp->object, "[INHERIT proto:RGB_CRT] ret:%d", ret);
-	return ret ?: args.head;
+	return ret ?: head;
 }
 
 int

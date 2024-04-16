@@ -4,7 +4,6 @@
 
 #include <drm/display/drm_dp.h>
 
-#define NVIF_OUTP_V0_INHERIT       0x10
 #define NVIF_OUTP_V0_ACQUIRE       0x11
 #define NVIF_OUTP_V0_RELEASE       0x12
 
@@ -42,28 +41,6 @@ union nvif_outp_acquire_args {
 			struct {
 				__u8 hda;
 			} sor;
-		};
-	} v0;
-};
-
-union nvif_outp_inherit_args {
-	struct nvif_outp_inherit_v0 {
-		__u8 version;
-#define NVIF_OUTP_INHERIT_V0_RGB_CRT 0x00
-#define NVIF_OUTP_INHERIT_V0_TV      0x01
-#define NVIF_OUTP_INHERIT_V0_TMDS    0x02
-#define NVIF_OUTP_INHERIT_V0_LVDS    0x03
-#define NVIF_OUTP_INHERIT_V0_DP      0x04
-		// In/out. Input is one of the above values, output is the actual hw protocol
-		__u8 proto;
-		__u8 or;
-		__u8 link;
-		__u8 head;
-		union {
-			struct {
-				// TODO: Figure out padding, and whether we even want this field
-				__u8 hda;
-			} tmds;
 		};
 	} v0;
 };

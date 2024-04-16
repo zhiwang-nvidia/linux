@@ -405,44 +405,40 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_inherit(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_inherit(struct nvif_outp_priv *uoutp, enum nvif_outp_proto proto,
+		   u8 *or, u8 *link, u8 *head, u8 *proto_evo)
 {
-	union nvif_outp_inherit_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
 	struct nvkm_ior *ior;
-	int ret = 0;
+	int ret = -ENODEV;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+	nvkm_uoutp_lock(uoutp);
 
 	/* Ensure an ior is hooked up to this outp already */
 	ior = outp->func->inherit(outp);
 	if (!ior || !ior->arm.head)
-		return -ENODEV;
+		goto done;
 
 	/* With iors, there will be a separate output path for each type of connector - and all of
 	 * them will appear to be hooked up. Figure out which one is actually the one we're using
 	 * based on the protocol we were given over nvif
 	 */
-	switch (args->v0.proto) {
-	case NVIF_OUTP_INHERIT_V0_TMDS:
+	switch (proto) {
+	case NVIF_OUTP_TMDS:
 		if (ior->arm.proto != TMDS)
-			return -ENODEV;
+			goto done;
 		break;
-	case NVIF_OUTP_INHERIT_V0_DP:
+	case NVIF_OUTP_DP:
 		if (ior->arm.proto != DP)
-			return -ENODEV;
+			goto done;
 		break;
-	case NVIF_OUTP_INHERIT_V0_LVDS:
+	case NVIF_OUTP_LVDS:
 		if (ior->arm.proto != LVDS)
-			return -ENODEV;
+			goto done;
 		break;
-	case NVIF_OUTP_INHERIT_V0_TV:
-		if (ior->arm.proto != TV)
-			return -ENODEV;
-		break;
-	case NVIF_OUTP_INHERIT_V0_RGB_CRT:
+	case NVIF_OUTP_RGB_CRT:
 		if (ior->arm.proto != CRT)
-			return -ENODEV;
+			goto done;
 		break;
 	default:
 		ret = -EINVAL;
@@ -452,18 +448,22 @@ nvkm_uoutp_mthd_inherit(struct nvkm_outp *outp, void *argv, u32 argc)
 	/* Make sure that userspace hasn't already acquired this */
 	if (outp->acquired) {
 		OUTP_ERR(outp, "cannot inherit an already acquired (%02x) outp", outp->acquired);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto done;
 	}
 
 	/* Mark the outp acquired by userspace now that we've confirmed it's already active */
 	OUTP_TRACE(outp, "inherit %02x |= %02x %p", outp->acquired, NVKM_OUTP_USER, ior);
 	nvkm_outp_acquire_ior(outp, NVKM_OUTP_USER, ior);
 
-	args->v0.or = ior->id;
-	args->v0.link = ior->arm.link;
-	args->v0.head = ffs(ior->arm.head) - 1;
-	args->v0.proto = ior->arm.proto_evo;
+	*or = ior->id;
+	*link = ior->arm.link;
+	*head = ffs(ior->arm.head) - 1;
+	*proto_evo = ior->arm.proto_evo;
 
+	ret = 0;
+done:
+	nvkm_uoutp_unlock(uoutp);
 	return ret;
 }
 
@@ -549,7 +549,6 @@ static int
 nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc, bool *invalid)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_INHERIT    : return nvkm_uoutp_mthd_inherit    (outp, argv, argc);
 	case NVIF_OUTP_V0_ACQUIRE    : return nvkm_uoutp_mthd_acquire    (outp, argv, argc);
 	case NVIF_OUTP_V0_BL_GET     : return nvkm_uoutp_mthd_bl_get     (outp, argv, argc);
 	case NVIF_OUTP_V0_BL_SET     : return nvkm_uoutp_mthd_bl_set     (outp, argv, argc);
@@ -599,6 +598,7 @@ nvkm_uoutp_del(struct nvif_outp_priv *uoutp)
 static const struct nvif_outp_impl
 nvkm_uoutp_impl = {
 	.del = nvkm_uoutp_del,
+	.inherit = nvkm_uoutp_inherit,
 };
 
 static void *
