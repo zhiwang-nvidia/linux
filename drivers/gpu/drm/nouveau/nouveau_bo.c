@@ -1212,7 +1212,7 @@ retry:
 
 		/* Some BARs do not support being ioremapped WC */
 		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
-		    mmu->type[drm->ttm.type_vram].type & NVIF_MEM_UNCACHED)
+		    mmu->impl->type[drm->ttm.type_vram].type & NVIF_MEM_UNCACHED)
 			reg->bus.caching = ttm_uncached;
 		else
 			reg->bus.caching = ttm_write_combined;

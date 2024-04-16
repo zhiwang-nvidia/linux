@@ -8,22 +8,8 @@ struct nvif_mmu {
 	const struct nvif_mmu_impl *impl;
 	struct nvif_mmu_priv *priv;
 	struct nvif_object object;
-	u8  type_nr;
 	u8  kind_inv;
 	u16 kind_nr;
-
-	struct {
-#define NVIF_MEM_VRAM                                                      0x01
-#define NVIF_MEM_HOST                                                      0x02
-#define NVIF_MEM_COMP                                                      0x04
-#define NVIF_MEM_DISP                                                      0x08
-#define NVIF_MEM_KIND                                                      0x10
-#define NVIF_MEM_MAPPABLE                                                  0x20
-#define NVIF_MEM_COHERENT                                                  0x40
-#define NVIF_MEM_UNCACHED                                                  0x80
-		u8 type;
-		u8 heap;
-	} *type;
 
 	u8 *kind;
 };
@@ -45,8 +31,8 @@ static inline int
 nvif_mmu_type(struct nvif_mmu *mmu, u8 mask)
 {
 	int i;
-	for (i = 0; i < mmu->type_nr; i++) {
-		if ((mmu->type[i].type & mask) == mask)
+	for (i = 0; i < mmu->impl->type_nr; i++) {
+		if ((mmu->impl->type[i].type & mask) == mask)
 			return i;
 	}
 	return -EINVAL;

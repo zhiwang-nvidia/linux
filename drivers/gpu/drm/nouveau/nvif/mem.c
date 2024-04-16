@@ -72,7 +72,7 @@ nvif_mem_ctor_type(struct nvif_mmu *mmu, const char *name,
 	ret = nvif_object_ctor(&mmu->object, name ? name : "nvifMem", 0, mmu->impl->mem.oclass,
 			       args, sizeof(*args) + argc, &mem->object);
 	if (ret == 0) {
-		mem->type = mmu->type[type].type;
+		mem->type = mmu->impl->type[type].type;
 		mem->page = args->page;
 		mem->addr = args->addr;
 		mem->size = args->size;
@@ -92,8 +92,8 @@ nvif_mem_ctor(struct nvif_mmu *mmu, const char *name, u8 type,
 
 	mem->object.client = NULL;
 
-	for (i = 0; ret && i < mmu->type_nr; i++) {
-		if ((mmu->type[i].type & type) == type) {
+	for (i = 0; ret && i < mmu->impl->type_nr; i++) {
+		if ((mmu->impl->type[i].type & type) == type) {
 			ret = nvif_mem_ctor_type(mmu, name, i, page,
 						 size, argv, argc, mem);
 		}

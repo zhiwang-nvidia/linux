@@ -33,7 +33,6 @@ nvif_mmu_dtor(struct nvif_mmu *mmu)
 		return;
 
 	kfree(mmu->kind);
-	kfree(mmu->type);
 	mmu->impl->del(mmu->priv);
 	mmu->impl = NULL;
 }
@@ -42,10 +41,9 @@ int
 nvif_mmu_ctor(struct nvif_device *device, const char *name, struct nvif_mmu *mmu)
 {
 	const s32 oclass = device->impl->mmu.oclass;
-	int ret, i;
+	int ret;
 
 	mmu->impl = NULL;
-	mmu->type = NULL;
 	mmu->kind = NULL;
 
 	ret = device->impl->mmu.new(device->priv, &mmu->impl, &mmu->priv,
@@ -56,38 +54,12 @@ nvif_mmu_ctor(struct nvif_device *device, const char *name, struct nvif_mmu *mmu
 
 	nvif_object_ctor(&device->object, name ?: "nvifMmu", 0, oclass, &mmu->object);
 
-	mmu->type_nr = mmu->impl->type_nr;
 	mmu->kind_nr = mmu->impl->kind_nr;
-
-	mmu->type = kmalloc_array(mmu->type_nr, sizeof(*mmu->type),
-				  GFP_KERNEL);
-	if (ret = -ENOMEM, !mmu->type)
-		goto done;
 
 	mmu->kind = kmalloc_array(mmu->kind_nr, sizeof(*mmu->kind),
 				  GFP_KERNEL);
 	if (!mmu->kind && mmu->kind_nr)
 		goto done;
-
-	for (i = 0; i < mmu->type_nr; i++) {
-		struct nvif_mmu_type_v0 args = { .index = i };
-
-		ret = nvif_object_mthd(&mmu->object, NVIF_MMU_V0_TYPE,
-				       &args, sizeof(args));
-		if (ret)
-			goto done;
-
-		mmu->type[i].type = 0;
-		if (args.vram) mmu->type[i].type |= NVIF_MEM_VRAM;
-		if (args.host) mmu->type[i].type |= NVIF_MEM_HOST;
-		if (args.comp) mmu->type[i].type |= NVIF_MEM_COMP;
-		if (args.disp) mmu->type[i].type |= NVIF_MEM_DISP;
-		if (args.kind    ) mmu->type[i].type |= NVIF_MEM_KIND;
-		if (args.mappable) mmu->type[i].type |= NVIF_MEM_MAPPABLE;
-		if (args.coherent) mmu->type[i].type |= NVIF_MEM_COHERENT;
-		if (args.uncached) mmu->type[i].type |= NVIF_MEM_UNCACHED;
-		mmu->type[i].heap = args.heap;
-	}
 
 	if (mmu->kind_nr) {
 		struct nvif_mmu_kind_v0 *kind;

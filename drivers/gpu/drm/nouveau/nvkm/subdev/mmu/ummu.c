@@ -54,35 +54,6 @@ nvkm_ummu_sclass(struct nvkm_object *object, int index,
 }
 
 static int
-nvkm_ummu_type(struct nvkm_ummu *ummu, void *argv, u32 argc)
-{
-	struct nvkm_mmu *mmu = ummu->mmu;
-	union {
-		struct nvif_mmu_type_v0 v0;
-	} *args = argv;
-	int ret = -ENOSYS;
-	u8 type, index;
-
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		if ((index = args->v0.index) >= mmu->type_nr)
-			return -EINVAL;
-		type = mmu->type[index].type;
-		args->v0.heap = mmu->type[index].heap;
-		args->v0.vram = !!(type & NVKM_MEM_VRAM);
-		args->v0.host = !!(type & NVKM_MEM_HOST);
-		args->v0.comp = !!(type & NVKM_MEM_COMP);
-		args->v0.disp = !!(type & NVKM_MEM_DISP);
-		args->v0.kind = !!(type & NVKM_MEM_KIND);
-		args->v0.mappable = !!(type & NVKM_MEM_MAPPABLE);
-		args->v0.coherent = !!(type & NVKM_MEM_COHERENT);
-		args->v0.uncached = !!(type & NVKM_MEM_UNCACHED);
-	} else
-		return ret;
-
-	return 0;
-}
-
-static int
 nvkm_ummu_kind(struct nvkm_ummu *ummu, void *argv, u32 argc)
 {
 	struct nvkm_mmu *mmu = ummu->mmu;
@@ -127,7 +98,6 @@ nvkm_ummu_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
 	struct nvif_mmu_priv *ummu = container_of(object, typeof(*ummu), object);
 	switch (mthd) {
-	case NVIF_MMU_V0_TYPE: return nvkm_ummu_type(ummu, argv, argc);
 	case NVIF_MMU_V0_KIND: return nvkm_ummu_kind(ummu, argv, argc);
 	default:
 		break;
@@ -164,8 +134,23 @@ nvkm_ummu_new(struct nvkm_device *device, const struct nvif_mmu_impl **pimpl,
 	ummu->impl.heap_nr = mmu->heap_nr;
 	ummu->impl.type_nr = mmu->type_nr;
 	ummu->impl.kind_nr = kinds;
+
 	for (int i = 0; i < mmu->heap_nr; i++)
 		ummu->impl.heap[i].size = mmu->heap[i].size;
+
+	for (int i = 0; i < mmu->type_nr; i++) {
+		u8 type = mmu->type[i].type;
+
+		ummu->impl.type[i].type |= (type & NVKM_MEM_VRAM) ? NVIF_MEM_VRAM : 0;
+		ummu->impl.type[i].type |= (type & NVKM_MEM_HOST) ? NVIF_MEM_HOST : 0;
+		ummu->impl.type[i].type |= (type & NVKM_MEM_COMP) ? NVIF_MEM_COMP : 0;
+		ummu->impl.type[i].type |= (type & NVKM_MEM_DISP) ? NVIF_MEM_DISP : 0;
+		ummu->impl.type[i].type |= (type & NVKM_MEM_KIND) ? NVIF_MEM_KIND : 0;
+		ummu->impl.type[i].type |= (type & NVKM_MEM_MAPPABLE) ? NVIF_MEM_MAPPABLE : 0;
+		ummu->impl.type[i].type |= (type & NVKM_MEM_COHERENT) ? NVIF_MEM_COHERENT : 0;
+		ummu->impl.type[i].type |= (type & NVKM_MEM_UNCACHED) ? NVIF_MEM_UNCACHED : 0;
+		ummu->impl.type[i].heap = mmu->type[i].heap;
+	}
 
 	ummu->impl.mem.oclass = mmu->func->mem.user.oclass;
 

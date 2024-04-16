@@ -100,9 +100,9 @@ nouveau_mem_host(struct ttm_resource *reg, struct ttm_tt *tt)
 	else
 		type = drm->ttm.type_host[0];
 
-	if (mem->kind && !(mmu->type[type].type & NVIF_MEM_KIND))
+	if (mem->kind && !(mmu->impl->type[type].type & NVIF_MEM_KIND))
 		mem->comp = mem->kind = 0;
-	if (mem->comp && !(mmu->type[type].type & NVIF_MEM_COMP)) {
+	if (mem->comp && !(mmu->impl->type[type].type & NVIF_MEM_COMP)) {
 		if (mmu->object.oclass >= NVIF_CLASS_MMU_GF100)
 			mem->kind = mmu->kind[mem->kind];
 		mem->comp = 0;

@@ -90,6 +90,19 @@ struct nvif_mmu_impl {
 	} heap[4];
 
 	struct {
+#define NVIF_MEM_VRAM     0x01
+#define NVIF_MEM_HOST     0x02
+#define NVIF_MEM_COMP     0x04
+#define NVIF_MEM_DISP     0x08
+#define NVIF_MEM_KIND     0x10
+#define NVIF_MEM_MAPPABLE 0x20
+#define NVIF_MEM_COHERENT 0x40
+#define NVIF_MEM_UNCACHED 0x80
+		u8 type;
+		u8 heap;
+	} type[16];
+
+	struct {
 		s32 oclass;
 	} mem;
 
