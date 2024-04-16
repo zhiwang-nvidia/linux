@@ -43,8 +43,7 @@ nvif_mmu_ctor(struct nvif_device *device, const char *name, struct nvif_mmu *mmu
 
 	mmu->impl = NULL;
 
-	ret = device->impl->mmu.new(device->priv, &mmu->impl, &mmu->priv,
-				    nvif_handle(&mmu->object));
+	ret = device->impl->mmu.new(device->priv, &mmu->impl, &mmu->priv);
 	NVIF_ERRON(ret, &device->object, "[NEW mmu%08x]", oclass);
 	if (ret)
 		return ret;

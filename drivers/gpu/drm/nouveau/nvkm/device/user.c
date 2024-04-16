@@ -79,8 +79,7 @@ nvkm_udevice_time(struct nvif_device_priv *udev)
 
 static int
 nvkm_udevice_mmu_new(struct nvif_device_priv *udev,
-		     const struct nvif_mmu_impl **pimpl, struct nvif_mmu_priv **ppriv,
-		     u64 handle)
+		     const struct nvif_mmu_impl **pimpl, struct nvif_mmu_priv **ppriv)
 {
 	struct nvkm_device *device = udev->device;
 	struct nvkm_object *object;
@@ -90,7 +89,8 @@ nvkm_udevice_mmu_new(struct nvif_device_priv *udev,
 	if (ret)
 		return ret;
 
-	return nvkm_object_link_rb(udev->object.client, &udev->object, handle, object);
+	nvkm_object_link(&udev->object, object);
+	return 0;
 }
 
 static void

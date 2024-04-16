@@ -201,7 +201,7 @@ struct nvif_device_impl {
 	struct {
 		s32 oclass;
 		int (*new)(struct nvif_device_priv *, const struct nvif_mmu_impl **,
-			   struct nvif_mmu_priv **, u64 handle);
+			   struct nvif_mmu_priv **);
 	} mmu;
 
 	struct {
