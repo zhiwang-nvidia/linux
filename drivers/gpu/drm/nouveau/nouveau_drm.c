@@ -421,9 +421,8 @@ nouveau_accel_fini(struct nouveau_drm *drm)
 static void
 nouveau_accel_init(struct nouveau_drm *drm)
 {
-	struct nvif_device *device = &drm->client.device;
-	struct nvif_sclass *sclass;
-	int ret, i, n;
+	struct nvif_device *device = &drm->device;
+	int ret;
 
 	if (nouveau_noaccel)
 		return;
@@ -433,48 +432,39 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	if (ret)
 		return;
 
-	/*XXX: this is crap, but the fence/channel stuff is a little
-	 *     backwards in some places.  this will be fixed.
-	 */
-	ret = n = nvif_object_sclass_get(&device->object, &sclass);
-	if (ret < 0)
-		return;
-
-	for (ret = -ENOSYS, i = 0; i < n; i++) {
-		switch (sclass[i].oclass) {
-		case NV03_CHANNEL_DMA:
-			ret = nv04_fence_create(drm);
-			break;
-		case NV10_CHANNEL_DMA:
-			ret = nv10_fence_create(drm);
-			break;
-		case NV17_CHANNEL_DMA:
-		case NV40_CHANNEL_DMA:
-			ret = nv17_fence_create(drm);
-			break;
-		case NV50_CHANNEL_GPFIFO:
-			ret = nv50_fence_create(drm);
-			break;
-		case G82_CHANNEL_GPFIFO:
-			ret = nv84_fence_create(drm);
-			break;
-		case FERMI_CHANNEL_GPFIFO:
-		case KEPLER_CHANNEL_GPFIFO_A:
-		case KEPLER_CHANNEL_GPFIFO_B:
-		case MAXWELL_CHANNEL_GPFIFO_A:
-		case PASCAL_CHANNEL_GPFIFO_A:
-		case VOLTA_CHANNEL_GPFIFO_A:
-		case TURING_CHANNEL_GPFIFO_A:
-		case AMPERE_CHANNEL_GPFIFO_A:
-		case AMPERE_CHANNEL_GPFIFO_B:
-			ret = nvc0_fence_create(drm);
-			break;
-		default:
-			break;
-		}
+	switch (device->impl->fifo.chan.oclass) {
+	case NV03_CHANNEL_DMA:
+		ret = nv04_fence_create(drm);
+		break;
+	case NV10_CHANNEL_DMA:
+		ret = nv10_fence_create(drm);
+		break;
+	case NV17_CHANNEL_DMA:
+	case NV40_CHANNEL_DMA:
+		ret = nv17_fence_create(drm);
+		break;
+	case NV50_CHANNEL_GPFIFO:
+		ret = nv50_fence_create(drm);
+		break;
+	case G82_CHANNEL_GPFIFO:
+		ret = nv84_fence_create(drm);
+		break;
+	case FERMI_CHANNEL_GPFIFO:
+	case KEPLER_CHANNEL_GPFIFO_A:
+	case KEPLER_CHANNEL_GPFIFO_B:
+	case MAXWELL_CHANNEL_GPFIFO_A:
+	case PASCAL_CHANNEL_GPFIFO_A:
+	case VOLTA_CHANNEL_GPFIFO_A:
+	case TURING_CHANNEL_GPFIFO_A:
+	case AMPERE_CHANNEL_GPFIFO_A:
+	case AMPERE_CHANNEL_GPFIFO_B:
+		ret = nvc0_fence_create(drm);
+		break;
+	default:
+		ret = -ENODEV;
+		break;
 	}
 
-	nvif_object_sclass_put(&sclass);
 	if (ret) {
 		NV_ERROR(drm, "failed to initialise sync subsystem, %d\n", ret);
 		nouveau_accel_fini(drm);
@@ -533,13 +523,6 @@ nouveau_parent = {
 static int
 nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 {
-	static const struct nvif_mclass
-	mmus[] = {
-		{ NVIF_CLASS_MMU_GF100, -1 },
-		{ NVIF_CLASS_MMU_NV50 , -1 },
-		{ NVIF_CLASS_MMU_NV04 , -1 },
-		{}
-	};
 	struct nouveau_drm *drm;
 	const struct nvif_driver *driver;
 	const struct nvif_client_impl *impl;
@@ -574,13 +557,18 @@ nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 		goto fail_nvif;
 	}
 
-	ret = nvif_mclass(&drm->device.object, mmus);
-	if (ret < 0) {
-		NV_ERROR(drm, "No supported MMU class\n");
+	switch (drm->device.impl->mmu.oclass) {
+	case NVIF_CLASS_MMU_GF100:
+	case NVIF_CLASS_MMU_NV50:
+	case NVIF_CLASS_MMU_NV04:
+		break;
+	default:
+		NV_ERROR(drm, "No supported MMU class (0x%04x)\n", drm->device.impl->mmu.oclass);
+		ret = -ENODEV;
 		goto fail_nvif;
 	}
 
-	ret = nvif_mmu_ctor(&drm->device.object, "drmMmu", mmus[ret].oclass, &drm->mmu);
+	ret = nvif_mmu_ctor(&drm->device.object, "drmMmu", drm->device.impl->mmu.oclass, &drm->mmu);
 	if (ret) {
 		NV_ERROR(drm, "MMU allocation failed: %d\n", ret);
 		goto fail_nvif;

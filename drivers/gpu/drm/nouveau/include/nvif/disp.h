@@ -10,7 +10,6 @@ struct nvif_disp {
 	unsigned long head_mask;
 };
 
-int nvif_disp_ctor(struct nvif_device *, const char *name, s32 oclass,
-		   struct nvif_disp *);
+int nvif_disp_ctor(struct nvif_device *, const char *name, struct nvif_disp *);
 void nvif_disp_dtor(struct nvif_disp *);
 #endif

@@ -1044,11 +1044,6 @@ nouveau_svm_fini(struct nouveau_drm *drm)
 void
 nouveau_svm_init(struct nouveau_drm *drm)
 {
-	static const struct nvif_mclass buffers[] = {
-		{   VOLTA_FAULT_BUFFER_A, 0 },
-		{ MAXWELL_FAULT_BUFFER_A, 0 },
-		{}
-	};
 	struct nouveau_svm *svm;
 	int ret;
 
@@ -1059,6 +1054,15 @@ nouveau_svm_init(struct nouveau_drm *drm)
 	if (drm->client.device.info.family > NV_DEVICE_INFO_V0_PASCAL)
 		return;
 
+	switch (drm->device.impl->faultbuf.oclass) {
+	case   VOLTA_FAULT_BUFFER_A:
+	case MAXWELL_FAULT_BUFFER_A:
+		break;
+	default:
+		NV_DEBUG(drm, "No supported fault buffer class\n");
+		return;
+	}
+
 	drm->svm = svm = kzalloc(struct_size(drm->svm, buffer, 1), GFP_KERNEL);
 	if (!drm->svm)
 		return;
@@ -1067,14 +1071,7 @@ nouveau_svm_init(struct nouveau_drm *drm)
 	mutex_init(&drm->svm->mutex);
 	INIT_LIST_HEAD(&drm->svm->inst);
 
-	ret = nvif_mclass(&drm->client.device.object, buffers);
-	if (ret < 0) {
-		SVM_DBG(svm, "No supported fault buffer class");
-		nouveau_svm_fini(drm);
-		return;
-	}
-
-	ret = nouveau_svm_fault_buffer_ctor(svm, buffers[ret].oclass, 0);
+	ret = nouveau_svm_fault_buffer_ctor(svm, drm->device.impl->faultbuf.oclass, 0);
 	if (ret) {
 		nouveau_svm_fini(drm);
 		return;

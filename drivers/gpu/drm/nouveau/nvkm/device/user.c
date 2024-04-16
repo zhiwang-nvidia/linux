@@ -29,6 +29,8 @@
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 #include <subdev/timer.h>
+#include <engine/disp/priv.h>
+#include <engine/fifo/ufifo.h>
 
 #include <nvif/class.h>
 #include <nvif/cl0080.h>
@@ -356,6 +358,28 @@ nvkm_udevice_new(struct nvkm_device *device,
 	}
 
 	udev->impl = nvkm_udevice_impl;
+
+	if (device->vfn) {
+		udev->impl.usermode.oclass = device->vfn->user.base.oclass;
+	}
+
+	if (device->mmu) {
+		udev->impl.mmu.oclass = device->mmu->user.base.oclass;
+	}
+
+	if (device->fault) {
+		udev->impl.faultbuf.oclass = device->fault->user.base.oclass;
+	}
+
+	if (device->disp) {
+		udev->impl.disp.oclass = device->disp->func->user.root.oclass;
+	}
+
+	if (device->fifo) {
+		if (!WARN_ON(nvkm_subdev_oneinit(&device->fifo->engine.subdev))) {
+			nvkm_ufifo_ctor(device->fifo, &udev->impl.fifo);
+		}
+	}
 
 	*pimpl = &udev->impl;
 	*ppriv = udev;

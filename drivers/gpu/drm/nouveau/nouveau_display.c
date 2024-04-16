@@ -725,7 +725,7 @@ nouveau_display_create(struct drm_device *dev)
 	drm_kms_helper_poll_disable(dev);
 
 	if (nouveau_modeset != 2) {
-		ret = nvif_disp_ctor(&drm->client.device, "kmsDisp", 0, &disp->disp);
+		ret = nvif_disp_ctor(&drm->device, "kmsDisp", &disp->disp);
 		/* no display hw */
 		if (ret == -ENODEV) {
 			ret = 0;

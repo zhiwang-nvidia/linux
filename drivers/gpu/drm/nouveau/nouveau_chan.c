@@ -252,42 +252,43 @@ static int
 nouveau_channel_ctor(struct nouveau_cli *cli, bool priv, u64 runm,
 		     struct nouveau_channel **pchan)
 {
-	const struct nvif_mclass hosts[] = {
-		{  AMPERE_CHANNEL_GPFIFO_B, 0 },
-		{  AMPERE_CHANNEL_GPFIFO_A, 0 },
-		{  TURING_CHANNEL_GPFIFO_A, 0 },
-		{   VOLTA_CHANNEL_GPFIFO_A, 0 },
-		{  PASCAL_CHANNEL_GPFIFO_A, 0 },
-		{ MAXWELL_CHANNEL_GPFIFO_A, 0 },
-		{  KEPLER_CHANNEL_GPFIFO_B, 0 },
-		{  KEPLER_CHANNEL_GPFIFO_A, 0 },
-		{   FERMI_CHANNEL_GPFIFO  , 0 },
-		{     G82_CHANNEL_GPFIFO  , 0 },
-		{    NV50_CHANNEL_GPFIFO  , 0 },
-		{    NV40_CHANNEL_DMA     , 0 },
-		{    NV17_CHANNEL_DMA     , 0 },
-		{    NV10_CHANNEL_DMA     , 0 },
-		{    NV03_CHANNEL_DMA     , 0 },
-		{}
-	};
+	struct nvif_device *device = &cli->device;
+	const u32 oclass = device->impl->fifo.chan.oclass;
 	struct {
 		struct nvif_chan_v0 chan;
 		char name[TASK_COMM_LEN+16];
 	} args;
-	struct nvif_device *device = &cli->device;
 	struct nouveau_channel *chan;
 	const u64 plength = 0x10000;
 	const u64 ioffset = plength;
 	const u64 ilength = 0x02000;
 	char name[TASK_COMM_LEN];
-	int cid, ret;
+	int ret;
 	u64 size;
 
-	cid = nvif_mclass(&device->object, hosts);
-	if (cid < 0)
-		return cid;
+	switch (oclass) {
+	case  AMPERE_CHANNEL_GPFIFO_B:
+	case  AMPERE_CHANNEL_GPFIFO_A:
+	case  TURING_CHANNEL_GPFIFO_A:
+	case   VOLTA_CHANNEL_GPFIFO_A:
+	case  PASCAL_CHANNEL_GPFIFO_A:
+	case MAXWELL_CHANNEL_GPFIFO_A:
+	case  KEPLER_CHANNEL_GPFIFO_B:
+	case  KEPLER_CHANNEL_GPFIFO_A:
+	case   FERMI_CHANNEL_GPFIFO  :
+	case     G82_CHANNEL_GPFIFO  :
+	case    NV50_CHANNEL_GPFIFO  :
+	case    NV40_CHANNEL_DMA     :
+	case    NV17_CHANNEL_DMA     :
+	case    NV10_CHANNEL_DMA     :
+	case    NV03_CHANNEL_DMA     :
+		break;
+	default:
+		NV_PRINTK(err, cli, "No supported host channel class (0x%04x)", oclass);
+		return -ENODEV;
+	}
 
-	if (hosts[cid].oclass < NV50_CHANNEL_GPFIFO)
+	if (oclass < NV50_CHANNEL_GPFIFO)
 		size = plength;
 	else
 		size = ioffset + ilength;
@@ -305,14 +306,14 @@ nouveau_channel_ctor(struct nouveau_cli *cli, bool priv, u64 runm,
 	args.chan.runq = 0;
 	args.chan.priv = priv;
 	args.chan.devm = BIT(0);
-	if (hosts[cid].oclass < NV50_CHANNEL_GPFIFO) {
+	if (oclass < NV50_CHANNEL_GPFIFO) {
 		args.chan.vmm = 0;
 		args.chan.ctxdma = nvif_handle(&chan->push.ctxdma);
 		args.chan.offset = chan->push.addr;
 		args.chan.length = 0;
 	} else {
 		args.chan.vmm = nvif_handle(&chan->vmm->vmm.object);
-		if (hosts[cid].oclass < FERMI_CHANNEL_GPFIFO)
+		if (oclass < FERMI_CHANNEL_GPFIFO)
 			args.chan.ctxdma = nvif_handle(&chan->push.ctxdma);
 		else
 			args.chan.ctxdma = 0;
@@ -323,7 +324,7 @@ nouveau_channel_ctor(struct nouveau_cli *cli, bool priv, u64 runm,
 	args.chan.ouserd = 0;
 
 	/* allocate userd */
-	if (hosts[cid].oclass >= VOLTA_CHANNEL_GPFIFO_A) {
+	if (oclass >= VOLTA_CHANNEL_GPFIFO_A) {
 		ret = nvif_mem_ctor(&cli->mmu, "abi16ChanUSERD", NVIF_CLASS_MEM_GF100,
 				    NVIF_MEM_VRAM | NVIF_MEM_COHERENT | NVIF_MEM_MAPPABLE,
 				    0, PAGE_SIZE, NULL, 0, &chan->mem_userd);
@@ -341,7 +342,7 @@ nouveau_channel_ctor(struct nouveau_cli *cli, bool priv, u64 runm,
 	get_task_comm(name, current);
 	snprintf(args.name, sizeof(args.name), "%s[%d]", name, task_pid_nr(current));
 
-	ret = nvif_object_ctor(&device->object, "abi16ChanUser", 0, hosts[cid].oclass,
+	ret = nvif_object_ctor(&device->object, "abi16ChanUser", 0, oclass,
 			       &args, sizeof(args), &chan->user);
 	if (ret) {
 		nouveau_channel_del(pchan);

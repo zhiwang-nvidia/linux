@@ -15,6 +15,32 @@ struct nvif_driver {
 
 struct nvif_device_impl {
 	void (*del)(struct nvif_device_priv *);
+
+	struct {
+		s32 oclass;
+	} usermode;
+
+	struct {
+		s32 oclass;
+	} mmu;
+
+	struct {
+		s32 oclass;
+	} faultbuf;
+
+	struct {
+		s32 oclass;
+	} disp;
+
+	struct nvif_device_impl_fifo {
+		struct {
+			s32 oclass;
+		} cgrp;
+
+		struct {
+			s32 oclass;
+		} chan;
+	} fifo;
 };
 
 struct nvif_client_impl {
