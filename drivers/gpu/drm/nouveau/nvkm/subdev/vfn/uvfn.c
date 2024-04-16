@@ -19,12 +19,11 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#define nvkm_uvfn(p) container_of((p), struct nvkm_uvfn, object)
 #include "priv.h"
 
 #include <core/object.h>
 
-struct nvkm_uvfn {
+struct nvif_usermode_priv {
 	struct nvkm_object object;
 	struct nvkm_vfn *vfn;
 };
@@ -33,7 +32,7 @@ static int
 nvkm_uvfn_map(struct nvkm_object *object, void *argv, u32 argc,
 	      enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
-	struct nvkm_vfn *vfn = nvkm_uvfn(object)->vfn;
+	struct nvkm_vfn *vfn = container_of(object, struct nvif_usermode_priv, object)->vfn;
 	struct nvkm_device *device = vfn->subdev.device;
 
 	*addr = device->func->resource_addr(device, 0) + vfn->addr.user;
@@ -51,7 +50,7 @@ int
 nvkm_uvfn_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 	      void *argv, u32 argc, struct nvkm_object **pobject)
 {
-	struct nvkm_uvfn *uvfn;
+	struct nvif_usermode_priv *uvfn;
 
 	if (argc != 0)
 		return -ENOSYS;
