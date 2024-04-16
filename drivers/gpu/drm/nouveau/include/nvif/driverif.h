@@ -23,6 +23,14 @@ struct nvif_mapinfo {
 	u64 length;
 };
 
+struct nvif_control_pstate_user {
+	u8  version;
+#define NVIF_CONTROL_PSTATE_USER_STATE_UNKNOWN                          (-1)
+#define NVIF_CONTROL_PSTATE_USER_STATE_PERFMON                          (-2)
+	s8  ustate; /*  in: pstate identifier */
+	s8  pwrsrc; /*  in: target power source */
+};
+
 struct nvif_control_pstate_attr {
 	u8  version;
 #define NVIF_CONTROL_PSTATE_ATTR_STATE_CURRENT                          (-1)
@@ -57,6 +65,7 @@ struct nvif_control_impl {
 	struct {
 		void (*info)(struct nvif_control_priv *, struct nvif_control_pstate_info *);
 		int  (*attr)(struct nvif_control_priv *, struct nvif_control_pstate_attr *);
+		int  (*user)(struct nvif_control_priv *, struct nvif_control_pstate_user *);
 	} pstate;
 };
 

@@ -26,12 +26,6 @@
 #include <core/client.h>
 #include <subdev/clk.h>
 
-#include <nvif/if0001.h>
-#include <nvif/ioctl.h>
-#include <nvif/unpack.h>
-
-#define nvkm_control nvif_control_priv
-
 struct nvif_control_priv {
 	struct nvkm_object object;
 	struct nvkm_device *device;
@@ -121,50 +115,26 @@ nvkm_control_pstate_attr(struct nvif_control_priv *ctrl, struct nvif_control_pst
 }
 
 static int
-nvkm_control_mthd_pstate_user(struct nvkm_control *ctrl, void *data, u32 size)
+nvkm_control_pstate_user(struct nvif_control_priv *ctrl, struct nvif_control_pstate_user *user)
 {
-	union {
-		struct nvif_control_pstate_user_v0 v0;
-	} *args = data;
 	struct nvkm_clk *clk = ctrl->device->clk;
-	int ret = -ENOSYS;
+	int ret = 0;
 
-	nvif_ioctl(&ctrl->object, "control pstate user size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(&ctrl->object,
-			   "control pstate user vers %d ustate %d pwrsrc %d\n",
-			   args->v0.version, args->v0.ustate, args->v0.pwrsrc);
-		if (!clk)
-			return -ENODEV;
-	} else
-		return ret;
+	if (!clk)
+		return -ENODEV;
 
-	if (args->v0.pwrsrc >= 0) {
-		ret |= nvkm_clk_ustate(clk, args->v0.ustate, args->v0.pwrsrc);
+	if (user->pwrsrc >= 0) {
+		ret |= nvkm_clk_ustate(clk, user->ustate, user->pwrsrc);
 	} else {
-		ret |= nvkm_clk_ustate(clk, args->v0.ustate, 0);
-		ret |= nvkm_clk_ustate(clk, args->v0.ustate, 1);
+		ret |= nvkm_clk_ustate(clk, user->ustate, 0);
+		ret |= nvkm_clk_ustate(clk, user->ustate, 1);
 	}
 
 	return ret;
 }
 
-static int
-nvkm_control_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
-{
-	struct nvif_control_priv *ctrl = container_of(object, typeof(*ctrl), object);
-	switch (mthd) {
-	case NVIF_CONTROL_PSTATE_USER:
-		return nvkm_control_mthd_pstate_user(ctrl, data, size);
-	default:
-		break;
-	}
-	return -EINVAL;
-}
-
 static const struct nvkm_object_func
 nvkm_control = {
-	.mthd = nvkm_control_mthd,
 };
 
 static void
@@ -180,6 +150,7 @@ nvkm_control_impl = {
 	.del = nvkm_control_del,
 	.pstate.info = nvkm_control_pstate_info,
 	.pstate.attr = nvkm_control_pstate_attr,
+	.pstate.user = nvkm_control_pstate_user,
 };
 
 int

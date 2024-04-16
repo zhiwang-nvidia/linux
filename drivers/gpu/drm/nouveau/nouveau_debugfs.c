@@ -29,7 +29,6 @@
  */
 
 #include <linux/debugfs.h>
-#include <nvif/if0001.h>
 #include "nouveau_debugfs.h"
 #include "nouveau_drv.h"
 
@@ -138,7 +137,7 @@ nouveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
 	struct seq_file *m = file->private_data;
 	struct drm_device *drm = m->private;
 	struct nouveau_debugfs *debugfs = nouveau_debugfs(drm);
-	struct nvif_control_pstate_user_v0 args = { .pwrsrc = -EINVAL };
+	struct nvif_control_pstate_user args = { .pwrsrc = -EINVAL };
 	char buf[32] = {}, *tmp, *cur = buf;
 	long value, ret;
 
@@ -164,10 +163,10 @@ nouveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
 	}
 
 	if (!strcasecmp(cur, "none"))
-		args.ustate = NVIF_CONTROL_PSTATE_USER_V0_STATE_UNKNOWN;
+		args.ustate = NVIF_CONTROL_PSTATE_USER_STATE_UNKNOWN;
 	else
 	if (!strcasecmp(cur, "auto"))
-		args.ustate = NVIF_CONTROL_PSTATE_USER_V0_STATE_PERFMON;
+		args.ustate = NVIF_CONTROL_PSTATE_USER_STATE_PERFMON;
 	else {
 		ret = kstrtol(cur, 16, &value);
 		if (ret)
@@ -181,8 +180,7 @@ nouveau_debugfs_pstate_set(struct file *file, const char __user *ubuf,
 		return ret;
 	}
 
-	ret = nvif_mthd(&debugfs->ctrl, NVIF_CONTROL_PSTATE_USER,
-			&args, sizeof(args));
+	ret = debugfs->impl->pstate.user(debugfs->priv, &args);
 	pm_runtime_put_autosuspend(drm->dev);
 	if (ret < 0)
 		return ret;
