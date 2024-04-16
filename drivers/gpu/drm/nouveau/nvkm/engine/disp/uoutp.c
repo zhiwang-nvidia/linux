@@ -103,23 +103,31 @@ nvkm_uoutp_mthd_dp_mst_id_get(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_dp_sst(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_dp_sst(struct nvif_outp_priv *uoutp, u8 head,
+		  u32 watermark, u32 hblanksym, u32 vblanksym)
 {
-	union nvif_outp_dp_sst_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
 	struct nvkm_disp *disp = outp->disp;
-	struct nvkm_ior *ior = outp->ior;
+	struct nvkm_ior *ior;
+	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-
-	if (!ior->func->dp || !nvkm_head_find(disp, args->v0.head))
+	if (!nvkm_head_find(disp, head))
 		return -EINVAL;
-	if (!ior->func->dp->sst)
-		return 0;
 
-	return ior->func->dp->sst(ior, args->v0.head,
-				  outp->dp.dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP,
-				  args->v0.watermark, args->v0.hblanksym, args->v0.vblanksym);
+	ret = nvkm_uoutp_lock_acquired(uoutp);
+	if (ret)
+		return ret;
+
+	ior = outp->ior;
+
+	if (ior->func->dp->sst) {
+		ret = ior->func->dp->sst(ior, head,
+					 outp->dp.dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP,
+					 watermark, hblanksym, vblanksym);
+	}
+
+	nvkm_uoutp_unlock(uoutp);
+	return ret;
 }
 
 static int
@@ -550,7 +558,6 @@ static int
 nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_DP_SST       : return nvkm_uoutp_mthd_dp_sst       (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_MST_ID_GET: return nvkm_uoutp_mthd_dp_mst_id_get(outp, argv, argc);
 	case NVIF_OUTP_V0_DP_MST_ID_PUT: return nvkm_uoutp_mthd_dp_mst_id_put(outp, argv, argc);
 	case NVIF_OUTP_V0_DP_MST_VCPI  : return nvkm_uoutp_mthd_dp_mst_vcpi  (outp, argv, argc);
@@ -690,6 +697,7 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 		uoutp->impl.dp.rates = nvkm_uoutp_dp_rates;
 		uoutp->impl.dp.train = nvkm_uoutp_dp_train;
 		uoutp->impl.dp.drive = nvkm_uoutp_dp_drive;
+		uoutp->impl.dp.sst = nvkm_uoutp_dp_sst;
 		break;
 	default:
 		WARN_ON(1);

@@ -78,18 +78,12 @@ nvif_outp_dp_mst_id_get(struct nvif_outp *outp, u32 *id)
 int
 nvif_outp_dp_sst(struct nvif_outp *outp, int head, u32 watermark, u32 hblanksym, u32 vblanksym)
 {
-	struct nvif_outp_dp_sst_v0 args;
 	int ret;
 
-	args.version = 0;
-	args.head = head;
-	args.watermark = watermark;
-	args.hblanksym = hblanksym;
-	args.vblanksym = vblanksym;
-	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_SST, &args, sizeof(args));
+	ret = outp->impl->dp.sst(outp->priv, head, watermark, hblanksym, vblanksym);
 	NVIF_ERRON(ret, &outp->object,
 		   "[DP_SST head:%d watermark:%d hblanksym:%d vblanksym:%d]",
-		   args.head, args.watermark, args.hblanksym, args.vblanksym);
+		   head, watermark, hblanksym, vblanksym);
 	return ret;
 }
 
