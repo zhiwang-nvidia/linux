@@ -23,7 +23,24 @@
  */
 #include <nvif/device.h>
 #include <nvif/client.h>
+#include <nvif/ctxdma.h>
 #include <nvif/printf.h>
+
+int
+nvif_device_ctxdma_ctor(struct nvif_device *device, const char *name, s32 oclass,
+			void *argv, u32 argc, struct nvif_ctxdma *ctxdma)
+{
+	int ret;
+
+	ret = device->impl->ctxdma.new(device->priv, oclass, argv, argc,
+				       &ctxdma->impl, &ctxdma->priv, nvif_handle(&ctxdma->object));
+	NVIF_ERRON(ret, &device->object, "[NEW ctxdma%04x]", oclass);
+	if (ret)
+		return ret;
+
+	nvif_ctxdma_ctor(&device->object, name ?: "nvifDeviceCtxDma", 0, oclass, ctxdma);
+	return 0;
+}
 
 u64
 nvif_device_time(struct nvif_device *device)

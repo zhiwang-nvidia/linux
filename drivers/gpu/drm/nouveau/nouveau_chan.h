@@ -2,6 +2,7 @@
 #ifndef __NOUVEAU_CHAN_H__
 #define __NOUVEAU_CHAN_H__
 #include <nvif/object.h>
+#include <nvif/ctxdma.h>
 #include <nvif/event.h>
 #include <nvif/push.h>
 struct nvif_device;
@@ -31,7 +32,7 @@ struct nouveau_channel {
 	struct {
 		struct nouveau_bo *buffer;
 		struct nouveau_vma *vma;
-		struct nvif_object ctxdma;
+		struct nvif_ctxdma ctxdma;
 		u64 addr;
 	} push;
 

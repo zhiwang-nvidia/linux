@@ -111,6 +111,42 @@ nvkm_udevice_cgrp_new(struct nvif_device_priv *udev, u8 runl, struct nvif_vmm_pr
 	return 0;
 }
 
+#include <engine/dma/priv.h>
+
+static void
+nvkm_udevice_ctxdma_del(struct nvif_ctxdma_priv *priv)
+{
+	struct nvkm_dmaobj *dmaobj = (void *)priv;
+	struct nvkm_object *object = &dmaobj->object;
+
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_ctxdma_impl
+nvkm_udevice_ctxdma_impl = {
+	.del = nvkm_udevice_ctxdma_del
+};
+
+static int
+nvkm_udevice_ctxdma_new(struct nvif_device_priv *udev, s32 oclass, void *argv, u32 argc,
+			const struct nvif_ctxdma_impl **pimpl, struct nvif_ctxdma_priv **ppriv,
+			u64 handle)
+{
+	struct nvkm_dma *dma = udev->device->dma;
+	struct nvkm_dmaobj *dmaobj;
+	int ret;
+
+	ret = dma->func->class_new(dma, &(struct nvkm_oclass) { .base.oclass = oclass },
+				   argv, argc, &dmaobj);
+	if (ret)
+		return ret;
+
+	*pimpl = &nvkm_udevice_ctxdma_impl;
+	*ppriv = (void *)dmaobj;
+
+	return nvkm_object_link_rb(udev->object.client, &udev->object, handle, &dmaobj->object);
+}
+
 static int
 nvkm_udevice_disp_new(struct nvif_device_priv *udev,
 		      const struct nvif_disp_impl **pimpl, struct nvif_disp_priv **ppriv)
@@ -217,8 +253,7 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 	struct nvif_device_priv *udev = container_of(object, typeof(*udev), object);
 	struct nvkm_device *device = udev->device;
 	struct nvkm_engine *engine;
-	u64 mask = (1ULL << NVKM_ENGINE_DMAOBJ) |
-		   (1ULL << NVKM_ENGINE_FIFO);
+	u64 mask = (1ULL << NVKM_ENGINE_FIFO);
 	const struct nvkm_device_oclass *sclass = NULL;
 	int i;
 
@@ -355,6 +390,8 @@ nvkm_udevice_new(struct nvkm_device *device,
 	}
 
 	if (device->fifo) {
+		udev->impl.ctxdma.new = nvkm_udevice_ctxdma_new;
+
 		if (!WARN_ON(nvkm_subdev_oneinit(&device->fifo->engine.subdev))) {
 			nvkm_ufifo_ctor(device->fifo, &udev->impl.fifo);
 

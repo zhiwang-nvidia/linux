@@ -507,6 +507,12 @@ struct nvif_device_impl {
 			   const struct nvif_disp_impl **, struct nvif_disp_priv **);
 	} disp;
 
+	struct {
+		int (*new)(struct nvif_device_priv *, s32 oclass, void *argv, u32 argc,
+			   const struct nvif_ctxdma_impl **, struct nvif_ctxdma_priv **,
+			   u64 handle);
+	} ctxdma;
+
 	struct nvif_device_impl_fifo {
 		u8  engine_nr;
 		u8  runl_nr;

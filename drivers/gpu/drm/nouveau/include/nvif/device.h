@@ -5,6 +5,7 @@
 #include <nvif/cl0080.h>
 #include <nvif/driverif.h>
 #include <nvif/user.h>
+struct nvif_ctxdma;
 
 struct nvif_device {
 	const struct nvif_device_impl *impl;
@@ -21,4 +22,7 @@ int  nvif_device_ctor(struct nvif_client *, const char *name, struct nvif_device
 void nvif_device_dtor(struct nvif_device *);
 int  nvif_device_map(struct nvif_device *);
 u64  nvif_device_time(struct nvif_device *);
+
+int nvif_device_ctxdma_ctor(struct nvif_device *, const char *name, s32 oclass,
+			    void *argv, u32 argc, struct nvif_ctxdma *);
 #endif

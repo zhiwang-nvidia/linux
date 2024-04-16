@@ -106,7 +106,7 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nvif_object_unmap_cpu(&chan->userd.map);
 		nvif_object_dtor(&chan->user);
 		nvif_mem_dtor(&chan->userd.mem);
-		nvif_object_dtor(&chan->push.ctxdma);
+		nvif_ctxdma_dtor(&chan->push.ctxdma);
 		nouveau_vma_del(&chan->push.vma);
 		nouveau_bo_unmap(chan->push.buffer);
 		if (chan->push.buffer && chan->push.buffer->bo.pin_count)
@@ -241,9 +241,8 @@ nouveau_channel_prep(struct nouveau_cli *cli,
 		}
 	}
 
-	ret = nvif_object_ctor(&device->object, "abi16PushCtxDma", 0,
-			       NV_DMA_FROM_MEMORY, &args, sizeof(args),
-			       &chan->push.ctxdma);
+	ret = nvif_device_ctxdma_ctor(device, "abi16PushCtxDma", NV_DMA_FROM_MEMORY,
+				      &args, sizeof(args), &chan->push.ctxdma);
 	if (ret) {
 		nouveau_channel_del(pchan);
 		return ret;
@@ -314,13 +313,13 @@ nouveau_channel_ctor(struct nouveau_cli *cli, bool priv, u64 runm,
 	args.chan.devm = BIT(0);
 	if (oclass < NV50_CHANNEL_GPFIFO) {
 		args.chan.vmm = 0;
-		args.chan.ctxdma = nvif_handle(&chan->push.ctxdma);
+		args.chan.ctxdma = nvif_handle(&chan->push.ctxdma.object);
 		args.chan.offset = chan->push.addr;
 		args.chan.length = 0;
 	} else {
 		args.chan.vmm = nvif_handle(&chan->vmm->vmm.object);
 		if (oclass < FERMI_CHANNEL_GPFIFO)
-			args.chan.ctxdma = nvif_handle(&chan->push.ctxdma);
+			args.chan.ctxdma = nvif_handle(&chan->push.ctxdma.object);
 		else
 			args.chan.ctxdma = 0;
 		args.chan.offset = ioffset + chan->push.addr;
