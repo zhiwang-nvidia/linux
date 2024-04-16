@@ -29,7 +29,6 @@
 #include <nvif/mem.h>
 
 #include <nvif/class.h>
-#include <nvif/if000c.h>
 #include <nvif/if900d.h>
 
 #define NOUVEAU_VA_SPACE_BITS		47 /* FIXME */

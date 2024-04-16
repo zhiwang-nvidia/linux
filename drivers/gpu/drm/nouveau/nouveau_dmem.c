@@ -30,7 +30,6 @@
 #include <nvif/class.h>
 #include <nvif/object.h>
 #include <nvif/push906f.h>
-#include <nvif/if000c.h>
 #include <nvif/if500b.h>
 #include <nvif/if900b.h>
 

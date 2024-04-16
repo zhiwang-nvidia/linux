@@ -26,9 +26,6 @@
 #include <core/client.h>
 #include <core/memory.h>
 
-#include <nvif/if000c.h>
-#include <nvif/unpack.h>
-
 struct nvif_vmm_priv {
 	struct nvkm_object object;
 	struct nvkm_vmm *vmm;
@@ -47,6 +44,22 @@ nvkm_uvmm_search(struct nvkm_client *client, u64 handle)
 		return (void *)object;
 
 	return nvkm_vmm_ref(container_of(object, struct nvif_vmm_priv, object)->vmm);
+}
+
+static void
+nvkm_uvmm_fault_cancel(struct nvif_vmm_priv *uvmm, u64 inst, u8 hub, u8 gpc, u8 client)
+{
+	struct nvkm_vmm *vmm = uvmm->vmm;
+
+	vmm->func->fault->cancel(vmm, inst, hub, gpc, client);
+}
+
+static void
+nvkm_uvmm_fault_replay(struct nvif_vmm_priv *uvmm)
+{
+	struct nvkm_vmm *vmm = uvmm->vmm;
+
+	vmm->func->fault->replay(vmm);
 }
 
 static int
@@ -356,24 +369,6 @@ nvkm_uvmm_raw_sparse(struct nvif_vmm_priv *uvmm, u64 addr, u64 size, bool ref)
 	return nvkm_vmm_raw_sparse(vmm, addr, size, ref);
 }
 
-static int
-nvkm_uvmm_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
-{
-	struct nvif_vmm_priv *uvmm = container_of(object, typeof(*uvmm), object);
-	switch (mthd) {
-	case NVIF_VMM_V0_MTHD(0x00) ... NVIF_VMM_V0_MTHD(0x7f):
-		if (uvmm->vmm->func->mthd) {
-			return uvmm->vmm->func->mthd(uvmm->vmm,
-						     uvmm->object.client,
-						     mthd, argv, argc);
-		}
-		break;
-	default:
-		break;
-	}
-	return -EINVAL;
-}
-
 static void
 nvkm_uvmm_del(struct nvif_vmm_priv *uvmm)
 {
@@ -410,7 +405,6 @@ nvkm_uvmm_dtor(struct nvkm_object *object)
 static const struct nvkm_object_func
 nvkm_uvmm = {
 	.dtor = nvkm_uvmm_dtor,
-	.mthd = nvkm_uvmm_mthd,
 };
 
 int
@@ -467,6 +461,11 @@ nvkm_uvmm_new(struct nvkm_mmu *mmu, u8 type, u64 addr, u64 size, void *argv, u32
 		uvmm->impl.page[i].host   = !!(page->type & NVKM_VMM_PAGE_HOST);
 		uvmm->impl.page[i].comp   = !!(page->type & NVKM_VMM_PAGE_COMP);
 		uvmm->impl.page_nr++;
+	}
+
+	if (uvmm->vmm->replay) {
+		uvmm->impl.fault.replay = nvkm_uvmm_fault_replay;
+		uvmm->impl.fault.cancel = nvkm_uvmm_fault_cancel;
 	}
 
 	*pimpl = &uvmm->impl;

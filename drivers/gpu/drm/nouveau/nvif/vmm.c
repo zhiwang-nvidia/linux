@@ -24,8 +24,6 @@
 #include <nvif/mem.h>
 #include <nvif/printf.h>
 
-#include <nvif/if000c.h>
-
 int
 nvif_vmm_unmap(struct nvif_vmm *vmm, u64 addr)
 {

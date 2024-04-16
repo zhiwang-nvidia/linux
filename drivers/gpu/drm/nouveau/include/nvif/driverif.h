@@ -144,6 +144,11 @@ struct nvif_vmm_impl {
 		int (*unmap)(struct nvif_vmm_priv *, u8 shift, u64 addr, u64 size, bool sparse);
 		int (*sparse)(struct nvif_vmm_priv *, u64 addr, u64 size, bool ref);
 	} raw;
+
+	struct {
+		void (*replay)(struct nvif_vmm_priv *);
+		void (*cancel)(struct nvif_vmm_priv *, u64 inst, u8 hub, u8 gpc, u8 client);
+	} fault;
 };
 
 struct nvif_mmu_impl {

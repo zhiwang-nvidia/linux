@@ -379,11 +379,10 @@ out_free:
 static void
 nouveau_svm_fault_replay(struct nouveau_svm *svm)
 {
+	struct nvif_vmm *vmm = &svm->drm->cli.vmm.vmm;
+
 	SVM_DBG(svm, "replay");
-	WARN_ON(nvif_object_mthd(&svm->drm->client.vmm.vmm.object,
-				 GP100_VMM_VN_FAULT_REPLAY,
-				 &(struct gp100_vmm_fault_replay_vn) {},
-				 sizeof(struct gp100_vmm_fault_replay_vn)));
+	vmm->impl->fault.replay(vmm->priv);
 }
 
 /* Cancel a replayable fault that could not be handled.
@@ -395,15 +394,10 @@ static void
 nouveau_svm_fault_cancel(struct nouveau_svm *svm,
 			 u64 inst, u8 hub, u8 gpc, u8 client)
 {
+	struct nvif_vmm *vmm = &svm->drm->cli.vmm.vmm;
+
 	SVM_DBG(svm, "cancel %016llx %d %02x %02x", inst, hub, gpc, client);
-	WARN_ON(nvif_object_mthd(&svm->drm->client.vmm.vmm.object,
-				 GP100_VMM_VN_FAULT_CANCEL,
-				 &(struct gp100_vmm_fault_cancel_v0) {
-					.hub = hub,
-					.gpc = gpc,
-					.client = client,
-					.inst = inst,
-				 }, sizeof(struct gp100_vmm_fault_cancel_v0)));
+	vmm->impl->fault.cancel(vmm->priv, inst, hub, gpc, client);
 }
 
 static void

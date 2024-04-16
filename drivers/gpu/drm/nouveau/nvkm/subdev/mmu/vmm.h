@@ -145,8 +145,10 @@ struct nvkm_vmm_func {
 		     struct nvkm_vmm_map *);
 	void (*flush)(struct nvkm_vmm *, int depth);
 
-	int (*mthd)(struct nvkm_vmm *, struct nvkm_client *,
-		    u32 mthd, void *argv, u32 argc);
+	const struct nvkm_vmm_func_fault {
+		void (*replay)(struct nvkm_vmm *);
+		void (*cancel)(struct nvkm_vmm *, u64 inst, u8 hub, u8 gpc, u8 client);
+	} *fault;
 
 	void (*invalidate_pdb)(struct nvkm_vmm *, u64 addr);
 
@@ -249,7 +251,7 @@ int gp100_vmm_new_(const struct nvkm_vmm_func *,
 int gp100_vmm_join(struct nvkm_vmm *, struct nvkm_memory *);
 int gp100_vmm_valid(struct nvkm_vmm *, void *, u32, struct nvkm_vmm_map *);
 void gp100_vmm_flush(struct nvkm_vmm *, int);
-int gp100_vmm_mthd(struct nvkm_vmm *, struct nvkm_client *, u32, void *, u32);
+extern const struct nvkm_vmm_func_fault gp100_vmm_fault;
 void gp100_vmm_invalidate_pdb(struct nvkm_vmm *, u64 addr);
 
 int gv100_vmm_join(struct nvkm_vmm *, struct nvkm_memory *);
