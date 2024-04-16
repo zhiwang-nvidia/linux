@@ -198,6 +198,7 @@ struct nvif_mmu_impl {
 struct nvif_faultbuf_impl {
 	void (*del)(struct nvif_faultbuf_priv *);
 
+	struct nvif_mapinfo map;
 	u32 entries;
 	u32 get;
 	u32 put;

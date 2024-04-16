@@ -51,18 +51,6 @@ nvkm_ufault_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm
 			       NVKM_FAULT_BUFFER_EVENT_PENDING, NULL);
 }
 
-static int
-nvkm_ufault_map(struct nvkm_object *object, void *argv, u32 argc,
-		enum nvkm_object_map *type, u64 *addr, u64 *size)
-{
-	struct nvkm_fault_buffer *buffer = container_of(object, struct nvif_faultbuf_priv, object)->buffer;
-	struct nvkm_device *device = buffer->fault->subdev.device;
-	*type = NVKM_OBJECT_MAP_IO;
-	*addr = device->func->resource_addr(device, 3) + buffer->addr;
-	*size = nvkm_memory_size(buffer->mem);
-	return 0;
-}
-
 static void
 nvkm_ufault_del(struct nvif_faultbuf_priv *ufault)
 {
@@ -108,7 +96,6 @@ nvkm_ufault = {
 	.dtor = nvkm_ufault_dtor,
 	.init = nvkm_ufault_init,
 	.fini = nvkm_ufault_fini,
-	.map = nvkm_ufault_map,
 	.uevent = nvkm_ufault_uevent,
 };
 
@@ -134,6 +121,9 @@ nvkm_ufault_new(struct nvkm_device *device, const struct nvif_faultbuf_impl **pi
 	}
 
 	ufault->impl = nvkm_ufault_impl;
+	ufault->impl.map.type = NVIF_MAP_IO;
+	ufault->impl.map.handle = device->func->resource_addr(device, 3) + ufault->buffer->addr;
+	ufault->impl.map.length = nvkm_memory_size(ufault->buffer->mem);
 	ufault->impl.entries = ufault->buffer->entries;
 	ufault->impl.get = ufault->buffer->get;
 	ufault->impl.put = ufault->buffer->put;

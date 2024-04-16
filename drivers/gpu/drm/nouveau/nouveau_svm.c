@@ -47,6 +47,7 @@ struct nouveau_svm {
 		const struct nvif_faultbuf_impl *impl;
 		struct nvif_faultbuf_priv *priv;
 		struct nvif_object object;
+		struct nvif_map map;
 
 		int id;
 		u32 entries;
@@ -449,15 +450,14 @@ static void
 nouveau_svm_fault_cache(struct nouveau_svm *svm,
 			struct nouveau_svm_fault_buffer *buffer, u32 offset)
 {
-	struct nvif_object *memory = &buffer->object;
-	const u32 instlo = nvif_rd32(memory, offset + 0x00);
-	const u32 insthi = nvif_rd32(memory, offset + 0x04);
-	const u32 addrlo = nvif_rd32(memory, offset + 0x08);
-	const u32 addrhi = nvif_rd32(memory, offset + 0x0c);
-	const u32 timelo = nvif_rd32(memory, offset + 0x10);
-	const u32 timehi = nvif_rd32(memory, offset + 0x14);
-	const u32 engine = nvif_rd32(memory, offset + 0x18);
-	const u32   info = nvif_rd32(memory, offset + 0x1c);
+	const u32 instlo = nvif_rd32(buffer, offset + 0x00);
+	const u32 insthi = nvif_rd32(buffer, offset + 0x04);
+	const u32 addrlo = nvif_rd32(buffer, offset + 0x08);
+	const u32 addrhi = nvif_rd32(buffer, offset + 0x0c);
+	const u32 timelo = nvif_rd32(buffer, offset + 0x10);
+	const u32 timehi = nvif_rd32(buffer, offset + 0x14);
+	const u32 engine = nvif_rd32(buffer, offset + 0x18);
+	const u32   info = nvif_rd32(buffer, offset + 0x1c);
 	const u64   inst = (u64)insthi << 32 | instlo;
 	const u8     gpc = (info & 0x1f000000) >> 24;
 	const u8     hub = (info & 0x00100000) >> 20;
@@ -468,7 +468,7 @@ nouveau_svm_fault_cache(struct nouveau_svm *svm,
 	if (WARN_ON(!(info & 0x80000000)))
 		return;
 
-	nvif_mask(memory, offset + 0x1c, 0x80000000, 0x00000000);
+	nvif_mask(buffer, offset + 0x1c, 0x80000000, 0x00000000);
 
 	if (!buffer->fault[buffer->fault_nr]) {
 		fault = kmalloc(sizeof(*fault), GFP_KERNEL);
@@ -965,6 +965,7 @@ nouveau_svm_fault_buffer_dtor(struct nouveau_svm *svm, int id)
 	nvif_event_dtor(&buffer->notify);
 
 	if (buffer->impl) {
+		nvif_object_unmap_cpu(&buffer->map);
 		buffer->impl->del(buffer->priv);
 		buffer->impl = NULL;
 	}
@@ -991,7 +992,10 @@ nouveau_svm_fault_buffer_ctor(struct nouveau_svm *svm, s32 oclass, int id)
 	buffer->getaddr = buffer->impl->get;
 	buffer->putaddr = buffer->impl->put;
 
-	nvif_object_map(&buffer->object, NULL, 0);
+	ret = nvif_object_map_cpu(&buffer->object, &buffer->impl->map, &buffer->map);
+	if (ret)
+		return ret;
+
 	INIT_WORK(&buffer->work, nouveau_svm_fault);
 
 	ret = nvif_event_ctor(&buffer->object, "svmFault", id, nouveau_svm_event, true, NULL, 0,
