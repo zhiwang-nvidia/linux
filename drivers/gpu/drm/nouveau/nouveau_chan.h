@@ -24,8 +24,8 @@ struct nouveau_channel {
 	u64 inst;
 	u32 token;
 
-	struct nvif_object vram;
-	struct nvif_object gart;
+	struct nvif_ctxdma vram;
+	struct nvif_ctxdma gart;
 	struct nvif_object nvsw;
 
 	struct {

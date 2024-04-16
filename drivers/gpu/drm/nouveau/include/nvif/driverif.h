@@ -455,6 +455,11 @@ struct nvif_chan_impl {
 		int (*nonstall)(struct nvif_chan_priv *, u64 token,
 				const struct nvif_event_impl **, struct nvif_event_priv **);
 	} event;
+
+	struct {
+		int (*new)(struct nvif_chan_priv *, u32 handle, s32 oclass, void *argv, u32 argc,
+			   const struct nvif_ctxdma_impl **, struct nvif_ctxdma_priv **);
+	} ctxdma;
 };
 
 struct nvif_cgrp_impl {

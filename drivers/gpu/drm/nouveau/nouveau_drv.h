@@ -41,6 +41,7 @@
 #include <linux/notifier.h>
 
 #include <nvif/client.h>
+#include <nvif/ctxdma.h>
 #include <nvif/device.h>
 #include <nvif/ioctl.h>
 #include <nvif/mmu.h>
@@ -271,7 +272,7 @@ struct nouveau_drm {
 	struct nouveau_channel *cechan;
 	struct nouveau_channel *channel;
 	struct nvkm_gpuobj *notify;
-	struct nvif_object ntfy;
+	struct nvif_ctxdma ntfy;
 
 	/* nv10-nv40 tiling regions */
 	struct {

@@ -7,7 +7,7 @@
 
 struct nv10_fence_chan {
 	struct nouveau_fence_chan base;
-	struct nvif_object sema;
+	struct nvif_ctxdma sema;
 };
 
 struct nv10_fence_priv {

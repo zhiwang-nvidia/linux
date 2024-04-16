@@ -54,7 +54,7 @@ nv17_fence_sync(struct nouveau_fence *fence,
 
 	ret = PUSH_WAIT(ppush, 5);
 	if (!ret) {
-		PUSH_MTHD(ppush, NV176E, SET_CONTEXT_DMA_SEMAPHORE, fctx->sema.handle,
+		PUSH_MTHD(ppush, NV176E, SET_CONTEXT_DMA_SEMAPHORE, fctx->sema.object.handle,
 					 SEMAPHORE_OFFSET, 0,
 					 SEMAPHORE_ACQUIRE, value + 0,
 					 SEMAPHORE_RELEASE, value + 1);
@@ -62,7 +62,7 @@ nv17_fence_sync(struct nouveau_fence *fence,
 	}
 
 	if (!ret && !(ret = PUSH_WAIT(npush, 5))) {
-		PUSH_MTHD(npush, NV176E, SET_CONTEXT_DMA_SEMAPHORE, fctx->sema.handle,
+		PUSH_MTHD(npush, NV176E, SET_CONTEXT_DMA_SEMAPHORE, fctx->sema.object.handle,
 					 SEMAPHORE_OFFSET, 0,
 					 SEMAPHORE_ACQUIRE, value + 1,
 					 SEMAPHORE_RELEASE, value + 2);
@@ -92,15 +92,14 @@ nv17_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.read = nv10_fence_read;
 	fctx->base.sync = nv17_fence_sync;
 
-	ret = nvif_object_ctor(&chan->chan.object, "fenceCtxDma", NvSema,
-			       NV_DMA_FROM_MEMORY,
-			       (&(struct nv_dma_v0) {
+	ret = nvif_chan_ctxdma_ctor(&chan->chan, "fenceCtxDma", NvSema, NV_DMA_FROM_MEMORY,
+				    &(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
 					.start = start,
 					.limit = limit,
-			       }), sizeof(struct nv_dma_v0),
-			       &fctx->sema);
+				    }, sizeof(struct nv_dma_v0),
+				    &fctx->sema);
 	if (ret)
 		nv10_fence_context_del(chan);
 	return ret;

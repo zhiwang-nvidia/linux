@@ -226,6 +226,56 @@ nvkm_uchan_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *ocl
 	return -EINVAL;
 }
 
+static void
+nvkm_uchan_ctxdma_del(struct nvif_ctxdma_priv *priv)
+{
+	struct nvkm_uobj *uobj = (void *)priv;
+	struct nvkm_object *object = &uobj->oproxy.base;
+
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_ctxdma_impl
+nvkm_uchan_ctxdma_impl = {
+	.del = nvkm_uchan_ctxdma_del,
+};
+
+static int
+nvkm_uchan_ctxdma_new(struct nvif_chan_priv *uchan, u32 handle, s32 oclass, void *argv, u32 argc,
+		      const struct nvif_ctxdma_impl **pimpl, struct nvif_ctxdma_priv **ppriv)
+{
+	struct nvkm_dma *dma = uchan->chan->cgrp->runl->fifo->engine.subdev.device->dma;
+	struct nvkm_oclass _oclass = {};
+	struct nvkm_object *object;
+	int i, ret;
+
+	_oclass.client = uchan->object.client;
+	_oclass.parent = &uchan->object;
+	_oclass.engine = &dma->engine;
+	_oclass.handle = handle;
+
+	i = 0;
+	do {
+		_oclass.base.oclass = 0;
+		dma->engine.func->fifo.sclass(&_oclass, i++);
+		if (_oclass.base.oclass == oclass)
+			break;
+	} while (_oclass.base.oclass);
+
+	if (!_oclass.base.oclass)
+		return -EINVAL;
+
+	ret = nvkm_uchan_object_new(&_oclass, argv, argc, &object);
+	if (ret)
+		return ret;
+
+	*pimpl = &nvkm_uchan_ctxdma_impl;
+	*ppriv = (void *)container_of(object, struct nvkm_uobj, oproxy.base);
+
+	nvkm_object_link(&uchan->object, object);
+	return 0;
+}
+
 static int
 nvkm_uchan_event_nonstall(struct nvif_chan_priv *uchan, u64 token,
 			  const struct nvif_event_impl **pimpl, struct nvif_event_priv **ppriv)
@@ -259,6 +309,7 @@ static const struct nvif_chan_impl
 nvkm_uchan_impl = {
 	.del = nvkm_uchan_del,
 	.event.killed = nvkm_uchan_event_killed,
+	.ctxdma.new = nvkm_uchan_ctxdma_new,
 };
 
 static int

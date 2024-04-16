@@ -138,7 +138,10 @@ static void
 nouveau_abi16_ntfy_fini(struct nouveau_abi16_chan *chan,
 			struct nouveau_abi16_ntfy *ntfy)
 {
-	nvif_object_dtor(&ntfy->object);
+	if (ntfy->ctxdma.impl)
+		nvif_ctxdma_dtor(&ntfy->ctxdma);
+	else
+		nvif_object_dtor(&ntfy->engobj);
 	nvkm_mm_free(&chan->heap, &ntfy->node);
 	list_del(&ntfy->head);
 	kfree(ntfy);
@@ -534,7 +537,7 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	list_add(&ntfy->head, &chan->notifiers);
 
 	ret = nvif_object_ctor(&chan->chan->chan.object, "abi16EngObj", init->handle,
-			       oclass, NULL, 0, &ntfy->object);
+			       oclass, NULL, 0, &ntfy->engobj);
 
 	if (ret)
 		nouveau_abi16_ntfy_fini(chan, ntfy);
@@ -596,9 +599,9 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 		args.limit += chan->ntfy->offset;
 	}
 
-	ret = nvif_object_ctor(&chan->chan->chan.object, "abi16Ntfy", info->handle,
-			       NV_DMA_IN_MEMORY, &args, sizeof(args),
-			       &ntfy->object);
+	ret = nvif_chan_ctxdma_ctor(&chan->chan->chan, "abi16Ntfy", info->handle,
+				    NV_DMA_IN_MEMORY, &args, sizeof(args),
+				    &ntfy->ctxdma);
 	if (ret)
 		goto done;
 
@@ -629,7 +632,7 @@ nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS)
 	nouveau_channel_idle(chan->chan);
 
 	list_for_each_entry(ntfy, &chan->notifiers, head) {
-		if (ntfy->object.handle == fini->handle) {
+		if (ntfy->ctxdma.object.handle == fini->handle) {
 			nouveau_abi16_ntfy_fini(chan, ntfy);
 			ret = 0;
 			break;

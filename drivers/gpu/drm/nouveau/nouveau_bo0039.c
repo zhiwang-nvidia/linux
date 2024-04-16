@@ -40,7 +40,7 @@ nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
 {
 	if (reg->mem_type == TTM_PL_TT)
 		return NvDmaTT;
-	return chan->vram.handle;
+	return chan->vram.object.handle;
 }
 
 int
@@ -104,6 +104,6 @@ nv04_bo_move_init(struct nouveau_channel *chan, u32 handle)
 		return ret;
 
 	PUSH_MTHD(push, NV039, SET_OBJECT, handle);
-	PUSH_MTHD(push, NV039, SET_CONTEXT_DMA_NOTIFIES, chan->cli->drm->ntfy.handle);
+	PUSH_MTHD(push, NV039, SET_CONTEXT_DMA_NOTIFIES, chan->cli->drm->ntfy.object.handle);
 	return 0;
 }

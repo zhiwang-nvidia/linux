@@ -97,8 +97,8 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 
 		nvif_object_dtor(&chan->blit);
 		nvif_object_dtor(&chan->nvsw);
-		nvif_object_dtor(&chan->gart);
-		nvif_object_dtor(&chan->vram);
+		nvif_ctxdma_dtor(&chan->gart);
+		nvif_ctxdma_dtor(&chan->vram);
 		nvif_event_dtor(&chan->kill);
 		nvif_object_unmap_cpu(&chan->userd.map);
 		nvif_chan_dtor(&chan->chan);
@@ -393,9 +393,9 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.limit = device->info.ram_user - 1;
 		}
 
-		ret = nvif_object_ctor(&chan->chan.object, "abi16ChanVramCtxDma", vram,
-				       NV_DMA_IN_MEMORY, &args, sizeof(args),
-				       &chan->vram);
+		ret = nvif_chan_ctxdma_ctor(&chan->chan, "abi16ChanVramCtxDma", vram,
+					    NV_DMA_IN_MEMORY, &args, sizeof(args),
+					    &chan->vram);
 		if (ret)
 			return ret;
 
@@ -417,9 +417,9 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.limit = chan->vmm->vmm.impl->limit - 1;
 		}
 
-		ret = nvif_object_ctor(&chan->chan.object, "abi16ChanGartCtxDma", gart,
-				       NV_DMA_IN_MEMORY, &args, sizeof(args),
-				       &chan->gart);
+		ret = nvif_chan_ctxdma_ctor(&chan->chan, "abi16ChanGartCtxDma", gart,
+					    NV_DMA_IN_MEMORY, &args, sizeof(args),
+					    &chan->gart);
 		if (ret)
 			return ret;
 	}

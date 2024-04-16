@@ -6,6 +6,7 @@
 #include <nvif/event.h>
 #include <nvif/push.h>
 struct nvif_cgrp;
+struct nvif_ctxdma;
 struct nvif_device;
 
 struct nvif_chan {
@@ -28,4 +29,7 @@ int nvif_chan_event_ctor(struct nvif_chan *, const char *name,
 			 int (*ctor)(struct nvif_chan_priv *, u64 token,
 				     const struct nvif_event_impl **, struct nvif_event_priv **),
 			 nvif_event_func, struct nvif_event *);
+
+int nvif_chan_ctxdma_ctor(struct nvif_chan *, const char *name, u32 handle, s32 oclass,
+			  void *argv, u32 argc, struct nvif_ctxdma *);
 #endif

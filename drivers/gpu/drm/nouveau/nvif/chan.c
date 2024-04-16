@@ -21,7 +21,24 @@
  */
 #include <nvif/chan.h>
 #include <nvif/cgrp.h>
+#include <nvif/ctxdma.h>
 #include <nvif/device.h>
+
+int
+nvif_chan_ctxdma_ctor(struct nvif_chan *chan, const char *name, u32 handle, s32 oclass,
+		      void *argv, u32 argc, struct nvif_ctxdma *ctxdma)
+{
+	int ret;
+
+	ret = chan->impl->ctxdma.new(chan->priv, handle, oclass, argv, argc,
+				     &ctxdma->impl, &ctxdma->priv);
+	NVIF_ERRON(ret, &chan->object, "[NEW ctxdma%04x handle:%08x]", oclass, handle);
+	if (ret)
+		return ret;
+
+	nvif_ctxdma_ctor(&chan->object, name ?: "nvifChanCtxDma", handle, oclass, ctxdma);
+	return 0;
+}
 
 int
 nvif_chan_event_ctor(struct nvif_chan *chan, const char *name,

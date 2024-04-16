@@ -285,7 +285,7 @@ static void
 nouveau_accel_gr_fini(struct nouveau_drm *drm)
 {
 	nouveau_channel_idle(drm->channel);
-	nvif_object_dtor(&drm->ntfy);
+	nvif_ctxdma_dtor(&drm->ntfy);
 	nvkm_gpuobj_del(&drm->notify);
 	nouveau_channel_del(&drm->channel);
 }
@@ -360,15 +360,15 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 			return;
 		}
 
-		ret = nvif_object_ctor(&drm->channel->chan.object, "drmM2mfNtfy",
-				       NvNotify0, NV_DMA_IN_MEMORY,
-				       (&(struct nv_dma_v0) {
+		ret = nvif_chan_ctxdma_ctor(&drm->channel->chan, "drmM2mfNtfy",
+					    NvNotify0, NV_DMA_IN_MEMORY,
+					    &(struct nv_dma_v0) {
 						.target = NV_DMA_V0_TARGET_VRAM,
 						.access = NV_DMA_V0_ACCESS_RDWR,
 						.start = drm->notify->addr,
 						.limit = drm->notify->addr + 31
-				       }), sizeof(struct nv_dma_v0),
-				       &drm->ntfy);
+					    }, sizeof(struct nv_dma_v0),
+					    &drm->ntfy);
 		if (ret) {
 			nouveau_accel_gr_fini(drm);
 			return;

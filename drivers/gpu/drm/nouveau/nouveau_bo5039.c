@@ -144,8 +144,8 @@ nv50_bo_move_init(struct nouveau_channel *chan, u32 handle)
 		return ret;
 
 	PUSH_MTHD(push, NV5039, SET_OBJECT, handle);
-	PUSH_MTHD(push, NV5039, SET_CONTEXT_DMA_NOTIFY, chan->cli->drm->ntfy.handle,
-				SET_CONTEXT_DMA_BUFFER_IN, chan->vram.handle,
-				SET_CONTEXT_DMA_BUFFER_OUT, chan->vram.handle);
+	PUSH_MTHD(push, NV5039, SET_CONTEXT_DMA_NOTIFY, chan->cli->drm->ntfy.object.handle,
+				SET_CONTEXT_DMA_BUFFER_IN, chan->vram.object.handle,
+				SET_CONTEXT_DMA_BUFFER_OUT, chan->vram.object.handle);
 	return 0;
 }

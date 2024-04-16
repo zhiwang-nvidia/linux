@@ -60,7 +60,7 @@ nv10_fence_context_del(struct nouveau_channel *chan)
 {
 	struct nv10_fence_chan *fctx = chan->fence;
 	nouveau_fence_context_del(&fctx->base);
-	nvif_object_dtor(&fctx->sema);
+	nvif_ctxdma_dtor(&fctx->sema);
 	chan->fence = NULL;
 	nouveau_fence_context_free(&fctx->base);
 }
