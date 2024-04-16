@@ -158,25 +158,26 @@ nvkm_uoutp_mthd_dp_train(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_dp_rates(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_dp_rates(struct nvif_outp_priv *uoutp, struct nvif_outp_dp_rate *rate, u8 rates)
 {
-	union nvif_outp_dp_rates_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	if (args->v0.rates > ARRAY_SIZE(outp->dp.rate))
+	if (rates > ARRAY_SIZE(outp->dp.rate))
 		return -EINVAL;
 
-	for (int i = 0; i < args->v0.rates; i++) {
-		outp->dp.rate[i].dpcd = args->v0.rate[i].dpcd;
-		outp->dp.rate[i].rate = args->v0.rate[i].rate;
+	nvkm_uoutp_lock(uoutp);
+
+	for (int i = 0; i < rates; i++) {
+		outp->dp.rate[i].dpcd = rate[i].dpcd;
+		outp->dp.rate[i].rate = rate[i].rate;
 	}
 
-	outp->dp.rates = args->v0.rates;
+	outp->dp.rates = rates;
 
 	if (outp->func->dp.rates)
 		outp->func->dp.rates(outp);
 
+	nvkm_uoutp_unlock(uoutp);
 	return 0;
 }
 
@@ -558,38 +559,19 @@ nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc, bool *invalid)
-{
-	switch (mthd) {
-	case NVIF_OUTP_V0_DP_RATES   : return nvkm_uoutp_mthd_dp_rates   (outp, argv, argc);
-	default:
-		break;
-	}
-
-	*invalid = true;
-	return 0;
-}
-
-static int
 nvkm_uoutp_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
 	struct nvkm_outp *outp = container_of(object, struct nvif_outp_priv, object)->outp;
 	struct nvkm_disp *disp = outp->disp;
-	bool invalid = false;
 	int ret;
 
 	mutex_lock(&disp->super.mutex);
-
-	ret = nvkm_uoutp_mthd_noacquire(outp, mthd, argv, argc, &invalid);
-	if (!invalid)
-		goto done;
 
 	if (outp->ior)
 		ret = nvkm_uoutp_mthd_acquired(outp, mthd, argv, argc);
 	else
 		ret = -EIO;
 
-done:
 	mutex_unlock(&disp->super.mutex);
 	return ret;
 }
@@ -702,6 +684,7 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 		uoutp->impl.dp.link_bw = outp->info.dpconf.link_bw * 27000;
 		uoutp->impl.dp.aux_pwr = nvkm_uoutp_dp_aux_pwr;
 		uoutp->impl.dp.aux_xfer = nvkm_uoutp_dp_aux_xfer;
+		uoutp->impl.dp.rates = nvkm_uoutp_dp_rates;
 		break;
 	default:
 		WARN_ON(1);

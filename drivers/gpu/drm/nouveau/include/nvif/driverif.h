@@ -255,6 +255,11 @@ enum nvif_outp_detect_status {
 	NVIF_OUTP_DETECT_UNKNOWN,
 };
 
+struct nvif_outp_dp_rate {
+	int dpcd; /* -1 for non-indexed rates */
+	u32 rate;
+};
+
 struct nvif_outp_impl {
 	void (*del)(struct nvif_outp_priv *);
 
@@ -328,6 +333,7 @@ struct nvif_outp_impl {
 
 		int (*aux_pwr)(struct nvif_outp_priv *, bool enable);
 		int (*aux_xfer)(struct nvif_outp_priv *, u8 type, u32 addr, u8 *data, u8 *size);
+		int (*rates)(struct nvif_outp_priv *, struct nvif_outp_dp_rate *, u8 rates);
 	} dp;
 };
 

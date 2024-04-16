@@ -134,23 +134,12 @@ nvif_outp_dp_train(struct nvif_outp *outp, u8 dpcd[DP_RECEIVER_CAP_SIZE], u8 ltt
 }
 
 int
-nvif_outp_dp_rates(struct nvif_outp *outp, struct nvif_outp_dp_rate *rate, int rate_nr)
+nvif_outp_dp_rates(struct nvif_outp *outp, struct nvif_outp_dp_rate *rate, int rates)
 {
-	struct nvif_outp_dp_rates_v0 args;
 	int ret;
 
-	if (rate_nr > ARRAY_SIZE(args.rate))
-		return -EINVAL;
-
-	args.version = 0;
-	args.rates = rate_nr;
-	for (int i = 0; i < args.rates; i++, rate++) {
-		args.rate[i].dpcd = rate->dpcd;
-		args.rate[i].rate = rate->rate;
-	}
-
-	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_RATES, &args, sizeof(args));
-	NVIF_ERRON(ret, &outp->object, "[DP_RATES rates:%d]", args.rates);
+	ret = outp->impl->dp.rates(outp->priv, rate, rates);
+	NVIF_ERRON(ret, &outp->object, "[DP_RATES rates:%d]", rates);
 	return ret;
 }
 
