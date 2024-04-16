@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_DISP_CHAN_H__
 #define __NVKM_DISP_CHAN_H__
-#define nvkm_disp_chan(p) container_of((p), struct nvkm_disp_chan, object)
 #include <core/object.h>
 #include "priv.h"
 
@@ -16,8 +15,6 @@ struct nvkm_disp_chan {
 	} chid;
 	int head;
 
-	struct nvkm_object object;
-
 	struct nvkm_memory *memory;
 	u64 push;
 
@@ -26,6 +23,10 @@ struct nvkm_disp_chan {
 	struct {
 		struct nvkm_gsp_object object;
 	} rm;
+
+	struct {
+		s32 oclass;
+	} user;
 };
 
 int nvkm_disp_core_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
@@ -33,7 +34,7 @@ int nvkm_disp_chan_new(const struct nvkm_oclass *, void *, u32, struct nvkm_obje
 int nvkm_disp_wndw_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
 
 struct nvkm_disp_chan_func {
-	int (*push)(struct nvkm_disp_chan *, u64 object);
+	int (*push)(struct nvkm_disp_chan *);
 	int (*init)(struct nvkm_disp_chan *);
 	void (*fini)(struct nvkm_disp_chan *);
 	void (*intr)(struct nvkm_disp_chan *, bool en);
@@ -45,7 +46,7 @@ void nv50_disp_chan_intr(struct nvkm_disp_chan *, bool);
 u64 nv50_disp_chan_user(struct nvkm_disp_chan *, u64 *);
 extern const struct nvkm_disp_chan_func nv50_disp_pioc_func;
 extern const struct nvkm_disp_chan_func nv50_disp_dmac_func;
-int nv50_disp_dmac_push(struct nvkm_disp_chan *, u64);
+int nv50_disp_dmac_push(struct nvkm_disp_chan *);
 int nv50_disp_dmac_bind(struct nvkm_disp_chan *, struct nvkm_object *, u32);
 extern const struct nvkm_disp_chan_func nv50_disp_core_func;
 

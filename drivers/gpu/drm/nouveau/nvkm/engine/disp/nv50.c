@@ -37,7 +37,6 @@
 #include <subdev/bios/pll.h>
 #include <subdev/devinit.h>
 #include <subdev/i2c.h>
-#include <subdev/mmu.h>
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
@@ -681,12 +680,8 @@ nv50_disp_dmac_init(struct nvkm_disp_chan *chan)
 }
 
 int
-nv50_disp_dmac_push(struct nvkm_disp_chan *chan, u64 object)
+nv50_disp_dmac_push(struct nvkm_disp_chan *chan)
 {
-	chan->memory = nvkm_umem_search(chan->object.client, object);
-	if (IS_ERR(chan->memory))
-		return PTR_ERR(chan->memory);
-
 	if (nvkm_memory_size(chan->memory) < 0x1000)
 		return -EINVAL;
 

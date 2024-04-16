@@ -23,14 +23,20 @@
 
 #include <core/oproxy.h>
 #include <core/ramht.h>
+#include <subdev/mmu.h>
 
 #include <nvif/if0014.h>
+
+struct nvif_disp_chan_priv {
+	struct nvkm_object object;
+	struct nvkm_disp_chan chan;
+};
 
 static int
 nvkm_disp_chan_ntfy(struct nvkm_object *object, u32 type, struct nvkm_event **pevent)
 {
-	struct nvkm_disp_chan *chan = nvkm_disp_chan(object);
-	struct nvkm_disp *disp = chan->disp;
+	struct nvif_disp_chan_priv *uchan = container_of(object, typeof(*uchan), object);
+	struct nvkm_disp *disp = uchan->chan.disp;
 
 	switch (type) {
 	case 0:
@@ -47,7 +53,8 @@ static int
 nvkm_disp_chan_map(struct nvkm_object *object, void *argv, u32 argc,
 		   enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
-	struct nvkm_disp_chan *chan = nvkm_disp_chan(object);
+	struct nvif_disp_chan_priv *uchan = container_of(object, typeof(*uchan), object);
+	struct nvkm_disp_chan *chan = &uchan->chan;
 	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	const u64 base = device->func->resource_addr(device, 0);
 
@@ -79,7 +86,8 @@ static int
 nvkm_disp_chan_child_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 			 struct nvkm_object **pobject)
 {
-	struct nvkm_disp_chan *chan = nvkm_disp_chan(oclass->parent);
+	struct nvif_disp_chan_priv *uchan = container_of(oclass->parent, typeof(*uchan), object);
+	struct nvkm_disp_chan *chan = &uchan->chan;
 	struct nvkm_disp *disp = chan->disp;
 	struct nvkm_device *device = disp->engine.subdev.device;
 	const struct nvkm_device_oclass *sclass = oclass->priv;
@@ -106,7 +114,8 @@ nvkm_disp_chan_child_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 static int
 nvkm_disp_chan_child_get(struct nvkm_object *object, int index, struct nvkm_oclass *sclass)
 {
-	struct nvkm_disp_chan *chan = nvkm_disp_chan(object);
+	struct nvif_disp_chan_priv *uchan = container_of(object, typeof(*uchan), object);
+	struct nvkm_disp_chan *chan = &uchan->chan;
 	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	const struct nvkm_device_oclass *oclass = NULL;
 
@@ -130,7 +139,8 @@ nvkm_disp_chan_child_get(struct nvkm_object *object, int index, struct nvkm_ocla
 static int
 nvkm_disp_chan_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nvkm_disp_chan *chan = nvkm_disp_chan(object);
+	struct nvif_disp_chan_priv *uchan = container_of(object, typeof(*uchan), object);
+	struct nvkm_disp_chan *chan = &uchan->chan;
 
 	chan->func->fini(chan);
 	chan->func->intr(chan, false);
@@ -140,7 +150,8 @@ nvkm_disp_chan_fini(struct nvkm_object *object, bool suspend)
 static int
 nvkm_disp_chan_init(struct nvkm_object *object)
 {
-	struct nvkm_disp_chan *chan = nvkm_disp_chan(object);
+	struct nvif_disp_chan_priv *uchan = container_of(object, typeof(*uchan), object);
+	struct nvkm_disp_chan *chan = &uchan->chan;
 
 	chan->func->intr(chan, true);
 	return chan->func->init(chan);
@@ -149,16 +160,17 @@ nvkm_disp_chan_init(struct nvkm_object *object)
 static void *
 nvkm_disp_chan_dtor(struct nvkm_object *object)
 {
-	struct nvkm_disp_chan *chan = nvkm_disp_chan(object);
+
+	struct nvif_disp_chan_priv *uchan = container_of(object, typeof(*uchan), object);
+	struct nvkm_disp_chan *chan = &uchan->chan;
 	struct nvkm_disp *disp = chan->disp;
 
 	spin_lock(&disp->user.lock);
-	if (disp->chan[chan->chid.user] == chan)
-		disp->chan[chan->chid.user] = NULL;
+	disp->chan[chan->chid.user] = NULL;
 	spin_unlock(&disp->user.lock);
 
 	nvkm_memory_unref(&chan->memory);
-	return chan;
+	return uchan;
 }
 
 static const struct nvkm_object_func
@@ -176,6 +188,7 @@ nvkm_disp_chan_new_(struct nvkm_disp *disp, int nr, const struct nvkm_oclass *oc
 		    void *argv, u32 argc, struct nvkm_object **pobject)
 {
 	const struct nvkm_disp_chan_user *user = NULL;
+	struct nvif_disp_chan_priv *uchan;
 	struct nvkm_disp_chan *chan;
 	union nvif_disp_chan_args *args = argv;
 	int ret, i;
@@ -195,11 +208,12 @@ nvkm_disp_chan_new_(struct nvkm_disp *disp, int nr, const struct nvkm_oclass *oc
 	if (args->v0.id >= nr || !args->v0.pushbuf != !user->func->push)
 		return -EINVAL;
 
-	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+	uchan = kzalloc(sizeof(*uchan), GFP_KERNEL);
+	if (!uchan)
 		return -ENOMEM;
-	*pobject = &chan->object;
+	chan = &uchan->chan;
 
-	nvkm_object_ctor(&nvkm_disp_chan, oclass, &chan->object);
+	nvkm_object_ctor(&nvkm_disp_chan, oclass, &uchan->object);
 	chan->func = user->func;
 	chan->mthd = user->mthd;
 	chan->disp = disp;
@@ -207,19 +221,28 @@ nvkm_disp_chan_new_(struct nvkm_disp *disp, int nr, const struct nvkm_oclass *oc
 	chan->chid.user = user->user + args->v0.id;
 	chan->head = args->v0.id;
 
+	spin_lock(&disp->user.lock);
+	if (disp->chan[chan->chid.user]) {
+		spin_unlock(&disp->user.lock);
+		kfree(uchan);
+		return -EBUSY;
+	}
+	disp->chan[chan->chid.user] = chan;
+	chan->user.oclass = oclass->base.oclass;
+	spin_unlock(&disp->user.lock);
+
+	*pobject = &uchan->object;
+
 	if (chan->func->push) {
-		ret = chan->func->push(chan, args->v0.pushbuf);
+		chan->memory = nvkm_umem_search(uchan->object.client, args->v0.pushbuf);
+		if (IS_ERR(chan->memory))
+			return PTR_ERR(chan->memory);
+
+		ret = chan->func->push(chan);
 		if (ret)
 			return ret;
 	}
 
-	spin_lock(&disp->user.lock);
-	if (disp->chan[chan->chid.user]) {
-		spin_unlock(&disp->user.lock);
-		return -EBUSY;
-	}
-	disp->chan[chan->chid.user] = chan;
-	spin_unlock(&disp->user.lock);
 	return 0;
 }
 

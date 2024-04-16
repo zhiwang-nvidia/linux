@@ -53,7 +53,7 @@
 static u64
 r535_chan_user(struct nvkm_disp_chan *chan, u64 *psize)
 {
-	switch (chan->object.oclass & 0xff) {
+	switch (chan->user.oclass & 0xff) {
 	case 0x7d: *psize = 0x10000; return 0x680000;
 	case 0x7e: *psize = 0x01000; return 0x690000 + (chan->head * *psize);
 	case 0x7b: *psize = 0x01000; return 0x6b0000 + (chan->head * *psize);
@@ -111,9 +111,9 @@ r535_chan_push(struct nvkm_disp_chan *chan)
 		ctrl->limit = nvkm_memory_size(chan->memory) - 1;
 	}
 
-	ctrl->hclass = chan->object.oclass;
+	ctrl->hclass = chan->user.oclass;
 	ctrl->channelInstance = chan->head;
-	ctrl->valid = ((chan->object.oclass & 0xff) != 0x7a) ? 1 : 0;
+	ctrl->valid = ((chan->user.oclass & 0xff) != 0x7a) ? 1 : 0;
 
 	return nvkm_gsp_rm_ctrl_wr(&gsp->internal.device.subdevice, ctrl);
 }
@@ -129,8 +129,8 @@ r535_curs_init(struct nvkm_disp_chan *chan)
 		return ret;
 
 	args = nvkm_gsp_rm_alloc_get(&chan->disp->rm.object,
-				     (chan->object.oclass << 16) | chan->head,
-				     chan->object.oclass, sizeof(*args), &chan->rm.object);
+				     (chan->user.oclass << 16) | chan->head,
+				     chan->user.oclass, sizeof(*args), &chan->rm.object);
 	if (IS_ERR(args))
 		return PTR_ERR(args);
 
@@ -182,8 +182,8 @@ r535_dmac_init(struct nvkm_disp_chan *chan)
 		return ret;
 
 	args = nvkm_gsp_rm_alloc_get(&chan->disp->rm.object,
-				     (chan->object.oclass << 16) | chan->head,
-				     chan->object.oclass, sizeof(*args), &chan->rm.object);
+				     (chan->user.oclass << 16) | chan->head,
+				     chan->user.oclass, sizeof(*args), &chan->rm.object);
 	if (IS_ERR(args))
 		return PTR_ERR(args);
 
@@ -194,12 +194,8 @@ r535_dmac_init(struct nvkm_disp_chan *chan)
 }
 
 static int
-r535_dmac_push(struct nvkm_disp_chan *chan, u64 memory)
+r535_dmac_push(struct nvkm_disp_chan *chan)
 {
-	chan->memory = nvkm_umem_search(chan->object.client, memory);
-	if (IS_ERR(chan->memory))
-		return PTR_ERR(chan->memory);
-
 	return 0;
 }
 
