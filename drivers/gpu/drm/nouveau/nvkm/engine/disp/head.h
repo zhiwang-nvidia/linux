@@ -28,7 +28,7 @@ struct nvkm_head {
 		} or;
 	} arm, asy;
 
-	struct nvkm_object object;
+	bool user; /* protected by disp->user.lock */
 };
 
 int nvkm_head_new_(const struct nvkm_head_func *, struct nvkm_disp *, int id);

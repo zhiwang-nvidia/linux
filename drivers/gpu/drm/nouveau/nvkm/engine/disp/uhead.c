@@ -19,18 +19,22 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#define nvkm_uhead(p) container_of((p), struct nvkm_head, object)
-#include "head.h"
+#include "uhead.h"
 #include <core/event.h>
 
 #include <nvif/if0013.h>
 
 #include <nvif/event.h>
 
+struct nvif_head_priv {
+	struct nvkm_object object;
+	struct nvkm_head *head;
+};
+
 static int
 nvkm_uhead_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
 {
-	struct nvkm_head *head = nvkm_uhead(object);
+	struct nvkm_head *head = container_of(object, struct nvif_head_priv, object)->head;
 	union nvif_head_event_args *args = argv;
 
 	if (!uevent)
@@ -74,7 +78,7 @@ nvkm_uhead_mthd_scanoutpos(struct nvkm_head *head, void *argv, u32 argc)
 static int
 nvkm_uhead_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
-	struct nvkm_head *head = nvkm_uhead(object);
+	struct nvkm_head *head = container_of(object, struct nvif_head_priv, object)->head;
 
 	switch (mthd) {
 	case NVIF_HEAD_V0_SCANOUTPOS: return nvkm_uhead_mthd_scanoutpos(head, argv, argc);
@@ -86,13 +90,13 @@ nvkm_uhead_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 static void *
 nvkm_uhead_dtor(struct nvkm_object *object)
 {
-	struct nvkm_head *head = nvkm_uhead(object);
-	struct nvkm_disp *disp = head->disp;
+	struct nvif_head_priv *uhead = container_of(object, struct nvif_head_priv, object);
+	struct nvkm_disp *disp = uhead->head->disp;
 
 	spin_lock(&disp->user.lock);
-	head->object.func = NULL;
+	uhead->head->user = false;
 	spin_unlock(&disp->user.lock);
-	return NULL;
+	return uhead;
 }
 
 static const struct nvkm_object_func
@@ -109,20 +113,28 @@ nvkm_uhead_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	struct nvkm_disp *disp = container_of(oclass->parent, struct nvif_disp_priv, object)->disp;
 	struct nvkm_head *head;
 	union nvif_head_args *args = argv;
-	int ret;
+	struct nvif_head_priv *uhead;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
 		return -ENOSYS;
 	if (!(head = nvkm_head_find(disp, args->v0.id)))
 		return -EINVAL;
 
-	ret = -EBUSY;
+	uhead = kzalloc(sizeof(*uhead), GFP_KERNEL);
+	if (!uhead)
+		return -ENOMEM;
+
 	spin_lock(&disp->user.lock);
-	if (!head->object.func) {
-		nvkm_object_ctor(&nvkm_uhead, oclass, &head->object);
-		*pobject = &head->object;
-		ret = 0;
+	if (head->user) {
+		spin_unlock(&disp->user.lock);
+		kfree(uhead);
+		return -EBUSY;
 	}
+	head->user = true;
 	spin_unlock(&disp->user.lock);
-	return ret;
+
+	nvkm_object_ctor(&nvkm_uhead, oclass, &uhead->object);
+	uhead->head = head;
+	*pobject = &uhead->object;
+	return 0;
 }
