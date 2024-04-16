@@ -448,6 +448,13 @@ struct nvif_chan_impl {
 	} inst;
 
 	struct nvif_mapinfo map;
+
+	struct {
+		int (*killed)(struct nvif_chan_priv *, u64 token,
+			      const struct nvif_event_impl **, struct nvif_event_priv **);
+		int (*nonstall)(struct nvif_chan_priv *, u64 token,
+				const struct nvif_event_impl **, struct nvif_event_priv **);
+	} event;
 };
 
 struct nvif_cgrp_impl {

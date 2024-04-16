@@ -31,8 +31,6 @@
 #include <subdev/mmu.h>
 #include <engine/dma.h>
 
-#include <nvif/if0020.h>
-
 const struct nvkm_event_func
 nvkm_chan_event = {
 };

@@ -32,40 +32,12 @@
 #include <subdev/mmu/umem.h>
 #include <engine/dma.h>
 
-#include <nvif/if0020.h>
-
 struct nvif_chan_priv {
 	struct nvkm_object object;
 	struct nvkm_chan *chan;
 
 	struct nvif_chan_impl impl;
 };
-
-static int
-nvkm_uchan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
-{
-	struct nvkm_chan *chan = container_of(object, struct nvif_chan_priv, object)->chan;
-	struct nvkm_runl *runl = chan->cgrp->runl;
-	union nvif_chan_event_args *args = argv;
-
-	if (!uevent)
-		return 0;
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-
-	switch (args->v0.type) {
-	case NVIF_CHAN_EVENT_V0_NON_STALL_INTR:
-		return nvkm_uevent_add(uevent, &runl->fifo->nonstall.event, runl->id,
-				       NVKM_FIFO_NONSTALL_EVENT, NULL);
-	case NVIF_CHAN_EVENT_V0_KILLED:
-		return nvkm_uevent_add(uevent, &runl->chid->event, chan->id,
-				       NVKM_CHAN_EVENT_ERRORED, NULL);
-	default:
-		break;
-	}
-
-	return -ENOSYS;
-}
 
 struct nvkm_uobj {
 	struct nvkm_oproxy oproxy;
@@ -254,6 +226,26 @@ nvkm_uchan_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *ocl
 	return -EINVAL;
 }
 
+static int
+nvkm_uchan_event_nonstall(struct nvif_chan_priv *uchan, u64 token,
+			  const struct nvif_event_impl **pimpl, struct nvif_event_priv **ppriv)
+{
+	struct nvkm_runl *runl = uchan->chan->cgrp->runl;
+
+	return nvkm_uevent_new_(&uchan->object, token, &runl->fifo->nonstall.event, false,
+				runl->id, NVKM_FIFO_NONSTALL_EVENT, NULL, pimpl, ppriv);
+}
+
+static int
+nvkm_uchan_event_killed(struct nvif_chan_priv *uchan, u64 token,
+			const struct nvif_event_impl **pimpl, struct nvif_event_priv **ppriv)
+{
+	struct nvkm_runl *runl = uchan->chan->cgrp->runl;
+
+	return nvkm_uevent_new_(&uchan->object, token, &runl->chid->event, false,
+				uchan->chan->id, NVKM_CHAN_EVENT_ERRORED, NULL, pimpl, ppriv);
+}
+
 static void
 nvkm_uchan_del(struct nvif_chan_priv *uchan)
 {
@@ -266,6 +258,7 @@ nvkm_uchan_del(struct nvif_chan_priv *uchan)
 static const struct nvif_chan_impl
 nvkm_uchan_impl = {
 	.del = nvkm_uchan_del,
+	.event.killed = nvkm_uchan_event_killed,
 };
 
 static int
@@ -313,7 +306,6 @@ nvkm_uchan = {
 	.init = nvkm_uchan_init,
 	.fini = nvkm_uchan_fini,
 	.sclass = nvkm_uchan_sclass,
-	.uevent = nvkm_uchan_uevent,
 };
 
 struct nvkm_chan *
@@ -403,6 +395,9 @@ nvkm_uchan_new(struct nvkm_device *device, struct nvkm_cgrp *cgrp, u8 runi, u8 r
 			chan->func->userd->base + chan->userd.base;
 		uchan->impl.map.length = chan->func->userd->size;
 	}
+
+	if (fifo->func->nonstall)
+		uchan->impl.event.nonstall = nvkm_uchan_event_nonstall;
 
 	*pimpl = &uchan->impl;
 	*ppriv = uchan;

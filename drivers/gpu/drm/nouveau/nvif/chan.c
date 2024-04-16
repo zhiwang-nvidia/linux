@@ -23,6 +23,23 @@
 #include <nvif/cgrp.h>
 #include <nvif/device.h>
 
+int
+nvif_chan_event_ctor(struct nvif_chan *chan, const char *name,
+		     int (*ctor)(struct nvif_chan_priv *, u64,
+				 const struct nvif_event_impl **, struct nvif_event_priv **),
+		     nvif_event_func func, struct nvif_event *event)
+{
+	int ret;
+
+	ret = ctor(chan->priv, nvif_handle(&event->object), &event->impl, &event->priv);
+	NVIF_ERRON(ret, &chan->object, "[NEW EVENT]");
+	if (ret)
+		return ret;
+
+	nvif_event_ctor(&chan->object, name ?: "nvifChanEvent", 0, func, event);
+	return 0;
+}
+
 void
 nvif_chan_dtor(struct nvif_chan *chan)
 {

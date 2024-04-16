@@ -25,7 +25,6 @@
 
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
-#include <nvif/if0020.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
@@ -368,17 +367,9 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	}
 
 	if (chan->chan.object.oclass >= FERMI_CHANNEL_GPFIFO) {
-		struct {
-			struct nvif_event_v0 base;
-			struct nvif_chan_event_v0 host;
-		} args;
-
-		args.host.version = 0;
-		args.host.type = NVIF_CHAN_EVENT_V0_KILLED;
-
-		ret = nvif_event_ctor(&chan->chan.object, "abi16ChanKilled", chan->chid,
-				      nouveau_channel_killed, false,
-				      &args.base, sizeof(args), &chan->kill);
+		ret = nvif_chan_event_ctor(&chan->chan, "abi16ChanKilled",
+					   chan->chan.impl->event.killed,
+					   nouveau_channel_killed, &chan->kill);
 		if (ret == 0)
 			ret = nvif_event_allow(&chan->kill);
 		if (ret) {

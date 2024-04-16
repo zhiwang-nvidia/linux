@@ -29,8 +29,6 @@
 #include <linux/sched/signal.h>
 #include <trace/events/dma_fence.h>
 
-#include <nvif/if0020.h>
-
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
@@ -184,10 +182,6 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 	struct nouveau_cli *cli = chan->cli;
 	struct nouveau_drm *drm = cli->drm;
 	struct nouveau_fence_priv *priv = (void*)drm->fence;
-	struct {
-		struct nvif_event_v0 base;
-		struct nvif_chan_event_v0 host;
-	} args;
 	int ret;
 
 	INIT_WORK(&fctx->uevent_work, nouveau_fence_uevent_work);
@@ -207,14 +201,9 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 	if (!priv->uevent)
 		return;
 
-	args.host.version = 0;
-	args.host.type = NVIF_CHAN_EVENT_V0_NON_STALL_INTR;
-
-	ret = nvif_event_ctor(&chan->chan.object, "fenceNonStallIntr",
-			      (chan->runlist << 16) | chan->chid,
-			      nouveau_fence_wait_uevent_handler, false,
-			      &args.base, sizeof(args), &fctx->event);
-
+	ret = nvif_chan_event_ctor(&chan->chan, "fenceNonStallIntr",
+				   chan->chan.impl->event.nonstall,
+				   nouveau_fence_wait_uevent_handler, &fctx->event);
 	WARN_ON(ret);
 }
 
