@@ -44,6 +44,8 @@ struct nvif_mem_priv {
 		struct nvkm_vma *bar;
 		void *map;
 	};
+
+	struct nvif_mem_impl impl;
 };
 
 static const struct nvkm_object_func nvkm_umem;
@@ -136,6 +138,19 @@ nvkm_umem_map(struct nvkm_object *object, void *argv, u32 argc,
 	return 0;
 }
 
+static void
+nvkm_umem_del(struct nvif_mem_priv *umem)
+{
+	struct nvkm_object *object = &umem->object;
+
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_mem_impl
+nvkm_umem_impl = {
+	.del = nvkm_umem_del,
+};
+
 static void *
 nvkm_umem_dtor(struct nvkm_object *object)
 {
@@ -156,35 +171,22 @@ nvkm_umem = {
 };
 
 int
-nvkm_umem_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+nvkm_umem_new(struct nvkm_mmu *mmu, u8 type, u8 page, u64 size, void *argv, u32 argc,
+	      const struct nvif_mem_impl **pimpl, struct nvif_mem_priv **ppriv,
 	      struct nvkm_object **pobject)
 {
-	struct nvkm_mmu *mmu = container_of(oclass->parent, struct nvif_mmu_priv, object)->mmu;
-	union {
-		struct nvif_mem_v0 v0;
-	} *args = argv;
 	struct nvif_mem_priv *umem;
-	int type, ret = -ENOSYS;
-	u8  page;
-	u64 size;
-
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, true))) {
-		type = args->v0.type;
-		page = args->v0.page;
-		size = args->v0.size;
-	} else
-		return ret;
+	int ret;
 
 	if (type >= mmu->type_nr)
 		return -EINVAL;
 
 	if (!(umem = kzalloc(sizeof(*umem), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_object_ctor(&nvkm_umem, oclass, &umem->object);
+	nvkm_object_ctor(&nvkm_umem, &(struct nvkm_oclass) {}, &umem->object);
 	umem->mmu = mmu;
 	umem->type = mmu->type[type].type;
 	INIT_LIST_HEAD(&umem->head);
-	*pobject = &umem->object;
 
 	if (mmu->type[type].type & NVKM_MEM_MAPPABLE) {
 		page = max_t(u8, page, PAGE_SHIFT);
@@ -200,8 +202,13 @@ nvkm_umem_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	list_add(&umem->head, &mmu->umem);
 	spin_unlock(&mmu->umem_lock);
 
-	args->v0.page = nvkm_memory_page(umem->memory);
-	args->v0.addr = nvkm_memory_addr(umem->memory);
-	args->v0.size = nvkm_memory_size(umem->memory);
+	umem->impl = nvkm_umem_impl;
+	umem->impl.page = nvkm_memory_page(umem->memory);
+	umem->impl.addr = nvkm_memory_addr(umem->memory);
+	umem->impl.size = nvkm_memory_size(umem->memory);
+
+	*pimpl = &umem->impl;
+	*ppriv = umem;
+	*pobject = &umem->object;
 	return 0;
 }

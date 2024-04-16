@@ -3,11 +3,11 @@
 #include "mmu.h"
 
 struct nvif_mem {
+	const struct nvif_mem_impl *impl;
+	struct nvif_mem_priv *priv;
 	struct nvif_object object;
-	u8  type;
-	u8  page;
-	u64 addr;
-	u64 size;
+
+	u8 type;
 };
 
 int nvif_mem_ctor_type(struct nvif_mmu *mmu, const char *name,

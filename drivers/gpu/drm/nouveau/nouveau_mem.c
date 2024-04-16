@@ -72,7 +72,7 @@ nouveau_mem_map(struct nouveau_mem *mem,
 		return -ENOSYS;
 	}
 
-	return nvif_vmm_map(vmm, vma->addr, mem->mem.size, &args, argc, &mem->mem, 0);
+	return nvif_vmm_map(vmm, vma->addr, mem->mem.impl->size, &args, argc, &mem->mem, 0);
 }
 
 void
@@ -156,7 +156,9 @@ nouveau_mem_vram(struct ttm_resource *reg, bool contig, u8 page)
 	}
 	mutex_unlock(&drm->client_mutex);
 
-	reg->start = mem->mem.addr >> PAGE_SHIFT;
+	if (ret == 0)
+		reg->start = mem->mem.impl->addr >> PAGE_SHIFT;
+
 	return ret;
 }
 

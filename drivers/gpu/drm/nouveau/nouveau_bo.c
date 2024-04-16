@@ -835,13 +835,13 @@ nouveau_bo_move_prep(struct nouveau_drm *drm, struct ttm_buffer_object *bo,
 	struct nvif_vmm *vmm = &drm->client.vmm.vmm;
 	int ret;
 
-	ret = nvif_vmm_get(vmm, LAZY, false, old_mem->mem.page, 0,
-			   old_mem->mem.size, &old_mem->vma[0]);
+	ret = nvif_vmm_get(vmm, LAZY, false, old_mem->mem.impl->page, 0,
+			   old_mem->mem.impl->size, &old_mem->vma[0]);
 	if (ret)
 		return ret;
 
-	ret = nvif_vmm_get(vmm, LAZY, false, new_mem->mem.page, 0,
-			   new_mem->mem.size, &old_mem->vma[1]);
+	ret = nvif_vmm_get(vmm, LAZY, false, new_mem->mem.impl->page, 0,
+			   new_mem->mem.impl->size, &old_mem->vma[1]);
 	if (ret)
 		goto done;
 
@@ -1001,7 +1001,7 @@ static void nouveau_bo_move_ntfy(struct ttm_buffer_object *bo,
 	nouveau_bo_del_io_reserve_lru(bo);
 
 	if (mem && new_reg->mem_type != TTM_PL_SYSTEM &&
-	    mem->mem.page == nvbo->page) {
+	    mem->mem.impl->page == nvbo->page) {
 		list_for_each_entry(vma, &nvbo->vma_list, head) {
 			nouveau_vma_map(vma, mem);
 		}

@@ -34,7 +34,7 @@ nv50_lut_load(struct nv50_lut *lut, int buffer, struct drm_property_blob *blob,
 {
 	struct drm_color_lut *in = blob ? blob->data : NULL;
 	void __iomem *mem = lut->mem[buffer].object.map.ptr;
-	const u32 addr = lut->mem[buffer].addr;
+	const u32 addr = lut->mem[buffer].impl->addr;
 	int i;
 
 	if (!in) {

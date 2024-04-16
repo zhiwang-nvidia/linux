@@ -21,6 +21,8 @@
  */
 #include <nvif/mem.h>
 #include <nvif/client.h>
+#include <nvif/driverif.h>
+#include <nvif/printf.h>
 
 #include <nvif/if000a.h>
 
@@ -41,7 +43,11 @@ nvif_mem_ctor_map(struct nvif_mmu *mmu, const char *name, u8 type, u64 size,
 void
 nvif_mem_dtor(struct nvif_mem *mem)
 {
-	nvif_object_dtor(&mem->object);
+	if (!mem->impl)
+		return;
+
+	mem->impl->del(mem->priv);
+	mem->impl = NULL;
 }
 
 int
@@ -49,38 +55,21 @@ nvif_mem_ctor_type(struct nvif_mmu *mmu, const char *name,
 		   int type, u8 page, u64 size, void *argv, u32 argc,
 		   struct nvif_mem *mem)
 {
-	struct nvif_mem_v0 *args;
-	u8 stack[128];
+	const u32 oclass = mmu->impl->mem.oclass;
 	int ret;
 
-	mem->object.client = NULL;
 	if (type < 0)
 		return -EINVAL;
 
-	if (sizeof(*args) + argc > sizeof(stack)) {
-		if (!(args = kmalloc(sizeof(*args) + argc, GFP_KERNEL)))
-			return -ENOMEM;
-	} else {
-		args = (void *)stack;
-	}
-	args->version = 0;
-	args->type = type;
-	args->page = page;
-	args->size = size;
-	memcpy(args->data, argv, argc);
+	ret = mmu->impl->mem.new(mmu->priv, type, page, size, argv, argc, &mem->impl, &mem->priv,
+				 nvif_handle(&mem->object));
+	NVIF_DEBUG(&mmu->object, "[NEW mem%08x] (ret:%d)", oclass, ret);
+	if (ret)
+		return ret;
 
-	ret = nvif_object_ctor(&mmu->object, name ? name : "nvifMem", 0, mmu->impl->mem.oclass,
-			       args, sizeof(*args) + argc, &mem->object);
-	if (ret == 0) {
-		mem->type = mmu->impl->type[type].type;
-		mem->page = args->page;
-		mem->addr = args->addr;
-		mem->size = args->size;
-	}
-
-	if (args != (void *)stack)
-		kfree(args);
-	return ret;
+	nvif_object_ctor(&mmu->object, name ?: "nvifMem", 0, mmu->impl->mem.oclass, &mem->object);
+	mem->type = mmu->impl->type[type].type;
+	return 0;
 
 }
 

@@ -6,6 +6,7 @@ struct nvif_device_priv;
 struct nvif_control_priv;
 struct nvif_usermode_priv;
 struct nvif_mmu_priv;
+struct nvif_mem_priv;
 
 struct nvif_driver {
 	const char *name;
@@ -76,6 +77,14 @@ struct nvif_usermode_impl {
 	struct nvif_mapinfo map;
 };
 
+struct nvif_mem_impl {
+	void (*del)(struct nvif_mem_priv *);
+
+	u8 page;
+	u64 addr;
+	u64 size;
+};
+
 struct nvif_mmu_impl {
 	void (*del)(struct nvif_mmu_priv *);
 
@@ -107,6 +116,8 @@ struct nvif_mmu_impl {
 
 	struct {
 		s32 oclass;
+		int (*new)(struct nvif_mmu_priv *, u8 type, u8 page, u64 size, void *argv, u32 argc,
+			   const struct nvif_mem_impl **, struct nvif_mem_priv **, u64 handle);
 	} mem;
 
 	struct {

@@ -31,14 +31,6 @@ nvkm_ummu_sclass(struct nvkm_object *object, int index,
 {
 	struct nvkm_mmu *mmu = container_of(object, struct nvif_mmu_priv, object)->mmu;
 
-	if (mmu->func->mem.user.oclass) {
-		if (index-- == 0) {
-			oclass->base = mmu->func->mem.user;
-			oclass->ctor = nvkm_umem_new;
-			return 0;
-		}
-	}
-
 	if (mmu->func->vmm.user.oclass) {
 		if (index-- == 0) {
 			oclass->base = mmu->func->vmm.user;
@@ -48,6 +40,20 @@ nvkm_ummu_sclass(struct nvkm_object *object, int index,
 	}
 
 	return -EINVAL;
+}
+
+static int
+nvkm_ummu_mem_new(struct nvif_mmu_priv *ummu, u8 type, u8 page, u64 size, void *argv, u32 argc,
+		  const struct nvif_mem_impl **pimpl, struct nvif_mem_priv **ppriv, u64 handle)
+{
+	struct nvkm_object *object;
+	int ret;
+
+	ret = nvkm_umem_new(ummu->mmu, type, page, size, argv, argc, pimpl, ppriv, &object);
+	if (ret)
+		return ret;
+
+	return nvkm_object_link_rb(ummu->object.client, &ummu->object, handle, object);
 }
 
 static void
@@ -110,6 +116,7 @@ nvkm_ummu_new(struct nvkm_device *device, const struct nvif_mmu_impl **pimpl,
 	}
 
 	ummu->impl.mem.oclass = mmu->func->mem.user.oclass;
+	ummu->impl.mem.new = nvkm_ummu_mem_new;
 
 	ummu->impl.vmm.oclass = mmu->func->vmm.user.oclass;
 

@@ -515,9 +515,9 @@ nv50_crc_ctx_init(struct nv50_head *head, struct nvif_mmu *mmu,
 			       (&(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
-					.start = ctx->mem.addr,
-					.limit =  ctx->mem.addr
-						+ ctx->mem.size - 1,
+					.start = ctx->mem.impl->addr,
+					.limit =  ctx->mem.impl->addr
+						+ ctx->mem.impl->size - 1,
 			       }), sizeof(struct nv_dma_v0),
 			       &ctx->ntfy);
 	if (ret)
