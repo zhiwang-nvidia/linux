@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include <nvif/driver.h>
+#include <nvif/driverif.h>
 #include <nvif/client.h>
 
 int

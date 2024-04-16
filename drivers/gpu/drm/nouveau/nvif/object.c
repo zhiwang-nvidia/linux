@@ -24,7 +24,7 @@
 
 #include <nvif/object.h>
 #include <nvif/client.h>
-#include <nvif/driver.h>
+#include <nvif/driverif.h>
 #include <nvif/ioctl.h>
 
 int

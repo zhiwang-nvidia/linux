@@ -30,7 +30,7 @@
 #include <core/event.h>
 #include <core/ioctl.h>
 
-#include <nvif/driver.h>
+#include <nvif/driverif.h>
 #include <nvif/event.h>
 
 static void
