@@ -1311,7 +1311,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 			return ERR_PTR(ret);
 		}
 
-		switch (nv_connector->conn.info.type) {
+		switch (nv_connector->conn.impl->type) {
 		case NVIF_CONN_VGA      : type = DCB_CONNECTOR_VGA; break;
 		case NVIF_CONN_DVI_I    : type = DCB_CONNECTOR_DVI_I; break;
 		case NVIF_CONN_DVI_D    : type = DCB_CONNECTOR_DVI_D; break;

@@ -22,7 +22,7 @@
 #include "udisp.h"
 #include "ucaps.h"
 #include "chan.h"
-#include "conn.h"
+#include "uconn.h"
 #include "head.h"
 #include "outp.h"
 
@@ -32,12 +32,6 @@ static int
 nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *sclass)
 {
 	struct nvkm_disp *disp = container_of(object, struct nvif_disp_priv, object)->disp;
-
-	if (index-- == 0) {
-		sclass->base = (struct nvkm_sclass) { 0, 0, NVIF_CLASS_CONN };
-		sclass->ctor = nvkm_uconn_new;
-		return 0;
-	}
 
 	if (index-- == 0) {
 		sclass->base = (struct nvkm_sclass) { 0, 0, NVIF_CLASS_OUTP };
@@ -97,6 +91,21 @@ nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *scl
 }
 
 static int
+nvkm_udisp_conn_new(struct nvif_disp_priv *udisp, u8 id,
+		    const struct nvif_conn_impl **pimpl, struct nvif_conn_priv **ppriv,
+		    u64 handle)
+{
+	struct nvkm_object *object;
+	int ret;
+
+	ret = nvkm_uconn_new(udisp->disp, id, pimpl, ppriv, &object);
+	if (ret)
+		return ret;
+
+	return nvkm_object_link_rb(udisp->object.client, &udisp->object, handle, object);
+}
+
+static int
 nvkm_udisp_caps_new(struct nvif_disp_priv *udisp,
 		    const struct nvif_disp_caps_impl **pimpl, struct nvif_disp_caps_priv **ppriv)
 {
@@ -123,6 +132,7 @@ nvkm_udisp_del(struct nvif_disp_priv *udisp)
 static const struct nvif_disp_impl
 nvkm_udisp_impl = {
 	.del = nvkm_udisp_del,
+	.conn.new = nvkm_udisp_conn_new,
 };
 
 static void *

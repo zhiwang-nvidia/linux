@@ -2,26 +2,16 @@
 #ifndef __NVIF_CONN_H__
 #define __NVIF_CONN_H__
 #include <nvif/object.h>
+#include <nvif/driverif.h>
 #include <nvif/event.h>
 struct nvif_disp;
 
 struct nvif_conn {
+	const struct nvif_conn_impl *impl;
+	struct nvif_conn_priv *priv;
 	struct nvif_object object;
-	u32 id;
 
-	struct {
-		enum {
-			NVIF_CONN_VGA,
-			NVIF_CONN_TV,
-			NVIF_CONN_DVI_I,
-			NVIF_CONN_DVI_D,
-			NVIF_CONN_LVDS,
-			NVIF_CONN_LVDS_SPWG,
-			NVIF_CONN_HDMI,
-			NVIF_CONN_DP,
-			NVIF_CONN_EDP,
-		} type;
-	} info;
+	u32 id;
 };
 
 int nvif_conn_ctor(struct nvif_disp *, const char *name, int id, struct nvif_conn *);

@@ -12,6 +12,7 @@ struct nvif_vmm_priv;
 struct nvif_faultbuf_priv;
 struct nvif_disp_priv;
 struct nvif_disp_caps_priv;
+struct nvif_conn_priv;
 
 struct nvif_event_impl {
 	void (*del)(struct nvif_event_priv *);
@@ -223,6 +224,22 @@ struct nvif_disp_caps_impl {
 	struct nvif_mapinfo map;
 };
 
+struct nvif_conn_impl {
+	void (*del)(struct nvif_conn_priv *);
+
+	enum nvif_conn_type {
+		NVIF_CONN_VGA,
+		NVIF_CONN_TV,
+		NVIF_CONN_DVI_I,
+		NVIF_CONN_DVI_D,
+		NVIF_CONN_HDMI,
+		NVIF_CONN_LVDS,
+		NVIF_CONN_LVDS_SPWG,
+		NVIF_CONN_DP,
+		NVIF_CONN_EDP,
+	} type;
+};
+
 struct nvif_disp_impl {
 	void (*del)(struct nvif_disp_priv *);
 
@@ -234,6 +251,9 @@ struct nvif_disp_impl {
 
 	struct {
 		u32 mask;
+		int (*new)(struct nvif_disp_priv *, u8 id,
+			   const struct nvif_conn_impl **, struct nvif_conn_priv **,
+			   u64 handle);
 	} conn;
 
 	struct {

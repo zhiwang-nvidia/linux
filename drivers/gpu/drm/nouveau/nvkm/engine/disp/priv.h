@@ -89,7 +89,6 @@ void nv50_disp_chan_uevent_send(struct nvkm_disp *, int);
 extern const struct nvkm_event_func gf119_disp_chan_uevent;
 extern const struct nvkm_event_func gv100_disp_chan_uevent;
 
-int nvkm_uconn_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
 int nvkm_uoutp_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
 int nvkm_uhead_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
 #endif
