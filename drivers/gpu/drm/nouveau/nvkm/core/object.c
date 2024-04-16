@@ -160,9 +160,9 @@ nvkm_object_del(struct nvkm_object **pobject)
 	if (object && !WARN_ON(!object->func)) {
 		*pobject = nvkm_object_dtor(object);
 
-		spin_lock_irq(&object->client->obj_lock);
+		spin_lock(&object->client->obj_lock);
 		list_del(&object->head);
-		spin_unlock_irq(&object->client->obj_lock);
+		spin_unlock(&object->client->obj_lock);
 
 		kfree(*pobject);
 		*pobject = NULL;
@@ -217,7 +217,7 @@ nvkm_object_link_(struct nvif_client_priv *client, struct nvkm_object *parent,
 {
 	object->client = client;
 
-	spin_lock_irq(&client->obj_lock);
+	spin_lock(&client->obj_lock);
 	list_add_tail(&object->head, &parent->tree);
-	spin_unlock_irq(&client->obj_lock);
+	spin_unlock(&client->obj_lock);
 }
