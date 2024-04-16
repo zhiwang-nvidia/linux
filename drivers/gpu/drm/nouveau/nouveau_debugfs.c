@@ -296,7 +296,7 @@ nouveau_debugfs_init(struct nouveau_drm *drm)
 		return -ENOMEM;
 
 	ret = drm->device.impl->control.new(drm->device.priv, &drm->debugfs->impl,
-					    &drm->debugfs->priv, nvif_handle(&drm->debugfs->ctrl));
+					    &drm->debugfs->priv);
 	if (ret)
 		return ret;
 

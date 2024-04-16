@@ -112,8 +112,7 @@ struct nvif_device_impl {
 
 	struct {
 		int (*new)(struct nvif_device_priv *,
-			   const struct nvif_control_impl **, struct nvif_control_priv **,
-			   u64 handle);
+			   const struct nvif_control_impl **, struct nvif_control_priv **);
 	} control;
 
 	struct {
