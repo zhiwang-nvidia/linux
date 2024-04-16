@@ -60,7 +60,6 @@ nvif_client_ctor(struct nvif_client *parent, const char *name, struct nvif_clien
 		return ret;
 
 	nvif_object_ctor(&parent->object, name ?: "nvifClient", 0, 0, &client->object);
-	client->object.priv = client->priv;
 	client->driver = parent->driver;
 	return 0;
 }

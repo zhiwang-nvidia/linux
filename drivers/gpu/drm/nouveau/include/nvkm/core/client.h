@@ -11,7 +11,6 @@ struct nvkm_client {
 	struct nvkm_device *device;
 	u32 debug;
 
-	struct rb_root objroot;
 	spinlock_t obj_lock;
 
 	void *data;
@@ -34,5 +33,4 @@ int nvkm_client_new(const char *name, struct nvkm_device *, int (*event)(u64, vo
 #define nvif_debug(o,f,a...) nvif_printk((o), DEBUG, INFO, f, ##a)
 #define nvif_trace(o,f,a...) nvif_printk((o), TRACE, INFO, f, ##a)
 #define nvif_info(o,f,a...)  nvif_printk((o),  INFO, INFO, f, ##a)
-#define nvif_ioctl(o,f,a...) nvif_trace((o), "ioctl: "f, ##a)
 #endif

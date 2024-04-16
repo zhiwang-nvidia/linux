@@ -66,7 +66,7 @@ nvif_engobj_ctor(struct nvif_chan *chan, const char *name, u32 handle, s32 oclas
 		return ret;
 
 	ret = chan->impl->engobj.new(chan->priv, handle, engi, oclass, &engobj->impl,
-				     &engobj->priv, nvif_handle(&engobj->object));
+				     &engobj->priv);
 	NVIF_ERRON(ret, &chan->object, "[NEW engobj handle:%08x oclass:%08x]", handle, oclass);
 	if (ret)
 		return ret;

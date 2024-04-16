@@ -105,7 +105,6 @@ nvkm_client_new(const char *name, struct nvkm_device *device, int (*event)(u64, 
 	snprintf(client->name, sizeof(client->name), "%s", name);
 	client->device = device;
 	client->debug = NV_DBG_ERROR;
-	client->objroot = RB_ROOT;
 	spin_lock_init(&client->obj_lock);
 	client->event = event;
 

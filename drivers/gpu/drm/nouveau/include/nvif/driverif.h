@@ -33,7 +33,6 @@ struct nvif_driver {
 	const char *name;
 	int (*suspend)(struct nvif_client_priv *);
 	int (*resume)(struct nvif_client_priv *);
-	int (*ioctl)(void *priv, void *data, u32 size, void **hack);
 	void __iomem *(*map)(struct nvif_client_priv *, u64 handle, u32 size);
 	void (*unmap)(struct nvif_client_priv *, void __iomem *ptr, u32 size);
 };
@@ -474,8 +473,7 @@ struct nvif_chan_impl {
 
 	struct {
 		int (*new)(struct nvif_chan_priv *, u32 handle, u8 engi, s32 oclass,
-			   const struct nvif_engobj_impl **, struct nvif_engobj_priv **,
-			   u64 object);
+			   const struct nvif_engobj_impl **, struct nvif_engobj_priv **);
 	} engobj;
 };
 

@@ -25,79 +25,6 @@
 #include <core/client.h>
 #include <core/engine.h>
 
-struct nvkm_object *
-nvkm_object_search(struct nvkm_client *client, u64 handle,
-		   const struct nvkm_object_func *func)
-{
-	struct nvkm_object *object;
-	unsigned long flags;
-
-	if (handle) {
-		spin_lock_irqsave(&client->obj_lock, flags);
-		struct rb_node *node = client->objroot.rb_node;
-		while (node) {
-			object = rb_entry(node, typeof(*object), node);
-			if (handle < object->object)
-				node = node->rb_left;
-			else
-			if (handle > object->object)
-				node = node->rb_right;
-			else {
-				spin_unlock_irqrestore(&client->obj_lock, flags);
-				goto done;
-			}
-		}
-		spin_unlock_irqrestore(&client->obj_lock, flags);
-		return ERR_PTR(-ENOENT);
-	} else {
-		object = &client->object;
-	}
-
-done:
-	if (unlikely(func && object->func != func))
-		return ERR_PTR(-EINVAL);
-	return object;
-}
-
-void
-nvkm_object_remove(struct nvkm_object *object)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&object->client->obj_lock, flags);
-	if (!RB_EMPTY_NODE(&object->node))
-		rb_erase(&object->node, &object->client->objroot);
-	spin_unlock_irqrestore(&object->client->obj_lock, flags);
-}
-
-bool
-nvkm_object_insert(struct nvkm_object *object)
-{
-	struct rb_node **ptr;
-	struct rb_node *parent = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&object->client->obj_lock, flags);
-	ptr = &object->client->objroot.rb_node;
-	while (*ptr) {
-		struct nvkm_object *this = rb_entry(*ptr, typeof(*this), node);
-		parent = *ptr;
-		if (object->object < this->object) {
-			ptr = &parent->rb_left;
-		} else if (object->object > this->object) {
-			ptr = &parent->rb_right;
-		} else {
-			spin_unlock_irqrestore(&object->client->obj_lock, flags);
-			return false;
-		}
-	}
-
-	rb_link_node(&object->node, parent, ptr);
-	rb_insert_color(&object->node, &object->client->objroot);
-	spin_unlock_irqrestore(&object->client->obj_lock, flags);
-	return true;
-}
-
 int
 nvkm_object_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
@@ -232,7 +159,6 @@ nvkm_object_del(struct nvkm_object **pobject)
 
 	if (object && !WARN_ON(!object->func)) {
 		*pobject = nvkm_object_dtor(object);
-		nvkm_object_remove(object);
 
 		spin_lock_irq(&object->client->obj_lock);
 		list_del(&object->head);
@@ -255,7 +181,6 @@ nvkm_object_ctor(const struct nvkm_object_func *func,
 	object->object = oclass->object;
 	INIT_LIST_HEAD(&object->head);
 	INIT_LIST_HEAD(&object->tree);
-	RB_CLEAR_NODE(&object->node);
 	WARN_ON(IS_ERR(object->engine));
 }
 
@@ -295,21 +220,4 @@ nvkm_object_link_(struct nvif_client_priv *client, struct nvkm_object *parent,
 	spin_lock_irq(&client->obj_lock);
 	list_add_tail(&object->head, &parent->tree);
 	spin_unlock_irq(&client->obj_lock);
-}
-
-int
-nvkm_object_link_rb(struct nvif_client_priv *client, struct nvkm_object *parent, u64 handle,
-		    struct nvkm_object *object)
-{
-	nvkm_object_link_(client, parent, object);
-
-	object->object = handle;
-
-	if (!nvkm_object_insert(object)) {
-		nvkm_object_fini(object, false);
-		nvkm_object_del(&object);
-		return -EEXIST;
-	}
-
-	return 0;
 }

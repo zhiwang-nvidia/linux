@@ -214,8 +214,7 @@ nvkm_uchan_object_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 
 static int
 nvkm_uchan_engobj_new(struct nvif_chan_priv *uchan, u32 handle, u8 engi, s32 oclass,
-		      const struct nvif_engobj_impl **pimpl, struct nvif_engobj_priv **ppriv,
-		      u64 _handle)
+		      const struct nvif_engobj_impl **pimpl, struct nvif_engobj_priv **ppriv)
 {
 	struct nvkm_chan *chan = uchan->chan;
 	struct nvkm_runl *runl = chan->cgrp->runl;
@@ -285,9 +284,7 @@ nvkm_uchan_engobj_new(struct nvif_chan_priv *uchan, u32 handle, u8 engi, s32 ocl
 	*pimpl = &nvkm_uchan_object_impl;
 	*ppriv = (void *)container_of(object, struct nvkm_uobj, oproxy.base);
 
-	ret = nvkm_object_link_rb(uchan->object.client, &uchan->object, _handle, object);
-	if (ret)
-		nvkm_object_fini(object, false);
+	nvkm_object_link(&uchan->object, object);
 
 done:
 	if (ret)

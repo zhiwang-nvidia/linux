@@ -28,7 +28,6 @@
 #include <core/client.h>
 #include <core/driver.h>
 #include <core/event.h>
-#include <core/ioctl.h>
 
 #include <nvif/driverif.h>
 #include <nvif/event.h>
@@ -43,12 +42,6 @@ static void __iomem *
 nvkm_driver_map(struct nvif_client_priv *client, u64 handle, u32 size)
 {
 	return ioremap(handle, size);
-}
-
-static int
-nvkm_driver_ioctl(void *priv, void *data, u32 size, void **hack)
-{
-	return nvkm_ioctl(priv, data, size, hack);
 }
 
 static int
@@ -80,7 +73,6 @@ nvkm_driver = {
 	.name = "nvkm",
 	.suspend = nvkm_driver_suspend,
 	.resume = nvkm_driver_resume,
-	.ioctl = nvkm_driver_ioctl,
 	.map = nvkm_driver_map,
 	.unmap = nvkm_driver_unmap,
 };

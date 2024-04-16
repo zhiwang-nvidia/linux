@@ -34,7 +34,6 @@ nvif_driver_ctor(struct nvif_parent *parent, const struct nvif_driver *driver, c
 	client->object.client = client;
 
 	nvif_object_ctor(&client->object, name ?: "nvifDriver", 0, 0, &client->object);
-	client->object.priv = priv;
 	client->driver = driver;
 	client->impl = impl;
 	client->priv = priv;
