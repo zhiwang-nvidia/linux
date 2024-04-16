@@ -424,15 +424,12 @@ nvif_outp_inherit_rgb_crt(struct nvif_outp *outp, u8 *proto_out)
 int
 nvif_outp_load_detect(struct nvif_outp *outp, u32 loadval)
 {
-	struct nvif_outp_load_detect_v0 args;
+	u8 load;
 	int ret;
 
-	args.version = 0;
-	args.data = loadval;
-
-	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_LOAD_DETECT, &args, sizeof(args));
-	NVIF_ERRON(ret, &outp->object, "[LOAD_DETECT data:%08x] load:%02x", args.data, args.load);
-	return ret < 0 ? ret : args.load;
+	ret = outp->impl->load_detect(outp->priv, loadval, &load);
+	NVIF_ERRON(ret, &outp->object, "[LOAD_DETECT data:%08x] load:%02x", loadval, load);
+	return ret < 0 ? ret : load;
 }
 
 int

@@ -276,6 +276,8 @@ struct nvif_outp_impl {
 	int (*detect)(struct nvif_outp_priv *, enum nvif_outp_detect_status *);
 	int (*edid_get)(struct nvif_outp_priv *, u8 *data, u16 *size);
 
+	int (*load_detect)(struct nvif_outp_priv *, u32 loadval, u8 *load);
+
 	struct {
 		u32 freq_max;
 	} rgb_crt;

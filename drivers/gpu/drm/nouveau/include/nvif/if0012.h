@@ -8,8 +8,6 @@
 #define NVIF_OUTP_V0_ACQUIRE       0x11
 #define NVIF_OUTP_V0_RELEASE       0x12
 
-#define NVIF_OUTP_V0_LOAD_DETECT   0x20
-
 #define NVIF_OUTP_V0_BL_GET        0x30
 #define NVIF_OUTP_V0_BL_SET        0x31
 
@@ -29,15 +27,6 @@
 #define NVIF_OUTP_V0_DP_MST_ID_GET 0x76
 #define NVIF_OUTP_V0_DP_MST_ID_PUT 0x77
 #define NVIF_OUTP_V0_DP_MST_VCPI   0x78
-
-union nvif_outp_load_detect_args {
-	struct nvif_outp_load_detect_v0 {
-		__u8  version;
-		__u8  load;
-		__u8  pad02[2];
-		__u32 data; /*TODO: move vbios loadval parsing into nvkm */
-	} v0;
-};
 
 union nvif_outp_acquire_args {
 	struct nvif_outp_acquire_v0 {
