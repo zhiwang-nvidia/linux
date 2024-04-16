@@ -76,7 +76,6 @@ struct nvif_event_priv;
 int nvkm_uevent_new_(struct nvkm_object *parent, u64 handle, struct nvkm_event *event,
 		     bool wait, int id, u32 bits, nvkm_uevent_func,
 		     const struct nvif_event_impl **, struct nvif_event_priv **);
-int nvkm_uevent_new(const struct nvkm_oclass *, void *argv, u32 argc, struct nvkm_object **);
 int nvkm_uevent_add(struct nvif_event_priv *, struct nvkm_event *, int id, u32 bits,
 		    nvkm_uevent_func);
 #endif

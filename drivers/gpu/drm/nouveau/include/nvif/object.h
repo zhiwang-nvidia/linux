@@ -40,7 +40,6 @@ void nvif_object_ctor_1(struct nvif_object *parent, const char *name, u32 handle
 
 void nvif_object_dtor(struct nvif_object *);
 int  nvif_object_ioctl(struct nvif_object *, void *, u32, void **);
-int  nvif_object_mthd(struct nvif_object *, u32, void *, u32);
 int nvif_object_map_cpu(struct nvif_object *, const struct nvif_mapinfo *, struct nvif_map *);
 int nvif_object_unmap_cpu(struct nvif_map *);
 
@@ -66,8 +65,6 @@ int nvif_object_unmap_cpu(struct nvif_map *);
 	nvif_wr32(__object, _addr, (_data & ~(c)) | (d));                      \
 	_data;                                                                 \
 })
-
-#define nvif_mthd(a,b,c,d) nvif_object_mthd((a), (b), (c), (d))
 
 #define NVIF_RD32_(p,o,dr)   nvif_rd32((p), (o) + (dr))
 #define NVIF_WR32_(p,o,dr,f) nvif_wr32((p), (o) + (dr), (f))

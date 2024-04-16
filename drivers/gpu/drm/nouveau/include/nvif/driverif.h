@@ -435,6 +435,11 @@ struct nvif_disp_impl {
 struct nvif_engobj_impl {
 	void (*del)(struct nvif_engobj_priv *);
 	int (*mthd)(struct nvif_engobj_priv *, u32 mthd, void *argv, u32 argc);
+
+	struct {
+		int (*new)(struct nvif_engobj_priv *, u64 token,
+			   const struct nvif_event_impl **, struct nvif_event_priv **);
+	} event;
 };
 
 struct nvif_chan_impl {

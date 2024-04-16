@@ -47,6 +47,18 @@ struct nvkm_uobj {
 };
 
 static int
+nvkm_uchan_object_event_new(struct nvif_engobj_priv *priv, u64 token,
+			    const struct nvif_event_impl **pimpl, struct nvif_event_priv **ppriv)
+{
+	struct nvkm_uobj *uobj = (void *)priv;
+
+	if (!uobj->oproxy.object->func->uevent)
+		return -ENODEV;
+
+	return uobj->oproxy.object->func->uevent(uobj->oproxy.object, token, pimpl, ppriv);
+}
+
+static int
 nvkm_uchan_object_mthd(struct nvif_engobj_priv *priv, u32 mthd, void *argv, u32 argc)
 {
 	struct nvkm_uobj *uobj = (void *)priv;
@@ -68,6 +80,7 @@ static const struct nvif_engobj_impl
 nvkm_uchan_object_impl = {
 	.del = nvkm_uchan_object_del,
 	.mthd = nvkm_uchan_object_mthd,
+	.event.new = nvkm_uchan_object_event_new,
 };
 
 static int

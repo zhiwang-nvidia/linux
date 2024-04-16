@@ -27,17 +27,11 @@
 #include <nvif/if0004.h>
 
 static int
-nvkm_nvsw_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
+nvkm_nvsw_uevent(struct nvkm_object *object, u64 token,
+		 const struct nvif_event_impl **pimpl, struct nvif_event_priv **ppriv)
 {
-	union nv04_nvsw_event_args *args = argv;
-
-	if (!uevent)
-		return 0;
-	if (argc != sizeof(args->vn))
-		return -ENOSYS;
-
-	return nvkm_uevent_add(uevent, &nvkm_nvsw(object)->chan->event, 0,
-			       NVKM_SW_CHAN_EVENT_PAGE_FLIP, NULL);
+	return nvkm_uevent_new_(object, token, &nvkm_nvsw(object)->chan->event, true, 0,
+				NVKM_SW_CHAN_EVENT_PAGE_FLIP, NULL, pimpl, ppriv);
 }
 
 static int

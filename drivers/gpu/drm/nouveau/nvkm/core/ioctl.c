@@ -24,7 +24,6 @@
 #include <core/ioctl.h>
 #include <core/client.h>
 #include <core/engine.h>
-#include <core/event.h>
 
 #include <nvif/unpack.h>
 #include <nvif/ioctl.h>
@@ -41,15 +40,6 @@ nvkm_ioctl_nop(struct nvkm_client *client,
 static int
 nvkm_ioctl_sclass_(struct nvkm_object *object, int index, struct nvkm_oclass *oclass)
 {
-	if ( object->func->uevent &&
-	    !object->func->uevent(object, NULL, 0, NULL) && index-- == 0) {
-		oclass->ctor = nvkm_uevent_new;
-		oclass->base.minver = 0;
-		oclass->base.maxver = 0;
-		oclass->base.oclass = NVIF_CLASS_EVENT;
-		return 0;
-	}
-
 	if (object->func->sclass)
 		return object->func->sclass(object, index, oclass);
 
@@ -82,7 +72,7 @@ nvkm_ioctl_new(struct nvkm_client *client,
 	} else
 		return ret;
 
-	if (!parent->func->sclass && !parent->func->uevent) {
+	if (!parent->func->sclass) {
 		nvif_ioctl(parent, "cannot have children\n");
 		return -EINVAL;
 	}
@@ -142,25 +132,6 @@ nvkm_ioctl_del(struct nvkm_client *client,
 	return ret ? ret : 1;
 }
 
-static int
-nvkm_ioctl_mthd(struct nvkm_client *client,
-		struct nvkm_object *object, void *data, u32 size)
-{
-	union {
-		struct nvif_ioctl_mthd_v0 v0;
-	} *args = data;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(object, "mthd size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
-		nvif_ioctl(object, "mthd vers %d mthd %02x\n",
-			   args->v0.version, args->v0.method);
-		ret = nvkm_object_mthd(object, args->v0.method, data, size);
-	}
-
-	return ret;
-}
-
 static struct {
 	int version;
 	int (*func)(struct nvkm_client *, struct nvkm_object *, void *, u32);
@@ -170,7 +141,6 @@ nvkm_ioctl_v0[] = {
 	{ 0x00, nvkm_ioctl_sclass },
 	{ 0x00, nvkm_ioctl_new },
 	{ 0x00, nvkm_ioctl_del },
-	{ 0x00, nvkm_ioctl_mthd },
 };
 
 static int

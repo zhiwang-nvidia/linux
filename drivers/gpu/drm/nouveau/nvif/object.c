@@ -47,35 +47,6 @@ nvif_object_ioctl(struct nvif_object *object, void *data, u32 size, void **hack)
 }
 
 int
-nvif_object_mthd(struct nvif_object *object, u32 mthd, void *data, u32 size)
-{
-	struct {
-		struct nvif_ioctl_v0 ioctl;
-		struct nvif_ioctl_mthd_v0 mthd;
-	} *args;
-	u8 stack[128];
-	int ret;
-
-	if (sizeof(*args) + size > sizeof(stack)) {
-		if (!(args = kmalloc(sizeof(*args) + size, GFP_KERNEL)))
-			return -ENOMEM;
-	} else {
-		args = (void *)stack;
-	}
-	args->ioctl.version = 0;
-	args->ioctl.type = NVIF_IOCTL_V0_MTHD;
-	args->mthd.version = 0;
-	args->mthd.method = mthd;
-
-	memcpy(args->mthd.data, data, size);
-	ret = nvif_object_ioctl(object, args, sizeof(*args) + size, NULL);
-	memcpy(data, args->mthd.data, size);
-	if (args != (void *)stack)
-		kfree(args);
-	return ret;
-}
-
-int
 nvif_object_unmap_cpu(struct nvif_map *map)
 {
 	struct nvif_client *client;

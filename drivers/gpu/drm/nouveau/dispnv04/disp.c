@@ -236,10 +236,14 @@ nv04_display_create(struct drm_device *dev)
 
 	/* Request page flip completion event. */
 	if (drm->channel) {
-		ret = nvif_event_ctor(&drm->channel->nvsw.object, "kmsFlip", 0, nv04_flip_complete,
-				      true, NULL, 0, &disp->flip);
+		ret = drm->channel->nvsw.impl->event.new(drm->channel->nvsw.priv,
+							 nvif_handle(&disp->flip.object),
+							 &disp->flip.impl, &disp->flip.priv);
 		if (ret)
 			return ret;
+
+		nvif_event_ctor(&drm->channel->nvsw.object, "kmsFlip", 0, nv04_flip_complete,
+				&disp->flip);
 	}
 
 	nouveau_hw_save_vga_fonts(dev, 1);
