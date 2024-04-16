@@ -57,8 +57,7 @@ nvif_user_ctor(struct nvif_device *device, const char *name)
 		return -ENODEV;
 	}
 
-	ret = device->impl->usermode.new(device->priv, &device->user.impl, &device->user.priv,
-					 nvif_handle(&device->user.object));
+	ret = device->impl->usermode.new(device->priv, &device->user.impl, &device->user.priv);
 	NVIF_ERRON(ret, &device->object, "[NEW usermode%04x]", oclass);
 	if (ret)
 		return ret;

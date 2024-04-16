@@ -42,7 +42,7 @@ struct nvif_device_priv {
 
 static int
 nvkm_udevice_usermode_new(struct nvif_device_priv *udev, const struct nvif_usermode_impl **pimpl,
-			  struct nvif_usermode_priv **ppriv, u64 handle)
+			  struct nvif_usermode_priv **ppriv)
 {
 	struct nvkm_object *object;
 	int ret;
@@ -51,7 +51,8 @@ nvkm_udevice_usermode_new(struct nvif_device_priv *udev, const struct nvif_userm
 	if (ret)
 		return ret;
 
-	return nvkm_object_link_rb(udev->object.client, &udev->object, handle, object);
+	nvkm_object_link(&udev->object, object);
+	return 0;
 }
 
 static int

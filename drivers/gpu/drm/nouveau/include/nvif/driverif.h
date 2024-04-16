@@ -124,8 +124,7 @@ struct nvif_device_impl {
 	struct {
 		s32 oclass;
 		int (*new)(struct nvif_device_priv *,
-			   const struct nvif_usermode_impl **, struct nvif_usermode_priv **,
-			   u64 handle);
+			   const struct nvif_usermode_impl **, struct nvif_usermode_priv **);
 	} usermode;
 
 	struct {
