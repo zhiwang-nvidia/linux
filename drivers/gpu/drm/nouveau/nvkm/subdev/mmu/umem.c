@@ -57,35 +57,6 @@ nvkm_umem_ref(struct nvif_mem_priv *umem)
 	return NULL;
 }
 
-static const struct nvkm_object_func nvkm_umem;
-struct nvkm_memory *
-nvkm_umem_search(struct nvkm_mmu *mmu, struct nvkm_client *client, u64 handle)
-{
-	struct nvkm_client *master = client->object.client;
-	struct nvkm_memory *memory = NULL;
-	struct nvkm_object *object;
-	struct nvif_mem_priv *umem;
-
-	object = nvkm_object_search(client, handle, &nvkm_umem);
-	if (IS_ERR(object)) {
-		if (client != master) {
-			spin_lock(&mmu->umem_lock);
-			list_for_each_entry(umem, &mmu->umem, head) {
-				if (umem->object.object == handle) {
-					memory = nvkm_memory_ref(umem->memory);
-					break;
-				}
-			}
-			spin_unlock(&mmu->umem_lock);
-		}
-	} else {
-		umem = container_of(object, typeof(*umem), object);
-		memory = nvkm_memory_ref(umem->memory);
-	}
-
-	return memory ? memory : ERR_PTR(-ENOENT);
-}
-
 static int
 nvkm_umem_unmap(struct nvif_mem_priv *umem)
 {
@@ -163,9 +134,6 @@ nvkm_umem_dtor(struct nvkm_object *object)
 {
 	struct nvif_mem_priv *umem = container_of(object, typeof(*umem), object);
 
-	spin_lock(&umem->mmu->umem_lock);
-	list_del_init(&umem->head);
-	spin_unlock(&umem->mmu->umem_lock);
 	nvkm_memory_unref(&umem->memory);
 	return umem;
 }
@@ -202,10 +170,6 @@ nvkm_umem_new(struct nvkm_mmu *mmu, u8 type, u8 page, u64 size, void *argv, u32 
 				&umem->memory);
 	if (ret)
 		return ret;
-
-	spin_lock(&mmu->umem_lock);
-	list_add(&umem->head, &mmu->umem);
-	spin_unlock(&mmu->umem_lock);
 
 	umem->impl = nvkm_umem_impl;
 	umem->impl.page = nvkm_memory_page(umem->memory);

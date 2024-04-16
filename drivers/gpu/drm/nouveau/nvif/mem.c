@@ -105,8 +105,7 @@ nvif_mem_ctor_type(struct nvif_mmu *mmu, const char *name,
 	if (type < 0)
 		return -EINVAL;
 
-	ret = mmu->impl->mem.new(mmu->priv, type, page, size, argv, argc, &mem->impl, &mem->priv,
-				 nvif_handle(&mem->object));
+	ret = mmu->impl->mem.new(mmu->priv, type, page, size, argv, argc, &mem->impl, &mem->priv);
 	NVIF_DEBUG(&mmu->object, "[NEW mem%08x] (ret:%d)", oclass, ret);
 	if (ret)
 		return ret;

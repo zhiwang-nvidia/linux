@@ -427,8 +427,6 @@ nvkm_mmu_ctor(const struct nvkm_mmu_func *func, struct nvkm_device *device,
 	nvkm_mmu_ptc_init(mmu);
 	mutex_init(&mmu->mutex);
 	mmu->user.base = func->mmu.user;
-	spin_lock_init(&mmu->umem_lock);
-	INIT_LIST_HEAD(&mmu->umem);
 }
 
 int

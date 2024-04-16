@@ -42,7 +42,7 @@ nvkm_ummu_vmm_new(struct nvif_mmu_priv *ummu, enum nvif_vmm_type type, u64 addr,
 
 static int
 nvkm_ummu_mem_new(struct nvif_mmu_priv *ummu, u8 type, u8 page, u64 size, void *argv, u32 argc,
-		  const struct nvif_mem_impl **pimpl, struct nvif_mem_priv **ppriv, u64 handle)
+		  const struct nvif_mem_impl **pimpl, struct nvif_mem_priv **ppriv)
 {
 	struct nvkm_object *object;
 	int ret;
@@ -51,7 +51,8 @@ nvkm_ummu_mem_new(struct nvif_mmu_priv *ummu, u8 type, u8 page, u64 size, void *
 	if (ret)
 		return ret;
 
-	return nvkm_object_link_rb(ummu->object.client, &ummu->object, handle, object);
+	nvkm_object_link(&ummu->object, object);
+	return 0;
 }
 
 static void

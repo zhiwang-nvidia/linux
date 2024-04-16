@@ -202,7 +202,7 @@ struct nvif_mmu_impl {
 	struct {
 		s32 oclass;
 		int (*new)(struct nvif_mmu_priv *, u8 type, u8 page, u64 size, void *argv, u32 argc,
-			   const struct nvif_mem_impl **, struct nvif_mem_priv **, u64 handle);
+			   const struct nvif_mem_impl **, struct nvif_mem_priv **);
 	} mem;
 
 	struct {
