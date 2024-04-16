@@ -979,8 +979,7 @@ nouveau_svm_fault_buffer_ctor(struct nouveau_svm *svm, s32 oclass, int id)
 
 	buffer->id = id;
 
-	ret = drm->device.impl->faultbuf.new(drm->device.priv, &buffer->impl, &buffer->priv,
-					     nvif_handle(&buffer->object));
+	ret = drm->device.impl->faultbuf.new(drm->device.priv, &buffer->impl, &buffer->priv);
 	if (ret) {
 		SVM_ERR(svm, "Fault buffer allocation failed: %d", ret);
 		return ret;
