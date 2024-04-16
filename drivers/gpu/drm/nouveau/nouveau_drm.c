@@ -316,12 +316,12 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 	 * on TNT/TNT2 HW that lacks any kind of support in host.
 	 */
 	if (!drm->channel->nvsw.client && device->info.family < NV_DEVICE_INFO_V0_TESLA) {
-		ret = nvif_object_ctor(&drm->channel->user, "drmNvsw",
+		ret = nvif_object_ctor(&drm->channel->chan.object, "drmNvsw",
 				       NVDRM_NVSW, nouveau_abi16_swclass(drm),
 				       NULL, 0, &drm->channel->nvsw);
 
 		if (ret == 0 && device->info.chipset >= 0x11) {
-			ret = nvif_object_ctor(&drm->channel->user, "drmBlit",
+			ret = nvif_object_ctor(&drm->channel->chan.object, "drmBlit",
 					       0x005f, 0x009f,
 					       NULL, 0, &drm->channel->blit);
 		}
@@ -360,7 +360,7 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 			return;
 		}
 
-		ret = nvif_object_ctor(&drm->channel->user, "drmM2mfNtfy",
+		ret = nvif_object_ctor(&drm->channel->chan.object, "drmM2mfNtfy",
 				       NvNotify0, NV_DMA_IN_MEMORY,
 				       (&(struct nv_dma_v0) {
 						.target = NV_DMA_V0_TARGET_VRAM,

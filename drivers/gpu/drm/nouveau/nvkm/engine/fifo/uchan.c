@@ -24,10 +24,12 @@
 #include "chan.h"
 #include "chid.h"
 #include "runl.h"
+#include "uchan.h"
 
 #include <core/gpuobj.h>
 #include <core/oproxy.h>
 #include <subdev/mmu.h>
+#include <subdev/mmu/umem.h>
 #include <engine/dma.h>
 
 #include <nvif/if0020.h>
@@ -35,6 +37,8 @@
 struct nvif_chan_priv {
 	struct nvkm_object object;
 	struct nvkm_chan *chan;
+
+	struct nvif_chan_impl impl;
 };
 
 static int
@@ -267,6 +271,20 @@ nvkm_uchan_map(struct nvkm_object *object, void *argv, u32 argc,
 	return 0;
 }
 
+static void
+nvkm_uchan_del(struct nvif_chan_priv *uchan)
+{
+	struct nvkm_object *object = &uchan->object;
+
+	nvkm_object_fini(object, false);
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_chan_impl
+nvkm_uchan_impl = {
+	.del = nvkm_uchan_del,
+};
+
 static int
 nvkm_uchan_fini(struct nvkm_object *object, bool suspend)
 {
@@ -326,92 +344,84 @@ nvkm_uchan_chan(struct nvkm_object *object)
 }
 
 int
-nvkm_uchan_new(struct nvkm_fifo *fifo, struct nvkm_cgrp *cgrp, const struct nvkm_oclass *oclass,
-	       void *argv, u32 argc, struct nvkm_object **pobject)
+nvkm_uchan_new(struct nvkm_device *device, struct nvkm_cgrp *cgrp, u8 runi, u8 runq, bool priv,
+	       u16 devm, struct nvkm_vmm *vmm, struct nvif_ctxdma_priv *upush, u64 offset,
+	       u64 length, struct nvif_mem_priv *uuserd, u16 userd_offset, const char *name,
+	       const struct nvif_chan_impl **pimpl, struct nvif_chan_priv **ppriv,
+	       struct nvkm_object **pobject)
 {
-	union nvif_chan_args *args = argv;
+	struct nvkm_fifo *fifo = device->fifo;
 	struct nvkm_runl *runl;
-	struct nvkm_vmm *vmm = NULL;
-	struct nvkm_dmaobj *ctxdma = NULL;
+	struct nvkm_dmaobj *ctxdma = (void *)upush;
 	struct nvkm_memory *userd = NULL;
 	struct nvif_chan_priv *uchan;
+	struct nvkm_engine *engine;
 	struct nvkm_chan *chan;
 	int ret;
 
-	if (argc < sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	argc -= sizeof(args->v0);
-
-	if (args->v0.namelen != argc)
-		return -EINVAL;
-
 	/* Lookup objects referenced in args. */
-	runl = nvkm_runl_get(fifo, args->v0.runlist, 0);
+	runl = nvkm_runl_get(fifo, runi, 0);
 	if (!runl)
 		return -EINVAL;
 
-	if (args->v0.vmm) {
-		vmm = nvkm_uvmm_search(oclass->client, args->v0.vmm);
-		if (IS_ERR(vmm))
-			return PTR_ERR(vmm);
-	}
-
-	if (args->v0.ctxdma) {
-		ctxdma = nvkm_dmaobj_search(oclass->client, args->v0.ctxdma);
-		if (IS_ERR(ctxdma)) {
-			ret = PTR_ERR(ctxdma);
-			goto done;
-		}
-	}
-
-	if (args->v0.huserd) {
-		userd = nvkm_umem_search(fifo->engine.subdev.device->mmu, oclass->client, args->v0.huserd);
-		if (IS_ERR(userd)) {
-			ret = PTR_ERR(userd);
-			userd = NULL;
-			goto done;
-		}
-	}
+	ctxdma = (void *)upush;
+	userd = nvkm_umem_ref(uuserd);
 
 	/* Allocate channel. */
-	if (!(uchan = kzalloc(sizeof(*uchan), GFP_KERNEL))) {
-		ret = -ENOMEM;
-		goto done;
+	uchan = kzalloc(sizeof(*uchan), GFP_KERNEL);
+	if (!uchan) {
+		nvkm_memory_unref(&userd);
+		return -ENOMEM;
 	}
 
-	nvkm_object_ctor(&nvkm_uchan, oclass, &uchan->object);
-	*pobject = &uchan->object;
+	engine = nvkm_engine_ref(&fifo->engine);
+	if (IS_ERR(engine)) {
+		kfree(uchan);
+		nvkm_memory_unref(&userd);
+		return PTR_ERR(engine);
+	}
 
-	ret = nvkm_chan_new_(fifo->func->chan.func, runl, args->v0.runq, cgrp, args->v0.name,
-			     args->v0.priv != 0, args->v0.devm, vmm, ctxdma, args->v0.offset,
-			     args->v0.length, userd, args->v0.ouserd, &uchan->chan);
+	nvkm_object_ctor(&nvkm_uchan, &(struct nvkm_oclass) { .engine = engine }, &uchan->object);
+
+	ret = nvkm_chan_new_(fifo->func->chan.func, runl, runq, cgrp, name, priv, devm,
+			     vmm, ctxdma, offset, length, userd, userd_offset,
+			     &uchan->chan);
+	if (ret)
+		goto done;
+
+	ret = nvkm_uchan_init(&uchan->object);
 	if (ret)
 		goto done;
 
 	chan = uchan->chan;
 
 	/* Return channel info to caller. */
+	uchan->impl = nvkm_uchan_impl;
+	uchan->impl.id = chan->id;
 	if (chan->func->doorbell_handle)
-		args->v0.token = chan->func->doorbell_handle(chan);
-	else
-		args->v0.token = ~0;
-
-	args->v0.chid = chan->id;
+		uchan->impl.doorbell_token = chan->func->doorbell_handle(chan);
 
 	switch (nvkm_memory_target(chan->inst->memory)) {
-	case NVKM_MEM_TARGET_INST: args->v0.aper = NVIF_CHAN_V0_INST_APER_INST; break;
-	case NVKM_MEM_TARGET_VRAM: args->v0.aper = NVIF_CHAN_V0_INST_APER_VRAM; break;
-	case NVKM_MEM_TARGET_HOST: args->v0.aper = NVIF_CHAN_V0_INST_APER_HOST; break;
-	case NVKM_MEM_TARGET_NCOH: args->v0.aper = NVIF_CHAN_V0_INST_APER_NCOH; break;
+	case NVKM_MEM_TARGET_INST: uchan->impl.inst.aper = NVIF_CHAN_INST_APER_INST; break;
+	case NVKM_MEM_TARGET_VRAM: uchan->impl.inst.aper = NVIF_CHAN_INST_APER_VRAM; break;
+	case NVKM_MEM_TARGET_HOST: uchan->impl.inst.aper = NVIF_CHAN_INST_APER_HOST; break;
+	case NVKM_MEM_TARGET_NCOH: uchan->impl.inst.aper = NVIF_CHAN_INST_APER_NCOH; break;
 	default:
 		WARN_ON(1);
 		ret = -EFAULT;
-		break;
+		goto done;
 	}
 
-	args->v0.inst = nvkm_memory_addr(chan->inst->memory);
+	uchan->impl.inst.addr = nvkm_memory_addr(chan->inst->memory);
+
+	*pimpl = &uchan->impl;
+	*ppriv = uchan;
+	*pobject = &uchan->object;
+
 done:
+	if (ret)
+		nvkm_uchan_del(uchan);
+
 	nvkm_memory_unref(&userd);
-	nvkm_vmm_unref(&vmm);
 	return ret;
 }

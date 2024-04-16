@@ -70,44 +70,6 @@ nvkm_fifo_fault(struct nvkm_fifo *fifo, struct nvkm_fault_data *info)
 }
 
 static int
-nvkm_fifo_class_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
-		    void *argv, u32 argc, struct nvkm_object **pobject)
-{
-	struct nvkm_fifo *fifo = nvkm_fifo(oclass->engine);
-
-	if (oclass->engn == &fifo->func->chan.user)
-		return nvkm_uchan_new(fifo, NULL, oclass, argv, argc, pobject);
-
-	WARN_ON(1);
-	return -ENOSYS;
-}
-
-static const struct nvkm_device_oclass
-nvkm_fifo_class = {
-	.ctor = nvkm_fifo_class_new,
-};
-
-static int
-nvkm_fifo_class_get(struct nvkm_oclass *oclass, int index, const struct nvkm_device_oclass **class)
-{
-	struct nvkm_fifo *fifo = nvkm_fifo(oclass->engine);
-	const struct nvkm_fifo_func_chan *chan = &fifo->func->chan;
-	int c = 0;
-
-	/* *_CHANNEL_DMA, *_CHANNEL_GPFIFO_* */
-	if (chan->user.oclass) {
-		if (c++ == index) {
-			oclass->base = chan->user;
-			oclass->engn = &fifo->func->chan.user;
-			*class = &nvkm_fifo_class;
-			return 0;
-		}
-	}
-
-	return c;
-}
-
-static int
 nvkm_fifo_fini(struct nvkm_engine *engine, bool suspend)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
@@ -281,7 +243,6 @@ nvkm_fifo = {
 	.oneinit = nvkm_fifo_oneinit,
 	.init = nvkm_fifo_init,
 	.fini = nvkm_fifo_fini,
-	.base.sclass = nvkm_fifo_class_get,
 };
 
 int

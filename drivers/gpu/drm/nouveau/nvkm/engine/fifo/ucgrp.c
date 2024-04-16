@@ -25,6 +25,7 @@
 #include "runl.h"
 
 #include <subdev/mmu/uvmm.h>
+#include <engine/fifo/uchan.h>
 
 struct nvif_cgrp_priv {
 	struct nvkm_object object;
@@ -34,32 +35,23 @@ struct nvif_cgrp_priv {
 };
 
 static int
-nvkm_ucgrp_chan_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_object **pobject)
+nvkm_ucgrp_chan_new(struct nvif_cgrp_priv *ucgrp, u8 runq, bool priv, u16 devm,
+		    u64 gpfifo_offset, u64 gpfifo_length,
+		    struct nvif_mem_priv *userd, u16 userd_offset, const char *name,
+		    const struct nvif_chan_impl **pimpl, struct nvif_chan_priv **ppriv)
 {
-	struct nvkm_cgrp *cgrp = container_of(oclass->parent, struct nvif_cgrp_priv, object)->cgrp;
+	struct nvkm_cgrp *cgrp = ucgrp->cgrp;
+	struct nvkm_object *object;
+	int ret;
 
-	return nvkm_uchan_new(cgrp->runl->fifo, cgrp, oclass, argv, argc, pobject);
-}
+	ret = nvkm_uchan_new(cgrp->runl->fifo->engine.subdev.device, cgrp, cgrp->runl->id,
+			     runq, priv, devm, cgrp->vmm, NULL, gpfifo_offset, gpfifo_length,
+			     userd, userd_offset, name, pimpl, ppriv, &object);
+	if (ret)
+		return ret;
 
-static int
-nvkm_ucgrp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *oclass)
-{
-	struct nvkm_cgrp *cgrp = container_of(object, struct nvif_cgrp_priv, object)->cgrp;
-	struct nvkm_fifo *fifo = cgrp->runl->fifo;
-	const struct nvkm_fifo_func_chan *chan = &fifo->func->chan;
-	int c = 0;
-
-	/* *_CHANNEL_GPFIFO_* */
-	if (chan->user.oclass) {
-		if (c++ == index) {
-			oclass->base = chan->user;
-			oclass->ctor = nvkm_ucgrp_chan_new;
-			return 0;
-		}
-	}
-
-	return -EINVAL;
+	nvkm_object_link(&ucgrp->object, object);
+	return 0;
 }
 
 static void
@@ -73,6 +65,7 @@ nvkm_ucgrp_del(struct nvif_cgrp_priv *ucgrp)
 static const struct nvif_cgrp_impl
 nvkm_ucgrp_impl = {
 	.del = nvkm_ucgrp_del,
+	.chan.new = nvkm_ucgrp_chan_new,
 };
 
 static void *
@@ -87,7 +80,6 @@ nvkm_ucgrp_dtor(struct nvkm_object *object)
 static const struct nvkm_object_func
 nvkm_ucgrp = {
 	.dtor = nvkm_ucgrp_dtor,
-	.sclass = nvkm_ucgrp_sclass,
 };
 
 int

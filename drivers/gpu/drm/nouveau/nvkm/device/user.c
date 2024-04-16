@@ -31,11 +31,13 @@
 #include <subdev/instmem.h>
 #include <subdev/timer.h>
 #include <subdev/mmu/ummu.h>
+#include <subdev/mmu/uvmm.h>
 #include <subdev/vfn/uvfn.h>
 #include <engine/disp/priv.h>
 #include <engine/disp/udisp.h>
 #include <engine/fifo/ufifo.h>
 #include <engine/fifo/ucgrp.h>
+#include <engine/fifo/uchan.h>
 
 struct nvif_device_priv {
 	struct nvkm_object object;
@@ -93,6 +95,27 @@ static u64
 nvkm_udevice_time(struct nvif_device_priv *udev)
 {
 	return nvkm_timer_read(udev->device->timer);
+}
+
+static int
+nvkm_udevice_chan_new(struct nvif_device_priv *udev, u8 runl, u8 runq, bool priv, u16 devm,
+		      struct nvif_vmm_priv *uvmm, struct nvif_ctxdma_priv *push,
+		      u64 offset, u64 length, struct nvif_mem_priv *userd, u16 userd_offset,
+		      const char *name, const struct nvif_chan_impl **pimpl,
+		      struct nvif_chan_priv **ppriv, u64 handle)
+{
+	struct nvkm_vmm *vmm = nvkm_uvmm_ref(uvmm);
+	struct nvkm_object *object;
+	int ret;
+
+	ret = nvkm_uchan_new(udev->device, NULL, runl, runq, priv, devm, vmm,
+			     push, offset, length, userd, userd_offset, name,
+			     pimpl, ppriv, &object);
+	nvkm_vmm_unref(&vmm);
+	if (ret)
+		return ret;
+
+	return nvkm_object_link_rb(udev->object.client, &udev->object, handle, object);
 }
 
 static int
@@ -396,6 +419,7 @@ nvkm_udevice_new(struct nvkm_device *device,
 			nvkm_ufifo_ctor(device->fifo, &udev->impl.fifo);
 
 			udev->impl.fifo.cgrp.new = nvkm_udevice_cgrp_new;
+			udev->impl.fifo.chan.new = nvkm_udevice_chan_new;
 		}
 	}
 

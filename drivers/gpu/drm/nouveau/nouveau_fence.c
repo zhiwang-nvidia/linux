@@ -210,7 +210,8 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 	args.host.version = 0;
 	args.host.type = NVIF_CHAN_EVENT_V0_NON_STALL_INTR;
 
-	ret = nvif_event_ctor(&chan->user, "fenceNonStallIntr", (chan->runlist << 16) | chan->chid,
+	ret = nvif_event_ctor(&chan->chan.object, "fenceNonStallIntr",
+			      (chan->runlist << 16) | chan->chid,
 			      nouveau_fence_wait_uevent_handler, false,
 			      &args.base, sizeof(args), &fctx->event);
 

@@ -965,7 +965,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 		if (chan == NULL)
 			continue;
 
-		ret = nvif_object_ctor(&chan->user, "ttmBoMove",
+		ret = nvif_object_ctor(&chan->chan.object, "ttmBoMove",
 				       mthd->oclass | (mthd->engine << 16),
 				       mthd->oclass, NULL, 0,
 				       &drm->ttm.copy);

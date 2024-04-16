@@ -2,6 +2,7 @@
 nvif-y := nvif/object.o
 nvif-y += nvif/client.o
 nvif-y += nvif/cgrp.o
+nvif-y += nvif/chan.o
 nvif-y += nvif/conn.o
 nvif-y += nvif/device.o
 nvif-y += nvif/disp.o

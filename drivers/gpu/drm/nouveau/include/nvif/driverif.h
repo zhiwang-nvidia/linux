@@ -20,6 +20,7 @@ struct nvif_head_priv;
 struct nvif_disp_chan_priv;
 struct nvif_ctxdma_priv;
 struct nvif_cgrp_priv;
+struct nvif_chan_priv;
 
 struct nvif_event_impl {
 	void (*del)(struct nvif_event_priv *);
@@ -431,10 +432,34 @@ struct nvif_disp_impl {
 	} chan;
 };
 
+struct nvif_chan_impl {
+	void (*del)(struct nvif_chan_priv *);
+
+	u16 id;
+	u32 doorbell_token;
+
+	struct {
+		enum {
+			NVIF_CHAN_INST_APER_INST,
+			NVIF_CHAN_INST_APER_VRAM,
+			NVIF_CHAN_INST_APER_HOST,
+			NVIF_CHAN_INST_APER_NCOH,
+		} aper;
+		u64 addr;
+	} inst;
+};
+
 struct nvif_cgrp_impl {
 	void (*del)(struct nvif_cgrp_priv *);
 
 	u16 id;
+
+	struct {
+		int (*new)(struct nvif_cgrp_priv *, u8 runq, bool priv, u16 devm,
+			   u64 gpfifo_offset, u64 gpfifo_length,
+			   struct nvif_mem_priv *userd, u16 userd_offset, const char *name,
+			   const struct nvif_chan_impl **, struct nvif_chan_priv **);
+	} chan;
 };
 
 struct nvif_device_impl {
@@ -566,6 +591,12 @@ struct nvif_device_impl {
 
 		struct {
 			s32 oclass;
+			int (*new)(struct nvif_device_priv *, u8 runl, u8 runq, bool priv, u16 devm,
+				   struct nvif_vmm_priv *, struct nvif_ctxdma_priv *push,
+				   u64 offset, u64 length, struct nvif_mem_priv *userd,
+				   u16 userd_offset, const char *name,
+				   const struct nvif_chan_impl **, struct nvif_chan_priv **,
+				   u64 handle);
 		} chan;
 	} fifo;
 };
