@@ -78,10 +78,8 @@ nvkm_umem_search(struct nvkm_mmu *mmu, struct nvkm_client *client, u64 handle)
 }
 
 static int
-nvkm_umem_unmap(struct nvkm_object *object)
+nvkm_umem_unmap(struct nvif_mem_priv *umem)
 {
-	struct nvif_mem_priv *umem = container_of(object, typeof(*umem), object);
-
 	if (!umem->map)
 		return -EEXIST;
 
@@ -101,10 +99,8 @@ nvkm_umem_unmap(struct nvkm_object *object)
 }
 
 static int
-nvkm_umem_map(struct nvkm_object *object, void *argv, u32 argc,
-	      enum nvkm_object_map *type, u64 *handle, u64 *length)
+nvkm_umem_map(struct nvif_mem_priv *umem, void *argv, u32 argc, struct nvif_mapinfo *map)
 {
-	struct nvif_mem_priv *umem = container_of(object, typeof(*umem), object);
 	struct nvkm_mmu *mmu = umem->mmu;
 
 	if (!umem->mappable)
@@ -117,24 +113,24 @@ nvkm_umem_map(struct nvkm_object *object, void *argv, u32 argc,
 		if (ret)
 			return ret;
 
-		*handle = (unsigned long)(void *)umem->map;
-		*length = nvkm_memory_size(umem->memory);
-		*type = NVKM_OBJECT_MAP_VA;
+		map->handle = (unsigned long)(void *)umem->map;
+		map->length = nvkm_memory_size(umem->memory);
+		map->type = NVIF_MAP_VA;
 		return 0;
 	} else
 	if ((umem->type & NVKM_MEM_VRAM) ||
 	    (umem->type & NVKM_MEM_KIND)) {
 		int ret = mmu->func->mem.umap(mmu, umem->memory, argv, argc,
-					      handle, length, &umem->bar);
+					      &map->handle, &map->length, &umem->bar);
 		if (ret)
 			return ret;
 
-		*type = NVKM_OBJECT_MAP_IO;
+		map->type = NVIF_MAP_IO;
 	} else {
 		return -EINVAL;
 	}
 
-	umem->io = (*type == NVKM_OBJECT_MAP_IO);
+	umem->io = (map->type == NVIF_MAP_IO);
 	return 0;
 }
 
@@ -149,6 +145,8 @@ nvkm_umem_del(struct nvif_mem_priv *umem)
 static const struct nvif_mem_impl
 nvkm_umem_impl = {
 	.del = nvkm_umem_del,
+	.map = nvkm_umem_map,
+	.unmap = nvkm_umem_unmap,
 };
 
 static void *
@@ -166,8 +164,6 @@ nvkm_umem_dtor(struct nvkm_object *object)
 static const struct nvkm_object_func
 nvkm_umem = {
 	.dtor = nvkm_umem_dtor,
-	.map = nvkm_umem_map,
-	.unmap = nvkm_umem_unmap,
 };
 
 int

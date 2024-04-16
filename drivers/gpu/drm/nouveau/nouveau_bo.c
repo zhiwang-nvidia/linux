@@ -1162,10 +1162,10 @@ nouveau_ttm_io_mem_free_locked(struct nouveau_drm *drm,
 		switch (reg->mem_type) {
 		case TTM_PL_TT:
 			if (mem->kind)
-				nvif_object_unmap_handle(&mem->mem.object);
+				mem->mem.impl->unmap(mem->mem.priv);
 			break;
 		case TTM_PL_VRAM:
-			nvif_object_unmap_handle(&mem->mem.object);
+			mem->mem.impl->unmap(mem->mem.priv);
 			break;
 		default:
 			break;
@@ -1222,7 +1222,7 @@ retry:
 				struct nv50_mem_map_v0 nv50;
 				struct gf100_mem_map_v0 gf100;
 			} args;
-			u64 handle, length;
+			struct nvif_mapinfo mapinfo;
 			u32 argc = 0;
 
 			switch (mmu->impl->mem.oclass) {
@@ -1244,16 +1244,17 @@ retry:
 				break;
 			}
 
-			ret = nvif_object_map_handle(&mem->mem.object,
-						     &args, argc,
-						     &handle, &length);
-			if (ret != 1) {
-				if (WARN_ON(ret == 0))
-					ret = -EINVAL;
+			ret = mem->mem.impl->map(mem->mem.priv, &args, argc, &mapinfo);
+			if (ret)
+				goto out;
+
+			if (WARN_ON(mapinfo.type != NVIF_MAP_IO)) {
+				mem->mem.impl->unmap(mem->mem.priv);
+				ret = -EINVAL;
 				goto out;
 			}
 
-			reg->bus.offset = handle;
+			reg->bus.offset = mapinfo.handle;
 		}
 		ret = 0;
 		break;

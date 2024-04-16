@@ -6,7 +6,10 @@ struct drm_color_lut;
 struct nv50_disp;
 
 struct nv50_lut {
-	struct nvif_mem mem[2];
+	struct {
+		struct nvif_mem mem;
+		struct nvif_map map;
+	} id[2];
 };
 
 int nv50_lut_init(struct nv50_disp *, struct nvif_mmu *, struct nv50_lut *);

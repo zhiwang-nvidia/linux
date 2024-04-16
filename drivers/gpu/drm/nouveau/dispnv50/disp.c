@@ -124,7 +124,7 @@ nv50_dmac_destroy(struct nv50_dmac *dmac)
 {
 	nv50_chan_destroy(&dmac->base);
 
-	nvif_mem_dtor(&dmac->push.mem);
+	nvif_mem_unmap_dtor(&dmac->push.mem, &dmac->push.map);
 }
 
 static void
@@ -132,7 +132,7 @@ nv50_dmac_kick(struct nvif_push *push)
 {
 	struct nv50_dmac *dmac = container_of(push, typeof(*dmac), push);
 
-	push->hw.cur = push->cur - (u32 __iomem *)dmac->push.mem.object.map.ptr;
+	push->hw.cur = push->cur - (u32 __iomem *)dmac->push.map.ptr;
 	if (push->hw.put != push->hw.cur) {
 		/* Push buffer fetches are not coherent with BAR1, we need to ensure
 		 * writes have been flushed right through to VRAM before writing PUT.
@@ -198,13 +198,13 @@ nv50_dmac_wait(struct nvif_push *push, u32 size)
 	if (WARN_ON(size > push->hw.max))
 		return -EINVAL;
 
-	push->hw.cur = push->cur - (u32 __iomem *)dmac->push.mem.object.map.ptr;
+	push->hw.cur = push->cur - (u32 __iomem *)dmac->push.map.ptr;
 	if (push->hw.cur + size >= push->hw.max) {
 		int ret = nv50_dmac_wind(dmac);
 		if (ret)
 			return ret;
 
-		push->cur = dmac->push.mem.object.map.ptr;
+		push->cur = dmac->push.map.ptr;
 		push->cur = push->cur + push->hw.cur;
 		nv50_dmac_kick(push);
 	}
@@ -217,7 +217,7 @@ nv50_dmac_wait(struct nvif_push *push, u32 size)
 		return -ETIMEDOUT;
 	}
 
-	push->bgn = dmac->push.mem.object.map.ptr;
+	push->bgn = dmac->push.map.ptr;
 	push->bgn = push->bgn + push->hw.cur;
 	push->cur = push->bgn;
 	push->end = push->cur + free;
@@ -252,13 +252,14 @@ nv50_dmac_create(struct nouveau_drm *drm,
 	    (nv50_dmac_vram_pushbuf < 0 && device->info.family == NV_DEVICE_INFO_V0_PASCAL))
 		type |= NVIF_MEM_VRAM;
 
-	ret = nvif_mem_ctor_map(&drm->mmu, "kmsChanPush", type, 0x1000, &dmac->push.mem);
+	ret = nvif_mem_ctor_map(&drm->mmu, "kmsChanPush", type, 0x1000,
+				&dmac->push.mem, &dmac->push.map);
 	if (ret)
 		return ret;
 
 	dmac->push.wait = nv50_dmac_wait;
 	dmac->push.kick = nv50_dmac_kick;
-	dmac->push.bgn = dmac->push.mem.object.map.ptr;
+	dmac->push.bgn = dmac->push.map.ptr;
 	dmac->push.cur = dmac->push.bgn;
 	dmac->push.end = dmac->push.bgn;
 	dmac->push.hw.max = 0x1000/4 - 1;

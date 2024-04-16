@@ -52,7 +52,7 @@ nv10_fence_sync(struct nouveau_fence *fence,
 u32
 nv10_fence_read(struct nouveau_channel *chan)
 {
-	return NVIF_RD32(&chan->user, NV06E, REFERENCE);
+	return NVIF_RD32(&chan->userd, NV06E, REFERENCE);
 }
 
 void

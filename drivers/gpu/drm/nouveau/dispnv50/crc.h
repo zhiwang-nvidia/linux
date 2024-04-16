@@ -40,6 +40,7 @@ enum nv50_crc_source_type {
 
 struct nv50_crc_notifier_ctx {
 	struct nvif_mem mem;
+	struct nvif_map map;
 	struct nvif_object ntfy;
 };
 

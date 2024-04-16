@@ -101,8 +101,11 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nvif_object_dtor(&chan->gart);
 		nvif_object_dtor(&chan->vram);
 		nvif_event_dtor(&chan->kill);
+		if (!chan->userd.map.impl)
+			chan->userd.map.ptr = NULL;
+		nvif_object_unmap_cpu(&chan->userd.map);
 		nvif_object_dtor(&chan->user);
-		nvif_mem_dtor(&chan->mem_userd);
+		nvif_mem_dtor(&chan->userd.mem);
 		nvif_object_dtor(&chan->push.ctxdma);
 		nouveau_vma_del(&chan->push.vma);
 		nouveau_bo_unmap(chan->push.buffer);
@@ -131,7 +134,7 @@ nouveau_channel_wait(struct nvif_push *push, u32 size)
 	chan->dma.cur = chan->dma.cur + (chan->chan.push.cur - chan->chan.push.bgn);
 	ret = RING_SPACE(chan, size);
 	if (ret == 0) {
-		chan->chan.push.bgn = chan->chan.push.mem.object.map.ptr;
+		chan->chan.push.bgn = chan->chan.push.map.ptr;
 		chan->chan.push.bgn = chan->chan.push.bgn + chan->dma.cur;
 		chan->chan.push.cur = chan->chan.push.bgn;
 		chan->chan.push.end = chan->chan.push.bgn + size;
@@ -179,7 +182,7 @@ nouveau_channel_prep(struct nouveau_cli *cli,
 	chan->chan.push.mem.object.parent = cli->base.object.parent;
 	chan->chan.push.mem.object.client = &cli->base;
 	chan->chan.push.mem.object.name = "chanPush";
-	chan->chan.push.mem.object.map.ptr = chan->push.buffer->kmap.virtual;
+	chan->chan.push.map.ptr = chan->push.buffer->kmap.virtual;
 	chan->chan.push.wait = nouveau_channel_wait;
 	chan->chan.push.kick = nouveau_channel_kick;
 
@@ -329,16 +332,12 @@ nouveau_channel_ctor(struct nouveau_cli *cli, bool priv, u64 runm,
 	if (oclass >= VOLTA_CHANNEL_GPFIFO_A) {
 		ret = nvif_mem_ctor(&cli->mmu, "abi16ChanUSERD",
 				    NVIF_MEM_VRAM | NVIF_MEM_COHERENT | NVIF_MEM_MAPPABLE,
-				    0, PAGE_SIZE, NULL, 0, &chan->mem_userd);
+				    0, PAGE_SIZE, NULL, 0, &chan->userd.mem);
 		if (ret)
 			return ret;
 
-		args.chan.huserd = nvif_handle(&chan->mem_userd.object);
+		args.chan.huserd = nvif_handle(&chan->userd.mem.object);
 		args.chan.ouserd = 0;
-
-		chan->userd = &chan->mem_userd.object;
-	} else {
-		chan->userd = &chan->user;
 	}
 
 	get_task_comm(name, current);
@@ -366,9 +365,17 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	struct nv_dma_v0 args = {};
 	int ret, i;
 
-	ret = nvif_object_map(chan->userd, NULL, 0);
-	if (ret)
-		return ret;
+	if (!chan->userd.mem.impl) {
+		ret = nvif_object_map(&chan->user, NULL, 0);
+		if (ret)
+			return ret;
+
+		chan->userd.map.ptr = chan->user.map.ptr;
+	} else {
+		ret = nvif_mem_map(&chan->userd.mem, NULL, 0, &chan->userd.map);
+		if (ret)
+			return ret;
+	}
 
 	if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO) {
 		struct {

@@ -33,8 +33,8 @@ nv50_lut_load(struct nv50_lut *lut, int buffer, struct drm_property_blob *blob,
 	      void (*load)(struct drm_color_lut *, int, void __iomem *))
 {
 	struct drm_color_lut *in = blob ? blob->data : NULL;
-	void __iomem *mem = lut->mem[buffer].object.map.ptr;
-	const u32 addr = lut->mem[buffer].impl->addr;
+	void __iomem *mem = lut->id[buffer].map.ptr;
+	const u32 addr = lut->id[buffer].mem.impl->addr;
 	int i;
 
 	if (!in) {
@@ -59,8 +59,8 @@ void
 nv50_lut_fini(struct nv50_lut *lut)
 {
 	int i;
-	for (i = 0; i < ARRAY_SIZE(lut->mem); i++)
-		nvif_mem_dtor(&lut->mem[i]);
+	for (i = 0; i < ARRAY_SIZE(lut->id); i++)
+		nvif_mem_unmap_dtor(&lut->id[i].mem, &lut->id[i].map);
 }
 
 int
@@ -69,9 +69,9 @@ nv50_lut_init(struct nv50_disp *disp, struct nvif_mmu *mmu,
 {
 	const u32 size = disp->disp->object.oclass < GF110_DISP ? 257 : 1025;
 	int i;
-	for (i = 0; i < ARRAY_SIZE(lut->mem); i++) {
+	for (i = 0; i < ARRAY_SIZE(lut->id); i++) {
 		int ret = nvif_mem_ctor_map(mmu, "kmsLut", NVIF_MEM_VRAM,
-					    size * 8, &lut->mem[i]);
+					    size * 8, &lut->id[i].mem, &lut->id[i].map);
 		if (ret)
 			return ret;
 	}

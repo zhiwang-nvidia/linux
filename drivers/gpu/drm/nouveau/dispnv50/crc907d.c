@@ -89,7 +89,7 @@ static u32 crc907d_get_entry(struct nv50_head *head,
 			     struct nv50_crc_notifier_ctx *ctx,
 			     enum nv50_crc_source source, int idx)
 {
-	struct crc907d_notifier __iomem *notifier = ctx->mem.object.map.ptr;
+	struct crc907d_notifier __iomem *notifier = ctx->map.ptr;
 
 	return ioread32_native(&notifier->entries[idx].output_crc[0]);
 }
@@ -98,7 +98,7 @@ static bool crc907d_ctx_finished(struct nv50_head *head,
 				 struct nv50_crc_notifier_ctx *ctx)
 {
 	struct nouveau_drm *drm = nouveau_drm(head->base.base.dev);
-	struct crc907d_notifier __iomem *notifier = ctx->mem.object.map.ptr;
+	struct crc907d_notifier __iomem *notifier = ctx->map.ptr;
 	const u32 status = ioread32_native(&notifier->status);
 	const u32 overflow = status & 0x0000003e;
 

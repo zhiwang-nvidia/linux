@@ -83,6 +83,9 @@ struct nvif_mem_impl {
 	u8 page;
 	u64 addr;
 	u64 size;
+
+	int (*map)(struct nvif_mem_priv *, void *argv, u32 argc, struct nvif_mapinfo *);
+	int (*unmap)(struct nvif_mem_priv *);
 };
 
 struct nvif_mmu_impl {

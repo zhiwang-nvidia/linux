@@ -27,13 +27,55 @@
 #include <nvif/if000a.h>
 
 int
+nvif_mem_unmap(struct nvif_mem *mem)
+{
+	if (!mem->mapinfo.length)
+		return 0;
+
+	mem->impl->unmap(mem->priv);
+	mem->mapinfo.length = 0;
+	return 0;
+}
+
+int
+nvif_mem_map(struct nvif_mem *mem, void *argv, u32 argc, struct nvif_map *map)
+{
+	int ret;
+
+	ret = mem->impl->map(mem->priv, argv, argc, &mem->mapinfo);
+	if (ret)
+		return ret;
+
+	ret = nvif_object_map_cpu(&mem->object, &mem->mapinfo, map);
+	if (ret)
+		mem->impl->unmap(mem->priv);
+
+	return ret;
+}
+
+int
+nvif_mem_unmap_dtor(struct nvif_mem *mem, struct nvif_map *map)
+{
+	int ret = 0;
+
+	if (mem->mapinfo.length) {
+		if (map)
+			ret = nvif_object_unmap_cpu(map);
+
+		nvif_mem_unmap(mem);
+	}
+
+	return ret;
+}
+
+int
 nvif_mem_ctor_map(struct nvif_mmu *mmu, const char *name, u8 type, u64 size,
-		  struct nvif_mem *mem)
+		  struct nvif_mem *mem, struct nvif_map *map)
 {
 	int ret = nvif_mem_ctor(mmu, name, NVIF_MEM_MAPPABLE | type,
 				0, size, NULL, 0, mem);
 	if (ret == 0) {
-		ret = nvif_object_map(&mem->object, NULL, 0);
+		ret = nvif_mem_map(mem, NULL, 0, map);
 		if (ret)
 			nvif_mem_dtor(mem);
 	}
@@ -45,6 +87,8 @@ nvif_mem_dtor(struct nvif_mem *mem)
 {
 	if (!mem->impl)
 		return;
+
+	nvif_mem_unmap(mem);
 
 	mem->impl->del(mem->priv);
 	mem->impl = NULL;

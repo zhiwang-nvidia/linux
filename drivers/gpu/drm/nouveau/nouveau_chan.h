@@ -14,8 +14,10 @@ struct nouveau_channel {
 	struct nouveau_cli *cli;
 	struct nouveau_vmm *vmm;
 
-	struct nvif_mem mem_userd;
-	struct nvif_object *userd;
+	struct {
+		struct nvif_mem mem;
+		struct nvif_map map;
+	} userd;
 
 	int runlist;
 	int chid;

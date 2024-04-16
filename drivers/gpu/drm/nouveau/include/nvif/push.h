@@ -28,6 +28,7 @@
 
 struct nvif_push {
 	struct nvif_mem mem;
+	struct nvif_map map;
 
 	struct {
 		u32 cur;
@@ -68,7 +69,7 @@ PUSH_KICK(struct nvif_push *push)
 #ifdef CONFIG_NOUVEAU_DEBUG_PUSH
 #define PUSH_PRINTF(p,f,a...) do {                              \
 	struct nvif_push *_ppp = (p);                           \
-	u32 __o = _ppp->cur - (u32 *)_ppp->mem.object.map.ptr;  \
+	u32 __o = _ppp->cur - (u32 *)_ppp->map.ptr;             \
 	NVIF_DEBUG(&_ppp->mem.object, "%08x: "f, __o * 4, ##a); \
 	(void)__o;                                              \
 } while(0)

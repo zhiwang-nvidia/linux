@@ -84,7 +84,7 @@ OUT_RING(struct nouveau_channel *chan, int data)
 #define WRITE_PUT(val) do {                                                    \
 	mb();                                                   \
 	nouveau_bo_rd32(chan->push.buffer, 0);                                 \
-	nvif_wr32(&chan->user, chan->user_put, ((val) << 2) + chan->push.addr);\
+	nvif_wr32(&chan->userd, chan->user_put, ((val) << 2) + chan->push.addr);\
 } while (0)
 
 static inline void
