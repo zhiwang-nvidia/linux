@@ -186,64 +186,6 @@ nvkm_ioctl_mthd(struct nvkm_client *client,
 	return ret;
 }
 
-
-static int
-nvkm_ioctl_rd(struct nvkm_client *client,
-	      struct nvkm_object *object, void *data, u32 size)
-{
-	return -ENOSYS;
-}
-
-static int
-nvkm_ioctl_wr(struct nvkm_client *client,
-	      struct nvkm_object *object, void *data, u32 size)
-{
-	return -ENOSYS;
-}
-
-static int
-nvkm_ioctl_map(struct nvkm_client *client,
-	       struct nvkm_object *object, void *data, u32 size)
-{
-	union {
-		struct nvif_ioctl_map_v0 v0;
-	} *args = data;
-	enum nvkm_object_map type;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(object, "map size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
-		nvif_ioctl(object, "map vers %d\n", args->v0.version);
-		ret = nvkm_object_map(object, data, size, &type,
-				      &args->v0.handle,
-				      &args->v0.length);
-		if (type == NVKM_OBJECT_MAP_IO)
-			args->v0.type = NVIF_IOCTL_MAP_V0_IO;
-		else
-			args->v0.type = NVIF_IOCTL_MAP_V0_VA;
-	}
-
-	return ret;
-}
-
-static int
-nvkm_ioctl_unmap(struct nvkm_client *client,
-		 struct nvkm_object *object, void *data, u32 size)
-{
-	union {
-		struct nvif_ioctl_unmap none;
-	} *args = data;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(object, "unmap size %d\n", size);
-	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
-		nvif_ioctl(object, "unmap\n");
-		ret = nvkm_object_unmap(object);
-	}
-
-	return ret;
-}
-
 static struct {
 	int version;
 	int (*func)(struct nvkm_client *, struct nvkm_object *, void *, u32);
@@ -254,10 +196,6 @@ nvkm_ioctl_v0[] = {
 	{ 0x00, nvkm_ioctl_new },
 	{ 0x00, nvkm_ioctl_del },
 	{ 0x00, nvkm_ioctl_mthd },
-	{ 0x00, nvkm_ioctl_rd },
-	{ 0x00, nvkm_ioctl_wr },
-	{ 0x00, nvkm_ioctl_map },
-	{ 0x00, nvkm_ioctl_unmap },
 };
 
 static int

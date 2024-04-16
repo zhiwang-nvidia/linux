@@ -19,20 +19,12 @@ struct nvkm_object {
 	struct rb_node node;
 };
 
-enum nvkm_object_map {
-	NVKM_OBJECT_MAP_IO,
-	NVKM_OBJECT_MAP_VA
-};
-
 struct nvkm_object_func {
 	void *(*dtor)(struct nvkm_object *);
 	int (*init)(struct nvkm_object *);
 	int (*fini)(struct nvkm_object *, bool suspend);
 	int (*mthd)(struct nvkm_object *, u32 mthd, void *data, u32 size);
 	int (*ntfy)(struct nvkm_object *, u32 mthd, struct nvkm_event **);
-	int (*map)(struct nvkm_object *, void *argv, u32 argc,
-		   enum nvkm_object_map *, u64 *addr, u64 *size);
-	int (*unmap)(struct nvkm_object *);
 	int (*bind)(struct nvkm_object *, struct nvkm_gpuobj *, int align,
 		    struct nvkm_gpuobj **);
 	int (*sclass)(struct nvkm_object *, int index, struct nvkm_oclass *);
@@ -52,9 +44,6 @@ int nvkm_object_init(struct nvkm_object *);
 int nvkm_object_fini(struct nvkm_object *, bool suspend);
 int nvkm_object_mthd(struct nvkm_object *, u32 mthd, void *data, u32 size);
 int nvkm_object_ntfy(struct nvkm_object *, u32 mthd, struct nvkm_event **);
-int nvkm_object_map(struct nvkm_object *, void *argv, u32 argc,
-		    enum nvkm_object_map *, u64 *addr, u64 *size);
-int nvkm_object_unmap(struct nvkm_object *);
 int nvkm_object_bind(struct nvkm_object *, struct nvkm_gpuobj *, int align,
 		     struct nvkm_gpuobj **);
 

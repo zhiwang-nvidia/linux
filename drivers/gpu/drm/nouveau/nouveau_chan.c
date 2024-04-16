@@ -101,8 +101,6 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nvif_object_dtor(&chan->gart);
 		nvif_object_dtor(&chan->vram);
 		nvif_event_dtor(&chan->kill);
-		if (!chan->userd.map.impl)
-			chan->userd.map.ptr = NULL;
 		nvif_object_unmap_cpu(&chan->userd.map);
 		nvif_chan_dtor(&chan->chan);
 		nvif_mem_dtor(&chan->userd.mem);
@@ -359,11 +357,10 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	int ret, i;
 
 	if (!chan->userd.mem.impl) {
-		ret = nvif_object_map(&chan->chan.object, NULL, 0);
+		ret = nvif_object_map_cpu(&chan->chan.object, &chan->chan.impl->map,
+					  &chan->userd.map);
 		if (ret)
 			return ret;
-
-		chan->userd.map.ptr = chan->chan.object.map.ptr;
 	} else {
 		ret = nvif_mem_map(&chan->userd.mem, NULL, 0, &chan->userd.map);
 		if (ret)

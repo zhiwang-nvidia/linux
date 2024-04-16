@@ -126,58 +126,6 @@ nvif_object_mthd(struct nvif_object *object, u32 mthd, void *data, u32 size)
 	return ret;
 }
 
-void
-nvif_object_unmap_handle(struct nvif_object *object)
-{
-	struct {
-		struct nvif_ioctl_v0 ioctl;
-		struct nvif_ioctl_unmap unmap;
-	} args = {
-		.ioctl.type = NVIF_IOCTL_V0_UNMAP,
-	};
-
-	nvif_object_ioctl(object, &args, sizeof(args), NULL);
-}
-
-int
-nvif_object_map_handle(struct nvif_object *object, void *argv, u32 argc,
-		       u64 *handle, u64 *length)
-{
-	struct {
-		struct nvif_ioctl_v0 ioctl;
-		struct nvif_ioctl_map_v0 map;
-	} *args;
-	u32 argn = sizeof(*args) + argc;
-	int ret, maptype;
-
-	if (!(args = kzalloc(argn, GFP_KERNEL)))
-		return -ENOMEM;
-	args->ioctl.type = NVIF_IOCTL_V0_MAP;
-	memcpy(args->map.data, argv, argc);
-
-	ret = nvif_object_ioctl(object, args, argn, NULL);
-	*handle = args->map.handle;
-	*length = args->map.length;
-	maptype = args->map.type;
-	kfree(args);
-	return ret ? ret : (maptype == NVIF_IOCTL_MAP_V0_IO);
-}
-
-void
-nvif_object_unmap(struct nvif_object *object)
-{
-	struct nvif_client *client = object->client;
-	if (object->map.ptr) {
-		if (object->map.size) {
-			client->driver->unmap(client->object.priv, object->map.ptr,
-								   object->map.size);
-			object->map.size = 0;
-		}
-		object->map.ptr = NULL;
-		nvif_object_unmap_handle(object);
-	}
-}
-
 int
 nvif_object_unmap_cpu(struct nvif_map *map)
 {
@@ -224,30 +172,6 @@ nvif_object_map_cpu(struct nvif_object *object,
 	return 0;
 }
 
-int
-nvif_object_map(struct nvif_object *object, void *argv, u32 argc)
-{
-	struct nvif_client *client = object->client;
-	u64 handle, length;
-	int ret = nvif_object_map_handle(object, argv, argc, &handle, &length);
-	if (ret >= 0) {
-		if (ret) {
-			object->map.ptr = client->driver->map(client->object.priv,
-							      handle,
-							      length);
-			if (ret = -ENOMEM, object->map.ptr) {
-				object->map.size = length;
-				return 0;
-			}
-		} else {
-			object->map.ptr = (void *)(unsigned long)handle;
-			return 0;
-		}
-		nvif_object_unmap_handle(object);
-	}
-	return ret;
-}
-
 void
 nvif_object_dtor(struct nvif_object *object)
 {
@@ -261,7 +185,6 @@ nvif_object_dtor(struct nvif_object *object)
 	if (!nvif_object_constructed(object))
 		return;
 
-	nvif_object_unmap(object);
 	nvif_object_ioctl(object, &args, sizeof(args), NULL);
 	object->client = NULL;
 }

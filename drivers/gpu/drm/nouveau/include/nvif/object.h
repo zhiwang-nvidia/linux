@@ -51,11 +51,6 @@ void nvif_object_sclass_put(struct nvif_sclass **);
 int  nvif_object_mthd(struct nvif_object *, u32, void *, u32);
 int nvif_object_map_cpu(struct nvif_object *, const struct nvif_mapinfo *, struct nvif_map *);
 int nvif_object_unmap_cpu(struct nvif_map *);
-int  nvif_object_map_handle(struct nvif_object *, void *, u32,
-			    u64 *handle, u64 *length);
-void nvif_object_unmap_handle(struct nvif_object *);
-int  nvif_object_map(struct nvif_object *, void *, u32);
-void nvif_object_unmap(struct nvif_object *);
 
 #define nvif_handle(a) (unsigned long)(void *)(a)
 #define nvif_object(a) (a)->object

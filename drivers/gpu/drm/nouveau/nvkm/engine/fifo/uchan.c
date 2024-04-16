@@ -254,23 +254,6 @@ nvkm_uchan_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *ocl
 	return -EINVAL;
 }
 
-static int
-nvkm_uchan_map(struct nvkm_object *object, void *argv, u32 argc,
-	       enum nvkm_object_map *type, u64 *addr, u64 *size)
-{
-	struct nvkm_chan *chan = container_of(object, struct nvif_chan_priv, object)->chan;
-	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
-
-	if (chan->func->userd->bar < 0)
-		return -ENOSYS;
-
-	*type = NVKM_OBJECT_MAP_IO;
-	*addr = device->func->resource_addr(device, chan->func->userd->bar) +
-		chan->func->userd->base + chan->userd.base;
-	*size = chan->func->userd->size;
-	return 0;
-}
-
 static void
 nvkm_uchan_del(struct nvif_chan_priv *uchan)
 {
@@ -329,7 +312,6 @@ nvkm_uchan = {
 	.dtor = nvkm_uchan_dtor,
 	.init = nvkm_uchan_init,
 	.fini = nvkm_uchan_fini,
-	.map = nvkm_uchan_map,
 	.sclass = nvkm_uchan_sclass,
 	.uevent = nvkm_uchan_uevent,
 };
@@ -413,6 +395,14 @@ nvkm_uchan_new(struct nvkm_device *device, struct nvkm_cgrp *cgrp, u8 runi, u8 r
 	}
 
 	uchan->impl.inst.addr = nvkm_memory_addr(chan->inst->memory);
+
+	if (chan->func->userd->bar >= 0) {
+		uchan->impl.map.type = NVIF_MAP_IO;
+		uchan->impl.map.handle =
+			device->func->resource_addr(device, chan->func->userd->bar) +
+			chan->func->userd->base + chan->userd.base;
+		uchan->impl.map.length = chan->func->userd->size;
+	}
 
 	*pimpl = &uchan->impl;
 	*ppriv = uchan;

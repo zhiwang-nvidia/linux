@@ -446,6 +446,8 @@ struct nvif_chan_impl {
 		} aper;
 		u64 addr;
 	} inst;
+
+	struct nvif_mapinfo map;
 };
 
 struct nvif_cgrp_impl {
