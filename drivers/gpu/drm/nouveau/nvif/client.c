@@ -54,8 +54,7 @@ nvif_client_ctor(struct nvif_client *parent, const char *name, struct nvif_clien
 {
 	int ret;
 
-	ret = parent->impl->client.new(parent->priv, &client->impl, &client->priv,
-				       nvif_handle(&client->object));
+	ret = parent->impl->client.new(parent->priv, &client->impl, &client->priv);
 	NVIF_ERRON(ret, &parent->object, "[NEW client]");
 	if (ret)
 		return ret;

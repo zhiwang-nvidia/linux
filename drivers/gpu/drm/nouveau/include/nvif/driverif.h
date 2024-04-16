@@ -22,8 +22,7 @@ struct nvif_client_impl {
 
 	struct {
 		int (*new)(struct nvif_client_priv *parent,
-			   const struct nvif_client_impl **, struct nvif_client_priv **,
-			   u64 handle);
+			   const struct nvif_client_impl **, struct nvif_client_priv **);
 	} client;
 
 	struct {

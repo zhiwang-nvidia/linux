@@ -48,8 +48,7 @@ nvkm_client_new_device(struct nvif_client_priv *client,
 
 static int
 nvkm_client_new_client(struct nvif_client_priv *parent,
-		       const struct nvif_client_impl **pimpl, struct nvif_client_priv **ppriv,
-		       u64 handle)
+		       const struct nvif_client_impl **pimpl, struct nvif_client_priv **ppriv)
 {
 	struct nvkm_client *client;
 	int ret;
@@ -60,7 +59,8 @@ nvkm_client_new_client(struct nvif_client_priv *parent,
 
 	*ppriv = client;
 
-	return nvkm_object_link_rb(parent, &parent->object, handle, &client->object);
+	nvkm_object_link_(parent, &parent->object, &client->object);
+	return 0;
 }
 
 static void
