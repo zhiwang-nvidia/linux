@@ -3,8 +3,6 @@
 #define __NVIF_CLASS_H__
 
 /* these class numbers are made up by us, and not nvidia-assigned */
-#define NVIF_CLASS_CONTROL                           /* if0001.h */ -0x00000001
-
 #define NVIF_CLASS_SW_NV04                           /* if0004.h */ -0x00000004
 #define NVIF_CLASS_SW_NV10                           /* if0005.h */ -0x00000005
 #define NVIF_CLASS_SW_NV50                           /* if0005.h */ -0x00000006

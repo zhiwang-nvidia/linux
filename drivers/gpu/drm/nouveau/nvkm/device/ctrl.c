@@ -26,7 +26,6 @@
 #include <core/client.h>
 #include <subdev/clk.h>
 
-#include <nvif/class.h>
 #include <nvif/if0001.h>
 #include <nvif/ioctl.h>
 #include <nvif/unpack.h>
@@ -195,25 +194,33 @@ nvkm_control = {
 	.mthd = nvkm_control_mthd,
 };
 
-static int
-nvkm_control_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
-		 void *data, u32 size, struct nvkm_object **pobject)
+static void
+nvkm_control_del(struct nvif_control_priv *ctrl)
+{
+	struct nvkm_object *object = &ctrl->object;
+
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_control_impl
+nvkm_control_impl = {
+	.del = nvkm_control_del,
+};
+
+int
+nvkm_control_new(struct nvkm_device *device, const struct nvif_control_impl **pimpl,
+		 struct nvif_control_priv **ppriv, struct nvkm_object **pobject)
 {
 	struct nvif_control_priv *ctrl;
 
 	if (!(ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL)))
 		return -ENOMEM;
-	*pobject = &ctrl->object;
+
+	nvkm_object_ctor(&nvkm_control, &(struct nvkm_oclass) {}, &ctrl->object);
 	ctrl->device = device;
 
-	nvkm_object_ctor(&nvkm_control, oclass, &ctrl->object);
+	*pimpl = &nvkm_control_impl;
+	*ppriv = ctrl;
+	*pobject = &ctrl->object;
 	return 0;
 }
-
-const struct nvkm_device_oclass
-nvkm_control_oclass = {
-	.base.oclass = NVIF_CLASS_CONTROL,
-	.base.minver = -1,
-	.base.maxver = -1,
-	.ctor = nvkm_control_new,
-};

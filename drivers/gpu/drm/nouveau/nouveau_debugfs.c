@@ -29,7 +29,6 @@
  */
 
 #include <linux/debugfs.h>
-#include <nvif/class.h>
 #include <nvif/if0001.h>
 #include "nouveau_debugfs.h"
 #include "nouveau_drv.h"
@@ -295,20 +294,29 @@ nouveau_drm_debugfs_init(struct drm_minor *minor)
 int
 nouveau_debugfs_init(struct nouveau_drm *drm)
 {
+	int ret;
+
+	if (!drm->device.impl->control.new)
+		return -ENODEV;
+
 	drm->debugfs = kzalloc(sizeof(*drm->debugfs), GFP_KERNEL);
 	if (!drm->debugfs)
 		return -ENOMEM;
 
-	return nvif_object_ctor(&drm->client.device.object, "debugfsCtrl", 0,
-				NVIF_CLASS_CONTROL, NULL, 0,
-				&drm->debugfs->ctrl);
+	ret = drm->device.impl->control.new(drm->device.priv, &drm->debugfs->impl,
+					    &drm->debugfs->priv, nvif_handle(&drm->debugfs->ctrl));
+	if (ret)
+		return ret;
+
+	nvif_object_ctor(&drm->device.object, "debugfsCtrl", 0, 0, &drm->debugfs->ctrl);
+	return 0;
 }
 
 void
 nouveau_debugfs_fini(struct nouveau_drm *drm)
 {
-	if (drm->debugfs && drm->debugfs->ctrl.priv)
-		nvif_object_dtor(&drm->debugfs->ctrl);
+	if (drm->debugfs && drm->debugfs->impl)
+		drm->debugfs->impl->del(drm->debugfs->priv);
 
 	kfree(drm->debugfs);
 	drm->debugfs = NULL;

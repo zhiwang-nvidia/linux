@@ -9,6 +9,8 @@
 #include "nouveau_drv.h"
 
 struct nouveau_debugfs {
+	const struct nvif_control_impl *impl;
+	struct nvif_control_priv *priv;
 	struct nvif_object ctrl;
 };
 

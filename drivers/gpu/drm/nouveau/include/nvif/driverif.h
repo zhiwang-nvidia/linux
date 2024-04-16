@@ -3,6 +3,7 @@
 #define __NVIF_DRIVERIF_H__
 struct nvif_client_priv;
 struct nvif_device_priv;
+struct nvif_control_priv;
 
 struct nvif_driver {
 	const char *name;
@@ -20,6 +21,10 @@ struct nvif_mapinfo {
 	} type;
 	u64 handle;
 	u64 length;
+};
+
+struct nvif_control_impl {
+	void (*del)(struct nvif_control_priv *);
 };
 
 struct nvif_device_impl {
@@ -62,6 +67,12 @@ struct nvif_device_impl {
 	u64 ram_user;
 
 	u64 (*time)(struct nvif_device_priv *);
+
+	struct {
+		int (*new)(struct nvif_device_priv *,
+			   const struct nvif_control_impl **, struct nvif_control_priv **,
+			   u64 handle);
+	} control;
 
 	struct {
 		s32 oclass;

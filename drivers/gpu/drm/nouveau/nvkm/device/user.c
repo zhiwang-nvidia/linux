@@ -39,6 +39,21 @@ struct nvif_device_priv {
 	struct nvif_device_impl impl;
 };
 
+static int
+nvkm_udevice_control_new(struct nvif_device_priv *udev,
+			 const struct nvif_control_impl **pimpl, struct nvif_control_priv **ppriv,
+			 u64 handle)
+{
+	struct nvkm_object *object;
+	int ret;
+
+	ret = nvkm_control_new(udev->device, pimpl, ppriv, &object);
+	if (ret)
+		return ret;
+
+	return nvkm_object_link_rb(udev->object.client, &udev->object, handle, object);
+}
+
 static u64
 nvkm_udevice_time(struct nvif_device_priv *udev)
 {
@@ -58,6 +73,7 @@ static const struct nvif_device_impl
 nvkm_udevice_impl = {
 	.del = nvkm_udevice_del,
 	.time = nvkm_udevice_time,
+	.control.new = nvkm_udevice_control_new,
 };
 
 static int
@@ -134,9 +150,7 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 	}
 
 	if (!sclass) {
-		if (index-- == 0)
-			sclass = &nvkm_control_oclass;
-		else if (device->mmu && index-- == 0)
+		if (device->mmu && index-- == 0)
 			sclass = &device->mmu->user;
 		else if (device->fault && index-- == 0)
 			sclass = &device->fault->user;
