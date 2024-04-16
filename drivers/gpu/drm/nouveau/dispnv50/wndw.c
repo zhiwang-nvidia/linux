@@ -810,27 +810,20 @@ int
 nv50_wndw_new(struct nouveau_drm *drm, enum drm_plane_type type, int index,
 	      struct nv50_wndw **pwndw)
 {
-	struct {
-		s32 oclass;
-		int version;
-		int (*new)(struct nouveau_drm *, enum drm_plane_type,
-			   int, s32, struct nv50_wndw **);
-	} wndws[] = {
-		{ GA102_DISP_WINDOW_CHANNEL_DMA, 0, wndwc67e_new },
-		{ TU102_DISP_WINDOW_CHANNEL_DMA, 0, wndwc57e_new },
-		{ GV100_DISP_WINDOW_CHANNEL_DMA, 0, wndwc37e_new },
-		{}
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
-	int cid, ret;
+	int (*ctor)(struct nouveau_drm *, enum drm_plane_type, int, s32, struct nv50_wndw **);
+	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
+	int ret;
 
-	cid = nvif_mclass(&disp->disp->object, wndws);
-	if (cid < 0) {
+	switch (disp->impl->chan.wndw.oclass) {
+	case GA102_DISP_WINDOW_CHANNEL_DMA: ctor = wndwc67e_new; break;
+	case TU102_DISP_WINDOW_CHANNEL_DMA: ctor = wndwc57e_new; break;
+	case GV100_DISP_WINDOW_CHANNEL_DMA: ctor = wndwc37e_new; break;
+	default:
 		NV_ERROR(drm, "No supported window class\n");
-		return cid;
+		return -ENODEV;
 	}
 
-	ret = wndws[cid].new(drm, type, index, wndws[cid].oclass, pwndw);
+	ret = ctor(drm, type, index, disp->impl->chan.wndw.oclass, pwndw);
 	if (ret)
 		return ret;
 

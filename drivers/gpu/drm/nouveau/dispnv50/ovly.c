@@ -27,29 +27,23 @@
 int
 nv50_ovly_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
 {
-	static const struct {
-		s32 oclass;
-		int version;
-		int (*new)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
-	} ovlys[] = {
-		{ GK104_DISP_OVERLAY_CONTROL_DMA, 0, ovly917e_new },
-		{ GF110_DISP_OVERLAY_CONTROL_DMA, 0, ovly907e_new },
-		{ GT214_DISP_OVERLAY_CHANNEL_DMA, 0, ovly827e_new },
-		{ GT200_DISP_OVERLAY_CHANNEL_DMA, 0, ovly827e_new },
-		{   G82_DISP_OVERLAY_CHANNEL_DMA, 0, ovly827e_new },
-		{  NV50_DISP_OVERLAY_CHANNEL_DMA, 0, ovly507e_new },
-		{}
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
-	int cid, ret;
+	int (*ctor)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
+	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
+	int ret;
 
-	cid = nvif_mclass(&disp->disp->object, ovlys);
-	if (cid < 0) {
+	switch (disp->impl->chan.ovly.oclass) {
+	case GK104_DISP_OVERLAY_CONTROL_DMA: ctor = ovly917e_new; break;
+	case GF110_DISP_OVERLAY_CONTROL_DMA: ctor = ovly907e_new; break;
+	case GT214_DISP_OVERLAY_CHANNEL_DMA: ctor = ovly827e_new; break;
+	case GT200_DISP_OVERLAY_CHANNEL_DMA: ctor = ovly827e_new; break;
+	case   G82_DISP_OVERLAY_CHANNEL_DMA: ctor = ovly827e_new; break;
+	case  NV50_DISP_OVERLAY_CHANNEL_DMA: ctor = ovly507e_new; break;
+	default:
 		NV_ERROR(drm, "No supported overlay class\n");
-		return cid;
+		return -ENODEV;
 	}
 
-	ret = ovlys[cid].new(drm, head, ovlys[cid].oclass, pwndw);
+	ret = ctor(drm, head, disp->impl->chan.ovly.oclass, pwndw);
 	if (ret)
 		return ret;
 

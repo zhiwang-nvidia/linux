@@ -221,6 +221,10 @@ struct nvif_disp_impl {
 	void (*del)(struct nvif_disp_priv *);
 
 	struct {
+		u32 oclass;
+	} caps;
+
+	struct {
 		u32 mask;
 	} conn;
 
@@ -231,6 +235,20 @@ struct nvif_disp_impl {
 	struct {
 		u32 mask;
 	} head;
+
+	struct {
+		struct nvif_disp_impl_core {
+			s32 oclass;
+		} core;
+
+		struct nvif_disp_impl_dmac {
+			s32 oclass;
+		} base, ovly, wndw, wimm;
+
+		struct nvif_disp_impl_pioc {
+			s32 oclass;
+		} curs, oimm;
+	} chan;
 };
 
 struct nvif_device_impl {

@@ -26,28 +26,21 @@
 int
 nv50_base_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
 {
-	struct {
-		s32 oclass;
-		int version;
-		int (*new)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
-	} bases[] = {
-		{ GK110_DISP_BASE_CHANNEL_DMA, 0, base917c_new },
-		{ GK104_DISP_BASE_CHANNEL_DMA, 0, base917c_new },
-		{ GF110_DISP_BASE_CHANNEL_DMA, 0, base907c_new },
-		{ GT214_DISP_BASE_CHANNEL_DMA, 0, base827c_new },
-		{ GT200_DISP_BASE_CHANNEL_DMA, 0, base827c_new },
-		{   G82_DISP_BASE_CHANNEL_DMA, 0, base827c_new },
-		{  NV50_DISP_BASE_CHANNEL_DMA, 0, base507c_new },
-		{}
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
-	int cid;
+	int (*ctor)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
+	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
 
-	cid = nvif_mclass(&disp->disp->object, bases);
-	if (cid < 0) {
+	switch (disp->impl->chan.base.oclass) {
+	case GK110_DISP_BASE_CHANNEL_DMA: ctor = base917c_new; break;
+	case GK104_DISP_BASE_CHANNEL_DMA: ctor = base917c_new; break;
+	case GF110_DISP_BASE_CHANNEL_DMA: ctor = base907c_new; break;
+	case GT214_DISP_BASE_CHANNEL_DMA: ctor = base827c_new; break;
+	case GT200_DISP_BASE_CHANNEL_DMA: ctor = base827c_new; break;
+	case   G82_DISP_BASE_CHANNEL_DMA: ctor = base827c_new; break;
+	case  NV50_DISP_BASE_CHANNEL_DMA: ctor = base507c_new; break;
+	default:
 		NV_ERROR(drm, "No supported base class\n");
-		return cid;
+		return -ENODEV;
 	}
 
-	return bases[cid].new(drm, head, bases[cid].oclass, pwndw);
+	return ctor(drm, head, disp->impl->chan.base.oclass, pwndw);
 }

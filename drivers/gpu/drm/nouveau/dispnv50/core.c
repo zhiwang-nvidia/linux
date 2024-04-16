@@ -43,41 +43,34 @@ nv50_core_del(struct nv50_core **pcore)
 int
 nv50_core_new(struct nouveau_drm *drm, struct nv50_core **pcore)
 {
-	struct {
-		s32 oclass;
-		int version;
-		int (*new)(struct nouveau_drm *, s32, struct nv50_core **);
-	} cores[] = {
-		{ AD102_DISP_CORE_CHANNEL_DMA, 0, corec57d_new },
-		{ GA102_DISP_CORE_CHANNEL_DMA, 0, corec57d_new },
-		{ TU102_DISP_CORE_CHANNEL_DMA, 0, corec57d_new },
-		{ GV100_DISP_CORE_CHANNEL_DMA, 0, corec37d_new },
-		{ GP102_DISP_CORE_CHANNEL_DMA, 0, core917d_new },
-		{ GP100_DISP_CORE_CHANNEL_DMA, 0, core917d_new },
-		{ GM200_DISP_CORE_CHANNEL_DMA, 0, core917d_new },
-		{ GM107_DISP_CORE_CHANNEL_DMA, 0, core917d_new },
-		{ GK110_DISP_CORE_CHANNEL_DMA, 0, core917d_new },
-		{ GK104_DISP_CORE_CHANNEL_DMA, 0, core917d_new },
-		{ GF110_DISP_CORE_CHANNEL_DMA, 0, core907d_new },
-		{ GT214_DISP_CORE_CHANNEL_DMA, 0, core827d_new },
-		{ GT206_DISP_CORE_CHANNEL_DMA, 0, core827d_new },
-		{ GT200_DISP_CORE_CHANNEL_DMA, 0, core827d_new },
-		{   G82_DISP_CORE_CHANNEL_DMA, 0, core827d_new },
-		{  NV50_DISP_CORE_CHANNEL_DMA, 0, core507d_new },
-		{}
-	};
+	int (*ctor)(struct nouveau_drm *, s32, struct nv50_core **);
 	struct nv50_disp *disp = nv50_disp(drm->dev);
 	struct nv50_core *core;
-	int cid;
 	int ret;
 
-	cid = nvif_mclass(&disp->disp->object, cores);
-	if (cid < 0) {
+	switch (disp->disp->impl->chan.core.oclass) {
+	case AD102_DISP_CORE_CHANNEL_DMA: ctor = corec57d_new; break;
+	case GA102_DISP_CORE_CHANNEL_DMA: ctor = corec57d_new; break;
+	case TU102_DISP_CORE_CHANNEL_DMA: ctor = corec57d_new; break;
+	case GV100_DISP_CORE_CHANNEL_DMA: ctor = corec37d_new; break;
+	case GP102_DISP_CORE_CHANNEL_DMA: ctor = core917d_new; break;
+	case GP100_DISP_CORE_CHANNEL_DMA: ctor = core917d_new; break;
+	case GM200_DISP_CORE_CHANNEL_DMA: ctor = core917d_new; break;
+	case GM107_DISP_CORE_CHANNEL_DMA: ctor = core917d_new; break;
+	case GK110_DISP_CORE_CHANNEL_DMA: ctor = core917d_new; break;
+	case GK104_DISP_CORE_CHANNEL_DMA: ctor = core917d_new; break;
+	case GF110_DISP_CORE_CHANNEL_DMA: ctor = core907d_new; break;
+	case GT214_DISP_CORE_CHANNEL_DMA: ctor = core827d_new; break;
+	case GT206_DISP_CORE_CHANNEL_DMA: ctor = core827d_new; break;
+	case GT200_DISP_CORE_CHANNEL_DMA: ctor = core827d_new; break;
+	case   G82_DISP_CORE_CHANNEL_DMA: ctor = core827d_new; break;
+	case  NV50_DISP_CORE_CHANNEL_DMA: ctor = core507d_new; break;
+	default:
 		NV_ERROR(drm, "No supported core channel class\n");
-		return cid;
+		return -ENODEV;
 	}
 
-	ret = cores[cid].new(drm, cores[cid].oclass, &core);
+	ret = ctor(drm, disp->disp->impl->chan.core.oclass, &core);
 	*pcore = core;
 	if (ret)
 		return ret;

@@ -82,35 +82,6 @@ void nvif_object_unmap(struct nvif_object *);
 
 #define nvif_mthd(a,b,c,d) nvif_object_mthd((a), (b), (c), (d))
 
-struct nvif_mclass {
-	s32 oclass;
-	int version;
-};
-
-#define nvif_mclass(o,m) ({                                                    \
-	struct nvif_object *object = (o);                                      \
-	struct nvif_sclass *sclass;                                            \
-	typeof(m[0]) *mclass = (m);                                            \
-	int ret = -ENODEV;                                                     \
-	int cnt, i, j;                                                         \
-                                                                               \
-	cnt = nvif_object_sclass_get(object, &sclass);                         \
-	if (cnt >= 0) {                                                        \
-		for (i = 0; ret < 0 && mclass[i].oclass; i++) {                \
-			for (j = 0; j < cnt; j++) {                            \
-				if (mclass[i].oclass  == sclass[j].oclass &&   \
-				    mclass[i].version >= sclass[j].minver &&   \
-				    mclass[i].version <= sclass[j].maxver) {   \
-					ret = i;                               \
-					break;                                 \
-				}                                              \
-			}                                                      \
-		}                                                              \
-		nvif_object_sclass_put(&sclass);                               \
-	}                                                                      \
-	ret;                                                                   \
-})
-
 #define NVIF_RD32_(p,o,dr)   nvif_rd32((p), (o) + (dr))
 #define NVIF_WR32_(p,o,dr,f) nvif_wr32((p), (o) + (dr), (f))
 #define NVIF_RD32(p,A...) DRF_RD(NVIF_RD32_,                  (p), 0, ##A)

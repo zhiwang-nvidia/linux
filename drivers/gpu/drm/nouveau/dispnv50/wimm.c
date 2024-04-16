@@ -26,24 +26,17 @@
 int
 nv50_wimm_init(struct nouveau_drm *drm, struct nv50_wndw *wndw)
 {
-	struct {
-		s32 oclass;
-		int version;
-		int (*init)(struct nouveau_drm *, s32, struct nv50_wndw *);
-	} wimms[] = {
-		{ GA102_DISP_WINDOW_IMM_CHANNEL_DMA, 0, wimmc37b_init },
-		{ TU102_DISP_WINDOW_IMM_CHANNEL_DMA, 0, wimmc37b_init },
-		{ GV100_DISP_WINDOW_IMM_CHANNEL_DMA, 0, wimmc37b_init },
-		{}
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
-	int cid;
+	int (*ctor)(struct nouveau_drm *, s32, struct nv50_wndw *);
+	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
 
-	cid = nvif_mclass(&disp->disp->object, wimms);
-	if (cid < 0) {
+	switch (disp->impl->chan.wimm.oclass) {
+	case GA102_DISP_WINDOW_IMM_CHANNEL_DMA: ctor = wimmc37b_init; break;
+	case TU102_DISP_WINDOW_IMM_CHANNEL_DMA: ctor = wimmc37b_init; break;
+	case GV100_DISP_WINDOW_IMM_CHANNEL_DMA: ctor = wimmc37b_init; break;
+	default:
 		NV_ERROR(drm, "No supported window immediate class\n");
-		return cid;
+		return -ENODEV;
 	}
 
-	return wimms[cid].init(drm, wimms[cid].oclass, wndw);
+	return ctor(drm, disp->impl->chan.wimm.oclass, wndw);
 }

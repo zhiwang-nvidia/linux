@@ -171,6 +171,10 @@ nvkm_udisp_new(struct nvkm_device *device, const struct nvif_disp_impl **pimpl,
 	udisp->disp = disp;
 	udisp->impl = nvkm_udisp_impl;
 
+	if (disp->func->user.caps.oclass) {
+		udisp->impl.caps.oclass = disp->func->user.caps.oclass;
+	}
+
 	list_for_each_entry(conn, &disp->conns, head)
 		udisp->impl.conn.mask |= BIT(conn->index);
 
@@ -179,6 +183,22 @@ nvkm_udisp_new(struct nvkm_device *device, const struct nvif_disp_impl **pimpl,
 
 	list_for_each_entry(head, &disp->heads, head)
 		udisp->impl.head.mask |= BIT(head->id);
+
+	if (disp->func->user.core.oclass) {
+		udisp->impl.chan.core.oclass = disp->func->user.core.oclass;
+		udisp->impl.chan.curs.oclass = disp->func->user.curs.oclass;
+
+		if (!disp->func->user.wndw.oclass) {
+			/* EVO */
+			udisp->impl.chan.base.oclass = disp->func->user.base.oclass;
+			udisp->impl.chan.ovly.oclass = disp->func->user.ovly.oclass;
+			udisp->impl.chan.oimm.oclass = disp->func->user.oimm.oclass;
+		} else {
+			/* NVDisplay (GV100-) */
+			udisp->impl.chan.wndw.oclass = disp->func->user.wndw.oclass;
+			udisp->impl.chan.wimm.oclass = disp->func->user.wimm.oclass;
+		}
+	}
 
 	*pimpl = &udisp->impl;
 	*ppriv = udisp;
