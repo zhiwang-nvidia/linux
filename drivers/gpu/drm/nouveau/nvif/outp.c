@@ -302,54 +302,47 @@ nvif_outp_release(struct nvif_outp *outp)
 }
 
 static inline int
-nvif_outp_acquire(struct nvif_outp *outp, u8 type, struct nvif_outp_acquire_v0 *args)
+nvif_outp_acquire(struct nvif_outp *outp, enum nvif_outp_type type, bool hda)
 {
+	u8 or, link;
 	int ret;
 
-	args->version = 0;
-	args->type = type;
-
-	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_ACQUIRE, args, sizeof(*args));
+	ret = outp->impl->acquire(outp->priv, type, hda, &or, &link);
 	if (ret)
 		return ret;
 
-	outp->or.id = args->or;
-	outp->or.link = args->link;
+	outp->or.id = or;
+	outp->or.link = link;
 	return 0;
 }
 
 int
 nvif_outp_acquire_pior(struct nvif_outp *outp)
 {
-	struct nvif_outp_acquire_v0 args;
 	int ret;
 
-	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_PIOR, &args);
-	NVIF_ERRON(ret, &outp->object, "[ACQUIRE PIOR] or:%d", args.or);
+	ret = nvif_outp_acquire(outp, NVIF_OUTP_PIOR, false);
+	NVIF_ERRON(ret, &outp->object, "[ACQUIRE PIOR] or:%d", outp->or.id);
 	return ret;
 }
 
 int
 nvif_outp_acquire_sor(struct nvif_outp *outp, bool hda)
 {
-	struct nvif_outp_acquire_v0 args;
 	int ret;
 
-	args.sor.hda = hda;
-
-	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_SOR, &args);
-	NVIF_ERRON(ret, &outp->object, "[ACQUIRE SOR] or:%d link:%d", args.or, args.link);
+	ret = nvif_outp_acquire(outp, NVIF_OUTP_SOR, hda);
+	NVIF_ERRON(ret, &outp->object, "[ACQUIRE SOR] or:%d link:%d", outp->or.id, outp->or.link);
 	return ret;
 }
 
 int
 nvif_outp_acquire_dac(struct nvif_outp *outp)
 {
-	struct nvif_outp_acquire_v0 args;
 	int ret;
 
-	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_DAC, &args);
-	NVIF_ERRON(ret, &outp->object, "[ACQUIRE DAC] or:%d", args.or);
+	ret = nvif_outp_acquire(outp, NVIF_OUTP_DAC, false);
+	NVIF_ERRON(ret, &outp->object, "[ACQUIRE DAC] or:%d", outp->or.id);
 	return ret;
 }
 

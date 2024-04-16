@@ -373,35 +373,38 @@ nvkm_uoutp_mthd_release(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_acquire(struct nvif_outp_priv *uoutp, enum nvif_outp_type type, bool hda,
+		   u8 *or, u8 *link)
 {
-	union nvif_outp_acquire_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
 	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	if (outp->ior && args->v0.type <= NVIF_OUTP_ACQUIRE_V0_PIOR)
+	nvkm_uoutp_lock(uoutp);
+	if (outp->ior) {
+		nvkm_uoutp_unlock(uoutp);
 		return -EBUSY;
+	}
 
-	switch (args->v0.type) {
-	case NVIF_OUTP_ACQUIRE_V0_DAC:
-	case NVIF_OUTP_ACQUIRE_V0_PIOR:
+	switch (type) {
+	case NVIF_OUTP_DAC:
+	case NVIF_OUTP_PIOR:
 		ret = outp->func->acquire(outp, false);
 		break;
-	case NVIF_OUTP_ACQUIRE_V0_SOR:
-		ret = outp->func->acquire(outp, args->v0.sor.hda);
+	case NVIF_OUTP_SOR:
+		ret = outp->func->acquire(outp, hda);
 		break;
 	default:
 		ret = -EINVAL;
 		break;
 	}
 
-	if (ret)
-		return ret;
+	if (ret == 0) {
+		*or = outp->ior->id;
+		*link = outp->ior->asy.link;
+	}
 
-	args->v0.or = outp->ior->id;
-	args->v0.link = outp->ior->asy.link;
-	return 0;
+	nvkm_uoutp_unlock(uoutp);
+	return ret;
 }
 
 static int
@@ -549,7 +552,6 @@ static int
 nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc, bool *invalid)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_ACQUIRE    : return nvkm_uoutp_mthd_acquire    (outp, argv, argc);
 	case NVIF_OUTP_V0_BL_GET     : return nvkm_uoutp_mthd_bl_get     (outp, argv, argc);
 	case NVIF_OUTP_V0_BL_SET     : return nvkm_uoutp_mthd_bl_set     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_AUX_PWR : return nvkm_uoutp_mthd_dp_aux_pwr (outp, argv, argc);
@@ -599,6 +601,7 @@ static const struct nvif_outp_impl
 nvkm_uoutp_impl = {
 	.del = nvkm_uoutp_del,
 	.inherit = nvkm_uoutp_inherit,
+	.acquire = nvkm_uoutp_acquire,
 };
 
 static void *

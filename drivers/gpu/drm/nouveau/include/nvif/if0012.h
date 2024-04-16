@@ -4,7 +4,6 @@
 
 #include <drm/display/drm_dp.h>
 
-#define NVIF_OUTP_V0_ACQUIRE       0x11
 #define NVIF_OUTP_V0_RELEASE       0x12
 
 #define NVIF_OUTP_V0_BL_GET        0x30
@@ -26,24 +25,6 @@
 #define NVIF_OUTP_V0_DP_MST_ID_GET 0x76
 #define NVIF_OUTP_V0_DP_MST_ID_PUT 0x77
 #define NVIF_OUTP_V0_DP_MST_VCPI   0x78
-
-union nvif_outp_acquire_args {
-	struct nvif_outp_acquire_v0 {
-		__u8 version;
-#define NVIF_OUTP_ACQUIRE_V0_DAC  0x00
-#define NVIF_OUTP_ACQUIRE_V0_SOR  0x01
-#define NVIF_OUTP_ACQUIRE_V0_PIOR 0x02
-		__u8 type;
-		__u8 or;
-		__u8 link;
-		__u8 pad04[4];
-		union {
-			struct {
-				__u8 hda;
-			} sor;
-		};
-	} v0;
-};
 
 union nvif_outp_release_args {
 	struct nvif_outp_release_vn {
