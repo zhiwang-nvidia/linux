@@ -4,8 +4,6 @@
 
 #include <drm/display/drm_dp.h>
 
-#define NVIF_OUTP_V0_EDID_GET      0x01
-
 #define NVIF_OUTP_V0_INHERIT       0x10
 #define NVIF_OUTP_V0_ACQUIRE       0x11
 #define NVIF_OUTP_V0_RELEASE       0x12
@@ -31,15 +29,6 @@
 #define NVIF_OUTP_V0_DP_MST_ID_GET 0x76
 #define NVIF_OUTP_V0_DP_MST_ID_PUT 0x77
 #define NVIF_OUTP_V0_DP_MST_VCPI   0x78
-
-union nvif_outp_edid_get_args {
-	struct nvif_outp_edid_get_v0 {
-		__u8  version;
-		__u8  pad01;
-		__u16 size;
-		__u8  data[2048];
-	} v0;
-};
 
 union nvif_outp_load_detect_args {
 	struct nvif_outp_load_detect_v0 {

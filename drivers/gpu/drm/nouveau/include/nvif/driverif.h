@@ -274,6 +274,7 @@ struct nvif_outp_impl {
 	u8 conn;
 
 	int (*detect)(struct nvif_outp_priv *, enum nvif_outp_detect_status *);
+	int (*edid_get)(struct nvif_outp_priv *, u8 *data, u16 *size);
 
 	struct {
 		u32 freq_max;

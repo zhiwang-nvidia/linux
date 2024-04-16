@@ -491,17 +491,15 @@ nvkm_uoutp_mthd_load_detect(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_edid_get(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_edid_get(struct nvif_outp_priv *uoutp, u8 *data, u16 *size)
 {
-	union nvif_outp_edid_get_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
+	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	if (!outp->func->edid_get)
-		return -EINVAL;
-
-	args->v0.size = ARRAY_SIZE(args->v0.data);
-	return outp->func->edid_get(outp, args->v0.data, &args->v0.size);
+	nvkm_uoutp_lock(uoutp);
+	ret = outp->func->edid_get(outp, data, size);
+	nvkm_uoutp_unlock(uoutp);
+	return ret;
 }
 
 static int
@@ -551,7 +549,6 @@ static int
 nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc, bool *invalid)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_EDID_GET   : return nvkm_uoutp_mthd_edid_get   (outp, argv, argc);
 	case NVIF_OUTP_V0_INHERIT    : return nvkm_uoutp_mthd_inherit    (outp, argv, argc);
 	case NVIF_OUTP_V0_ACQUIRE    : return nvkm_uoutp_mthd_acquire    (outp, argv, argc);
 	case NVIF_OUTP_V0_LOAD_DETECT: return nvkm_uoutp_mthd_load_detect(outp, argv, argc);
@@ -651,6 +648,8 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 
 	if (outp->func->detect)
 		uoutp->impl.detect = nvkm_uoutp_detect;
+	if (outp->func->edid_get)
+		uoutp->impl.edid_get = nvkm_uoutp_edid_get;
 
 	switch (outp->info.type) {
 	case DCB_OUTPUT_ANALOG:

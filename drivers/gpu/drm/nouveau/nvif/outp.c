@@ -438,29 +438,28 @@ nvif_outp_load_detect(struct nvif_outp *outp, u32 loadval)
 int
 nvif_outp_edid_get(struct nvif_outp *outp, u8 **pedid)
 {
-	struct nvif_outp_edid_get_v0 *args;
+	u16 size = 2048;
+	u8 *data;
 	int ret;
 
-	args = kmalloc(sizeof(*args), GFP_KERNEL);
-	if (!args)
+	data = kmalloc(size, GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
 
-	args->version = 0;
-
-	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_EDID_GET, args, sizeof(*args));
-	NVIF_ERRON(ret, &outp->object, "[EDID_GET] size:%d", args->size);
+	ret = outp->impl->edid_get(outp->priv, data, &size);
+	NVIF_ERRON(ret, &outp->object, "[EDID_GET] size:%d", size);
 	if (ret)
 		goto done;
 
-	*pedid = kmemdup(args->data, args->size, GFP_KERNEL);
+	*pedid = kmemdup(data, size, GFP_KERNEL);
 	if (!*pedid) {
 		ret = -ENOMEM;
 		goto done;
 	}
 
-	ret = args->size;
+	ret = size;
 done:
-	kfree(args);
+	kfree(data);
 	return ret;
 }
 
