@@ -208,39 +208,47 @@ nvkm_uoutp_mthd_dp_aux_pwr(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_hda_eld(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_hda_eld(struct nvif_outp_priv *uoutp, u8 head, u8 *data, u8 size)
 {
-	struct nvkm_ior *ior = outp->ior;
-	union nvif_outp_hda_eld_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
+	struct nvkm_ior *ior;
+	int ret;
 
-	if (argc < sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	argc -= sizeof(args->v0);
-
-	if (!ior->hda || !nvkm_head_find(outp->disp, args->v0.head))
+	if (!nvkm_head_find(outp->disp, head))
 		return -EINVAL;
-	if (argc > 0x60)
+	if (size > 0x60)
 		return -E2BIG;
 
-	if (argc && args->v0.data[0]) {
-		if (outp->info.type == DCB_OUTPUT_DP)
-			ior->func->dp->audio(ior, args->v0.head, true);
-		else
-		if (ior->func->hdmi->audio)
-			ior->func->hdmi->audio(ior, args->v0.head, true);
+	ret = nvkm_uoutp_lock_acquired(uoutp);
+	if (ret)
+		return ret;
 
-		ior->func->hda->hpd(ior, args->v0.head, true);
-		ior->func->hda->eld(ior, args->v0.head, args->v0.data, argc);
-	} else {
-		ior->func->hda->hpd(ior, args->v0.head, false);
-
-		if (outp->info.type == DCB_OUTPUT_DP)
-			ior->func->dp->audio(ior, args->v0.head, false);
-		else
-		if (ior->func->hdmi->audio)
-			ior->func->hdmi->audio(ior, args->v0.head, false);
+	ior = outp->ior;
+	if (!ior->hda) {
+		nvkm_uoutp_unlock(uoutp);
+		return -EINVAL;
 	}
 
+	if (size && data[0]) {
+		if (outp->info.type == DCB_OUTPUT_DP)
+			ior->func->dp->audio(ior, head, true);
+		else
+		if (ior->func->hdmi->audio)
+			ior->func->hdmi->audio(ior, head, true);
+
+		ior->func->hda->hpd(ior, head, true);
+		ior->func->hda->eld(ior, head, data, size);
+	} else {
+		ior->func->hda->hpd(ior, head, false);
+
+		if (outp->info.type == DCB_OUTPUT_DP)
+			ior->func->dp->audio(ior, head, false);
+		else
+		if (ior->func->hdmi->audio)
+			ior->func->hdmi->audio(ior, head, false);
+	}
+
+	nvkm_uoutp_unlock(uoutp);
 	return 0;
 }
 
@@ -539,7 +547,6 @@ static int
 nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_HDA_ELD      : return nvkm_uoutp_mthd_hda_eld      (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_TRAIN     : return nvkm_uoutp_mthd_dp_train     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_DRIVE     : return nvkm_uoutp_mthd_dp_drive     (outp, argv, argc);
 	case NVIF_OUTP_V0_DP_SST       : return nvkm_uoutp_mthd_dp_sst       (outp, argv, argc);
@@ -676,6 +683,7 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 		uoutp->impl.proto = NVIF_OUTP_TMDS;
 		uoutp->impl.hdmi.config = nvkm_uoutp_hdmi;
 		uoutp->impl.hdmi.infoframe = nvkm_uoutp_infoframe;
+		uoutp->impl.hda.eld = nvkm_uoutp_hda_eld;
 		break;
 	case DCB_OUTPUT_LVDS:
 		uoutp->impl.type = NVIF_OUTP_SOR;
@@ -692,6 +700,7 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 			uoutp->impl.dp.aux = NVKM_I2C_AUX_EXT(outp->info.extdev);
 		}
 		uoutp->impl.proto = NVIF_OUTP_DP;
+		uoutp->impl.hda.eld = nvkm_uoutp_hda_eld;
 		uoutp->impl.dp.mst = outp->dp.mst;
 		uoutp->impl.dp.increased_wm = outp->dp.increased_wm;
 		uoutp->impl.dp.link_nr = outp->info.dpconf.link_nr;

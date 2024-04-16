@@ -305,6 +305,10 @@ struct nvif_outp_impl {
 	} hdmi;
 
 	struct {
+		int (*eld)(struct nvif_outp_priv *, u8 head, u8 *data, u8 size);
+	} hda;
+
+	struct {
 		u8 acpi_edid;
 
 		int (*config)(struct nvif_outp_priv *, bool dual, bool bpc8);
