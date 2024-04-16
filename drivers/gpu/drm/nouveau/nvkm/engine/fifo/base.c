@@ -75,9 +75,6 @@ nvkm_fifo_class_new(struct nvkm_device *device, const struct nvkm_oclass *oclass
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(oclass->engine);
 
-	if (oclass->engn == &fifo->func->cgrp.user)
-		return nvkm_ucgrp_new(fifo, oclass, argv, argc, pobject);
-
 	if (oclass->engn == &fifo->func->chan.user)
 		return nvkm_uchan_new(fifo, NULL, oclass, argv, argc, pobject);
 
@@ -94,19 +91,8 @@ static int
 nvkm_fifo_class_get(struct nvkm_oclass *oclass, int index, const struct nvkm_device_oclass **class)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(oclass->engine);
-	const struct nvkm_fifo_func_cgrp *cgrp = &fifo->func->cgrp;
 	const struct nvkm_fifo_func_chan *chan = &fifo->func->chan;
 	int c = 0;
-
-	/* *_CHANNEL_GROUP_* */
-	if (cgrp->user.oclass) {
-		if (c++ == index) {
-			oclass->base = cgrp->user;
-			oclass->engn = &fifo->func->cgrp.user;
-			*class = &nvkm_fifo_class;
-			return 0;
-		}
-	}
 
 	/* *_CHANNEL_DMA, *_CHANNEL_GPFIFO_* */
 	if (chan->user.oclass) {

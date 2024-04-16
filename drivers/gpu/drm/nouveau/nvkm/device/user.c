@@ -35,6 +35,7 @@
 #include <engine/disp/priv.h>
 #include <engine/disp/udisp.h>
 #include <engine/fifo/ufifo.h>
+#include <engine/fifo/ucgrp.h>
 
 struct nvif_device_priv {
 	struct nvkm_object object;
@@ -92,6 +93,22 @@ static u64
 nvkm_udevice_time(struct nvif_device_priv *udev)
 {
 	return nvkm_timer_read(udev->device->timer);
+}
+
+static int
+nvkm_udevice_cgrp_new(struct nvif_device_priv *udev, u8 runl, struct nvif_vmm_priv *uvmm,
+		      const char *name, const struct nvif_cgrp_impl **pimpl,
+		      struct nvif_cgrp_priv **ppriv)
+{
+	struct nvkm_object *object;
+	int ret;
+
+	ret = nvkm_ucgrp_new(udev->device->fifo, runl, uvmm, name, pimpl, ppriv, &object);
+	if (ret)
+		return ret;
+
+	nvkm_object_link(&udev->object, object);
+	return 0;
 }
 
 static int
@@ -340,6 +357,8 @@ nvkm_udevice_new(struct nvkm_device *device,
 	if (device->fifo) {
 		if (!WARN_ON(nvkm_subdev_oneinit(&device->fifo->engine.subdev))) {
 			nvkm_ufifo_ctor(device->fifo, &udev->impl.fifo);
+
+			udev->impl.fifo.cgrp.new = nvkm_udevice_cgrp_new;
 		}
 	}
 

@@ -33,6 +33,15 @@ struct nvif_vmm_priv {
 	struct nvif_vmm_impl impl;
 };
 
+struct nvkm_vmm *
+nvkm_uvmm_ref(struct nvif_vmm_priv *uvmm)
+{
+	if (uvmm)
+		return nvkm_vmm_ref(uvmm->vmm);
+
+	return NULL;
+}
+
 static const struct nvkm_object_func nvkm_uvmm;
 struct nvkm_vmm *
 nvkm_uvmm_search(struct nvkm_client *client, u64 handle)

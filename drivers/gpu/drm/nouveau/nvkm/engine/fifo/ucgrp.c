@@ -19,17 +19,18 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "priv.h"
+#include "ucgrp.h"
 #include "cgrp.h"
+#include "priv.h"
 #include "runl.h"
 
-#include <subdev/mmu.h>
-
-#include <nvif/if0021.h>
+#include <subdev/mmu/uvmm.h>
 
 struct nvif_cgrp_priv {
 	struct nvkm_object object;
 	struct nvkm_cgrp *cgrp;
+
+	struct nvif_cgrp_impl impl;
 };
 
 static int
@@ -61,6 +62,19 @@ nvkm_ucgrp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *ocl
 	return -EINVAL;
 }
 
+static void
+nvkm_ucgrp_del(struct nvif_cgrp_priv *ucgrp)
+{
+	struct nvkm_object *object = &ucgrp->object;
+
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_cgrp_impl
+nvkm_ucgrp_impl = {
+	.del = nvkm_ucgrp_del,
+};
+
 static void *
 nvkm_ucgrp_dtor(struct nvkm_object *object)
 {
@@ -77,30 +91,24 @@ nvkm_ucgrp = {
 };
 
 int
-nvkm_ucgrp_new(struct nvkm_fifo *fifo, const struct nvkm_oclass *oclass, void *argv, u32 argc,
+nvkm_ucgrp_new(struct nvkm_fifo *fifo, u8 runi, struct nvif_vmm_priv *uvmm, const char *name,
+	       const struct nvif_cgrp_impl **pimpl, struct nvif_cgrp_priv **ppriv,
 	       struct nvkm_object **pobject)
 {
-	union nvif_cgrp_args *args = argv;
 	struct nvkm_runl *runl;
 	struct nvkm_vmm *vmm;
 	struct nvif_cgrp_priv *ucgrp;
+	struct nvkm_engine *engine;
 	int ret;
 
-	if (argc < sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	argc -= sizeof(args->v0);
-
-	if (args->v0.namelen != argc)
-		return -EINVAL;
-
 	/* Lookup objects referenced in args. */
-	runl = nvkm_runl_get(fifo, args->v0.runlist, 0);
+	runl = nvkm_runl_get(fifo, runi, 0);
 	if (!runl)
 		return -EINVAL;
 
-	vmm = nvkm_uvmm_search(oclass->client, args->v0.vmm);
-	if (IS_ERR(vmm))
-		return PTR_ERR(vmm);
+	vmm = nvkm_uvmm_ref(uvmm);
+	if (!vmm)
+		return -EINVAL;
 
 	/* Allocate channel group. */
 	if (!(ucgrp = kzalloc(sizeof(*ucgrp), GFP_KERNEL))) {
@@ -108,17 +116,32 @@ nvkm_ucgrp_new(struct nvkm_fifo *fifo, const struct nvkm_oclass *oclass, void *a
 		goto done;
 	}
 
-	nvkm_object_ctor(&nvkm_ucgrp, oclass, &ucgrp->object);
-	*pobject = &ucgrp->object;
-
-	ret = nvkm_cgrp_new(runl, args->v0.name, vmm, true, &ucgrp->cgrp);
-	if (ret)
+	engine = nvkm_engine_ref(&fifo->engine);
+	if (IS_ERR(engine)) {
+		ret = PTR_ERR(engine);
 		goto done;
+	}
+
+	ret = nvkm_cgrp_new(runl, name, vmm, true, &ucgrp->cgrp);
+	if (ret) {
+		nvkm_engine_unref(&engine);
+		goto done;
+	}
+
+	nvkm_object_ctor(&nvkm_ucgrp, &(struct nvkm_oclass) { .engine = engine }, &ucgrp->object);
 
 	/* Return channel group info to caller. */
-	args->v0.cgid = ucgrp->cgrp->id;
+	ucgrp->impl = nvkm_ucgrp_impl;
+	ucgrp->impl.id = ucgrp->cgrp->id;
+
+	*pimpl = &ucgrp->impl;
+	*ppriv = ucgrp;
+	*pobject = &ucgrp->object;
 
 done:
+	if (ret)
+		kfree(ucgrp);
+
 	nvkm_vmm_unref(&vmm);
 	return ret;
 }

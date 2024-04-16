@@ -19,6 +19,7 @@ struct nvif_outp_priv;
 struct nvif_head_priv;
 struct nvif_disp_chan_priv;
 struct nvif_ctxdma_priv;
+struct nvif_cgrp_priv;
 
 struct nvif_event_impl {
 	void (*del)(struct nvif_event_priv *);
@@ -430,6 +431,12 @@ struct nvif_disp_impl {
 	} chan;
 };
 
+struct nvif_cgrp_impl {
+	void (*del)(struct nvif_cgrp_priv *);
+
+	u16 id;
+};
+
 struct nvif_device_impl {
 	void (*del)(struct nvif_device_priv *);
 
@@ -546,6 +553,9 @@ struct nvif_device_impl {
 
 		struct {
 			s32 oclass;
+			int (*new)(struct nvif_device_priv *, u8 runl, struct nvif_vmm_priv *,
+				   const char *name, const struct nvif_cgrp_impl **,
+				   struct nvif_cgrp_priv **);
 		} cgrp;
 
 		struct {

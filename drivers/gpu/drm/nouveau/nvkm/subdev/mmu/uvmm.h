@@ -6,4 +6,5 @@
 int nvkm_uvmm_new(struct nvkm_mmu *mmu, u8 type, u64 addr, u64 size,
 		  void *, u32, const struct nvif_vmm_impl **, struct nvif_vmm_priv **,
 		  struct nvkm_object **);
+struct nvkm_vmm *nvkm_uvmm_ref(struct nvif_vmm_priv *);
 #endif

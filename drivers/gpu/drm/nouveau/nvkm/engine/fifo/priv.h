@@ -208,6 +208,4 @@ extern const struct nvkm_chan_func ga100_chan;
 
 int nvkm_uchan_new(struct nvkm_fifo *, struct nvkm_cgrp *, const struct nvkm_oclass *,
 		   void *argv, u32 argc, struct nvkm_object **);
-int nvkm_ucgrp_new(struct nvkm_fifo *, const struct nvkm_oclass *, void *argv, u32 argc,
-		   struct nvkm_object **);
 #endif
