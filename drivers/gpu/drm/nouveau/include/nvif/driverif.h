@@ -327,6 +327,7 @@ struct nvif_outp_impl {
 		u32 link_bw;
 
 		int (*aux_pwr)(struct nvif_outp_priv *, bool enable);
+		int (*aux_xfer)(struct nvif_outp_priv *, u8 type, u32 addr, u8 *data, u8 *size);
 	} dp;
 };
 

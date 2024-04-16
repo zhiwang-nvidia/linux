@@ -181,17 +181,15 @@ nvkm_uoutp_mthd_dp_rates(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_dp_aux_xfer(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_dp_aux_xfer(struct nvif_outp_priv *uoutp, u8 type, u32 addr, u8 *data, u8 *size)
 {
-	union nvif_outp_dp_aux_xfer_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
+	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	if (!outp->func->dp.aux_xfer)
-		return -EINVAL;
-
-	return outp->func->dp.aux_xfer(outp, args->v0.type, args->v0.addr,
-					     args->v0.data, &args->v0.size);
+	nvkm_uoutp_lock(uoutp);
+	ret = outp->func->dp.aux_xfer(outp, type, addr, data, size);
+	nvkm_uoutp_unlock(uoutp);
+	return ret;
 }
 
 static int
@@ -563,7 +561,6 @@ static int
 nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc, bool *invalid)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_DP_AUX_XFER: return nvkm_uoutp_mthd_dp_aux_xfer(outp, argv, argc);
 	case NVIF_OUTP_V0_DP_RATES   : return nvkm_uoutp_mthd_dp_rates   (outp, argv, argc);
 	default:
 		break;
@@ -704,6 +701,7 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 		uoutp->impl.dp.link_nr = outp->info.dpconf.link_nr;
 		uoutp->impl.dp.link_bw = outp->info.dpconf.link_bw * 27000;
 		uoutp->impl.dp.aux_pwr = nvkm_uoutp_dp_aux_pwr;
+		uoutp->impl.dp.aux_xfer = nvkm_uoutp_dp_aux_xfer;
 		break;
 	default:
 		WARN_ON(1);

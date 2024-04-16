@@ -157,24 +157,16 @@ nvif_outp_dp_rates(struct nvif_outp *outp, struct nvif_outp_dp_rate *rate, int r
 int
 nvif_outp_dp_aux_xfer(struct nvif_outp *outp, u8 type, u8 *psize, u32 addr, u8 *data)
 {
-	struct nvif_outp_dp_aux_xfer_v0 args;
 	u8 size = *psize;
 	int ret;
 
-	args.version = 0;
-	args.type = type;
-	args.size = size;
-	args.addr = addr;
-	memcpy(args.data, data, size);
-	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_AUX_XFER, &args, sizeof(args));
+	ret = outp->impl->dp.aux_xfer(outp->priv, type, addr, data, &size);
 	NVIF_DEBUG(&outp->object, "[DP_AUX_XFER type:%d size:%d addr:%05x] %d size:%d (ret: %d)",
-		   args.type, size, args.addr, ret, args.size, ret);
+		   type, *psize, addr, ret, size, ret);
 	if (ret < 0)
 		return ret;
 
-	*psize = args.size;
-
-	memcpy(data, args.data, size);
+	*psize = size;
 	return ret;
 }
 
