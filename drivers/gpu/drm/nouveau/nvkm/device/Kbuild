@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+nvkm-y += nvkm/device/acpi.o
+nvkm-y += nvkm/device/base.o
+nvkm-y += nvkm/device/ctrl.o
+nvkm-y += nvkm/device/pci.o
+nvkm-y += nvkm/device/tegra.o
+nvkm-y += nvkm/device/user.o
