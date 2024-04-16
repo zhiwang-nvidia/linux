@@ -29,8 +29,6 @@
 #include <nvif/if000c.h>
 #include <nvif/unpack.h>
 
-#define nvkm_uvmm nvif_vmm_priv
-
 struct nvif_vmm_priv {
 	struct nvkm_object object;
 	struct nvkm_vmm *vmm;
@@ -348,36 +346,14 @@ nvkm_uvmm_raw_unmap(struct nvif_vmm_priv *uvmm, u8 shift, u64 addr, u64 size, bo
 }
 
 static int
-nvkm_uvmm_mthd_raw_sparse(struct nvkm_uvmm *uvmm, struct nvif_vmm_raw_v0 *args)
+nvkm_uvmm_raw_sparse(struct nvif_vmm_priv *uvmm, u64 addr, u64 size, bool ref)
 {
 	struct nvkm_vmm *vmm = uvmm->vmm;
 
-	if (!nvkm_vmm_in_managed_range(vmm, args->addr, args->size))
+	if (!nvkm_vmm_in_managed_range(vmm, addr, size))
 		return -EINVAL;
 
-	return nvkm_vmm_raw_sparse(vmm, args->addr, args->size, args->ref);
-}
-
-static int
-nvkm_uvmm_mthd_raw(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
-{
-	union {
-		struct nvif_vmm_raw_v0 v0;
-	} *args = argv;
-	int ret = -ENOSYS;
-
-	if (!uvmm->vmm->managed.raw)
-		return -EINVAL;
-
-	if ((ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, true)))
-		return ret;
-
-	switch (args->v0.op) {
-	case NVIF_VMM_RAW_V0_SPARSE:
-		return nvkm_uvmm_mthd_raw_sparse(uvmm, &args->v0);
-	default:
-		return -EINVAL;
-	};
+	return nvkm_vmm_raw_sparse(vmm, addr, size, ref);
 }
 
 static int
@@ -385,7 +361,6 @@ nvkm_uvmm_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
 	struct nvif_vmm_priv *uvmm = container_of(object, typeof(*uvmm), object);
 	switch (mthd) {
-	case NVIF_VMM_V0_RAW   : return nvkm_uvmm_mthd_raw   (uvmm, argv, argc);
 	case NVIF_VMM_V0_MTHD(0x00) ... NVIF_VMM_V0_MTHD(0x7f):
 		if (uvmm->vmm->func->mthd) {
 			return uvmm->vmm->func->mthd(uvmm->vmm,
@@ -420,6 +395,7 @@ nvkm_uvmm_impl = {
 	.raw.put = nvkm_uvmm_raw_put,
 	.raw.map = nvkm_uvmm_raw_map,
 	.raw.unmap = nvkm_uvmm_raw_unmap,
+	.raw.sparse = nvkm_uvmm_raw_sparse,
 };
 
 static void *

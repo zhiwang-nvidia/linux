@@ -94,16 +94,7 @@ nvif_vmm_raw_unmap(struct nvif_vmm *vmm, u64 addr, u64 size,
 int
 nvif_vmm_raw_sparse(struct nvif_vmm *vmm, u64 addr, u64 size, bool ref)
 {
-	struct nvif_vmm_raw_v0 args = {
-		.version = 0,
-		.op = NVIF_VMM_RAW_V0_SPARSE,
-		.addr = addr,
-		.size = size,
-		.ref = ref,
-	};
-
-	return nvif_object_mthd(&vmm->object, NVIF_VMM_V0_RAW,
-				&args, sizeof(args));
+	return vmm->impl->raw.sparse(vmm->priv, addr, size, ref);
 }
 
 void

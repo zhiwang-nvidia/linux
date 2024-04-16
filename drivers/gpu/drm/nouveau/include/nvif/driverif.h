@@ -142,6 +142,7 @@ struct nvif_vmm_impl {
 		int (*map)(struct nvif_vmm_priv *, u8 shift, u64 addr, u64 size, void *, u32,
 			   struct nvif_mem_priv *, u64 offset);
 		int (*unmap)(struct nvif_vmm_priv *, u8 shift, u64 addr, u64 size, bool sparse);
+		int (*sparse)(struct nvif_vmm_priv *, u64 addr, u64 size, bool ref);
 	} raw;
 };
 
