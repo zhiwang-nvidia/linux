@@ -44,8 +44,11 @@ struct nouveau_svm {
 	struct list_head inst;
 
 	struct nouveau_svm_fault_buffer {
-		int id;
+		const struct nvif_faultbuf_impl *impl;
+		struct nvif_faultbuf_priv *priv;
 		struct nvif_object object;
+
+		int id;
 		u32 entries;
 		u32 getaddr;
 		u32 putaddr;
@@ -960,7 +963,11 @@ nouveau_svm_fault_buffer_dtor(struct nouveau_svm *svm, int id)
 	}
 
 	nvif_event_dtor(&buffer->notify);
-	nvif_object_dtor(&buffer->object);
+
+	if (buffer->impl) {
+		buffer->impl->del(buffer->priv);
+		buffer->impl = NULL;
+	}
 }
 
 static int
@@ -968,23 +975,23 @@ nouveau_svm_fault_buffer_ctor(struct nouveau_svm *svm, s32 oclass, int id)
 {
 	struct nouveau_svm_fault_buffer *buffer = &svm->buffer[id];
 	struct nouveau_drm *drm = svm->drm;
-	struct nvif_object *device = &drm->client.device.object;
-	struct nvif_clb069_v0 args = {};
 	int ret;
 
 	buffer->id = id;
 
-	ret = nvif_object_ctor(device, "svmFaultBuffer", 0, oclass, &args,
-			       sizeof(args), &buffer->object);
-	if (ret < 0) {
+	ret = drm->device.impl->faultbuf.new(drm->device.priv, &buffer->impl, &buffer->priv,
+					     nvif_handle(&buffer->object));
+	if (ret) {
 		SVM_ERR(svm, "Fault buffer allocation failed: %d", ret);
 		return ret;
 	}
 
+	nvif_object_ctor(&drm->device.object, "svmFaultBuffer", id, oclass, &buffer->object);
+	buffer->entries = buffer->impl->entries;
+	buffer->getaddr = buffer->impl->get;
+	buffer->putaddr = buffer->impl->put;
+
 	nvif_object_map(&buffer->object, NULL, 0);
-	buffer->entries = args.entries;
-	buffer->getaddr = args.get;
-	buffer->putaddr = args.put;
 	INIT_WORK(&buffer->work, nouveau_svm_fault);
 
 	ret = nvif_event_ctor(&buffer->object, "svmFault", id, nouveau_svm_event, true, NULL, 0,

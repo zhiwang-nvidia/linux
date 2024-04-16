@@ -26,6 +26,7 @@
 #include "ctrl.h"
 
 #include <core/client.h>
+#include <subdev/fault/user.h>
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 #include <subdev/timer.h>
@@ -40,6 +41,21 @@ struct nvif_device_priv {
 
 	struct nvif_device_impl impl;
 };
+
+static int
+nvkm_udevice_fault_new(struct nvif_device_priv *udev,
+		       const struct nvif_faultbuf_impl **pimpl, struct nvif_faultbuf_priv **ppriv,
+		       u64 handle)
+{
+	struct nvkm_object *object;
+	int ret;
+
+	ret = nvkm_ufault_new(udev->device, pimpl, ppriv, &object);
+	if (ret)
+		return ret;
+
+	return nvkm_object_link_rb(udev->object.client, &udev->object, handle, object);
+}
 
 static int
 nvkm_udevice_usermode_new(struct nvif_device_priv *udev, const struct nvif_usermode_impl **pimpl,
@@ -183,15 +199,8 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 		index -= engine->func->base.sclass(oclass, index, &sclass);
 	}
 
-	if (!sclass) {
-		if (device->fault && index-- == 0)
-			sclass = &device->fault->user;
-		else
-			return -EINVAL;
-
-		oclass->base = sclass->base;
-		oclass->engine = NULL;
-	}
+	if (!sclass)
+		return -EINVAL;
 
 	oclass->ctor = nvkm_udevice_child_new;
 	oclass->priv = sclass;
@@ -305,6 +314,7 @@ nvkm_udevice_new(struct nvkm_device *device,
 
 	if (device->fault) {
 		udev->impl.faultbuf.oclass = device->fault->user.base.oclass;
+		udev->impl.faultbuf.new = nvkm_udevice_fault_new;
 	}
 
 	if (device->disp) {

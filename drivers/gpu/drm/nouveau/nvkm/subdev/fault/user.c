@@ -19,6 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+#include "user.h"
 #include "priv.h"
 
 #include <core/memory.h>
@@ -31,6 +32,8 @@
 struct nvif_faultbuf_priv {
 	struct nvkm_object object;
 	struct nvkm_fault_buffer *buffer;
+
+	struct nvif_faultbuf_impl impl;
 };
 
 static int
@@ -59,6 +62,20 @@ nvkm_ufault_map(struct nvkm_object *object, void *argv, u32 argc,
 	*size = nvkm_memory_size(buffer->mem);
 	return 0;
 }
+
+static void
+nvkm_ufault_del(struct nvif_faultbuf_priv *ufault)
+{
+	struct nvkm_object *object = &ufault->object;
+
+	nvkm_object_fini(object, false);
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_faultbuf_impl
+nvkm_ufault_impl = {
+	.del = nvkm_ufault_del,
+};
 
 static int
 nvkm_ufault_fini(struct nvkm_object *object, bool suspend)
@@ -96,31 +113,33 @@ nvkm_ufault = {
 };
 
 int
-nvkm_ufault_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
-		void *argv, u32 argc, struct nvkm_object **pobject)
+nvkm_ufault_new(struct nvkm_device *device, const struct nvif_faultbuf_impl **pimpl,
+		struct nvif_faultbuf_priv **ppriv, struct nvkm_object **pobject)
 {
-	union {
-		struct nvif_clb069_v0 v0;
-	} *args = argv;
 	struct nvkm_fault *fault = device->fault;
 	struct nvif_faultbuf_priv *ufault;
-	struct nvkm_fault_buffer *buffer = fault->buffer[fault->func->user.rp];
-	int ret = -ENOSYS;
-
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		args->v0.entries = buffer->entries;
-		args->v0.get = buffer->get;
-		args->v0.put = buffer->put;
-	} else
-		return ret;
+	int ret;
 
 	ufault = kzalloc(sizeof(*ufault), GFP_KERNEL);
 	if (!ufault)
 		return -ENOMEM;
 
-	nvkm_object_ctor(&nvkm_ufault, oclass, &ufault->object);
+	nvkm_object_ctor(&nvkm_ufault, &(struct nvkm_oclass) {}, &ufault->object);
 	ufault->buffer = fault->buffer[fault->func->user.rp];
 
+	ret = nvkm_ufault_init(&ufault->object);
+	if (ret) {
+		nvkm_ufault_del(ufault);
+		return ret;
+	}
+
+	ufault->impl = nvkm_ufault_impl;
+	ufault->impl.entries = ufault->buffer->entries;
+	ufault->impl.get = ufault->buffer->get;
+	ufault->impl.put = ufault->buffer->put;
+
+	*pimpl = &ufault->impl;
+	*ppriv = ufault;
 	*pobject = &ufault->object;
 	return 0;
 }

@@ -8,6 +8,7 @@ struct nvif_usermode_priv;
 struct nvif_mmu_priv;
 struct nvif_mem_priv;
 struct nvif_vmm_priv;
+struct nvif_faultbuf_priv;
 
 struct nvif_driver {
 	const char *name;
@@ -194,6 +195,14 @@ struct nvif_mmu_impl {
 	} vmm;
 };
 
+struct nvif_faultbuf_impl {
+	void (*del)(struct nvif_faultbuf_priv *);
+
+	u32 entries;
+	u32 get;
+	u32 put;
+};
+
 struct nvif_device_impl {
 	void (*del)(struct nvif_device_priv *);
 
@@ -254,6 +263,9 @@ struct nvif_device_impl {
 
 	struct {
 		s32 oclass;
+		int (*new)(struct nvif_device_priv *,
+			   const struct nvif_faultbuf_impl **, struct nvif_faultbuf_priv **,
+			   u64 handle);
 	} faultbuf;
 
 	struct {

@@ -52,7 +52,4 @@ void gp100_fault_intr(struct nvkm_fault *);
 u64 gp10b_fault_buffer_pin(struct nvkm_fault_buffer *);
 
 int gv100_fault_oneinit(struct nvkm_fault *);
-
-int nvkm_ufault_new(struct nvkm_device *, const struct nvkm_oclass *,
-		    void *, u32, struct nvkm_object **);
 #endif

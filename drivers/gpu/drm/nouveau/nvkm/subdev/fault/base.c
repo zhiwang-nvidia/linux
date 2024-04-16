@@ -160,7 +160,6 @@ nvkm_fault_new_(const struct nvkm_fault_func *func, struct nvkm_device *device,
 		return -ENOMEM;
 	nvkm_subdev_ctor(&nvkm_fault, device, type, inst, &fault->subdev);
 	fault->func = func;
-	fault->user.ctor = nvkm_ufault_new;
 	fault->user.base = func->user.base;
 	return 0;
 }
