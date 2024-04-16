@@ -11,6 +11,7 @@ struct nvif_mem_priv;
 struct nvif_vmm_priv;
 struct nvif_faultbuf_priv;
 struct nvif_disp_priv;
+struct nvif_disp_caps_priv;
 
 struct nvif_event_impl {
 	void (*del)(struct nvif_event_priv *);
@@ -217,11 +218,18 @@ struct nvif_faultbuf_impl {
 	} event;
 };
 
+struct nvif_disp_caps_impl {
+	void (*del)(struct nvif_disp_caps_priv *);
+	struct nvif_mapinfo map;
+};
+
 struct nvif_disp_impl {
 	void (*del)(struct nvif_disp_priv *);
 
 	struct {
 		u32 oclass;
+		int (*new)(struct nvif_disp_priv *,
+			   const struct nvif_disp_caps_impl **, struct nvif_disp_caps_priv **);
 	} caps;
 
 	struct {

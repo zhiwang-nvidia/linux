@@ -2788,8 +2788,7 @@ nv50_display_destroy(struct drm_device *dev)
 
 	nv50_audio_component_fini(nouveau_drm(dev));
 
-	nvif_object_unmap(&disp->caps);
-	nvif_object_dtor(&disp->caps);
+	nvif_disp_caps_dtor(&disp->caps);
 	nv50_core_del(&disp->core);
 
 	nouveau_bo_unmap(disp->sync);

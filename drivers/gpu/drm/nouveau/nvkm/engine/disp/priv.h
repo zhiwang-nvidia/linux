@@ -42,8 +42,7 @@ struct nvkm_disp_func {
 
 		struct {
 			s32 oclass;
-			int (*ctor)(const struct nvkm_oclass *, void *argv, u32 argc,
-				    struct nvkm_object **);
+			void (*addr)(struct nvkm_disp *, u64 *addr, u64 *size);
 		} caps;
 
 		struct nvkm_disp_func_chan {
@@ -76,7 +75,7 @@ void gv100_disp_fini(struct nvkm_disp *, bool suspend);
 void gv100_disp_intr(struct nvkm_disp *);
 void gv100_disp_super(struct work_struct *);
 int gv100_disp_wndw_cnt(struct nvkm_disp *, unsigned long *);
-int gv100_disp_caps_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
+void gv100_disp_caps(struct nvkm_disp *, u64 *addr, u64 *size);
 
 int tu102_disp_init(struct nvkm_disp *);
 

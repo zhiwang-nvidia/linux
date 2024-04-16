@@ -104,19 +104,10 @@ int corec37d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
 {
 	int ret;
 
-	ret = nvif_object_ctor(&disp->disp->object, "dispCaps", 0,
-			       GV100_DISP_CAPS, NULL, 0, &disp->caps);
+	ret = nvif_disp_caps_ctor(disp->disp, "dispCaps", &disp->caps);
 	if (ret) {
 		NV_ERROR(drm,
 			 "Failed to init notifier caps region: %d\n",
-			 ret);
-		return ret;
-	}
-
-	ret = nvif_object_map(&disp->caps, NULL, 0);
-	if (ret) {
-		NV_ERROR(drm,
-			 "Failed to map notifier caps region: %d\n",
 			 ret);
 		return ret;
 	}

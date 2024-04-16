@@ -17,4 +17,15 @@ struct nvif_disp {
 
 int nvif_disp_ctor(struct nvif_device *, const char *name, struct nvif_disp *);
 void nvif_disp_dtor(struct nvif_disp *);
+
+struct nvif_disp_caps {
+	const struct nvif_disp_caps_impl *impl;
+	struct nvif_disp_caps_priv *priv;
+
+	struct nvif_object object;
+	struct nvif_map map;
+};
+
+int nvif_disp_caps_ctor(struct nvif_disp *, const char *name, struct nvif_disp_caps *);
+void nvif_disp_caps_dtor(struct nvif_disp_caps *);
 #endif

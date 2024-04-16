@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "udisp.h"
+#include "ucaps.h"
 #include "chan.h"
 #include "conn.h"
 #include "head.h"
@@ -47,12 +48,6 @@ nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *scl
 	if (index-- == 0) {
 		sclass->base = (struct nvkm_sclass) { 0, 0, NVIF_CLASS_HEAD };
 		sclass->ctor = nvkm_uhead_new;
-		return 0;
-	}
-
-	if (disp->func->user.caps.oclass && index-- == 0) {
-		sclass->base = (struct nvkm_sclass) { -1, -1, disp->func->user.caps.oclass };
-		sclass->ctor = disp->func->user.caps.ctor;
 		return 0;
 	}
 
@@ -99,6 +94,21 @@ nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *scl
 	}
 
 	return -EINVAL;
+}
+
+static int
+nvkm_udisp_caps_new(struct nvif_disp_priv *udisp,
+		    const struct nvif_disp_caps_impl **pimpl, struct nvif_disp_caps_priv **ppriv)
+{
+	struct nvkm_object *object;
+	int ret;
+
+	ret = nvkm_ucaps_new(udisp->disp, pimpl, ppriv, &object);
+	if (ret)
+		return ret;
+
+	nvkm_object_link(&udisp->object, object);
+	return 0;
 }
 
 static void
@@ -173,6 +183,7 @@ nvkm_udisp_new(struct nvkm_device *device, const struct nvif_disp_impl **pimpl,
 
 	if (disp->func->user.caps.oclass) {
 		udisp->impl.caps.oclass = disp->func->user.caps.oclass;
+		udisp->impl.caps.new = nvkm_udisp_caps_new;
 	}
 
 	list_for_each_entry(conn, &disp->conns, head)

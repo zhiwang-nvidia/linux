@@ -26,6 +26,38 @@
 #include <nvif/class.h>
 
 void
+nvif_disp_caps_dtor(struct nvif_disp_caps *caps)
+{
+	if (!caps->impl)
+		return;
+
+	nvif_object_unmap_cpu(&caps->map);
+
+	caps->impl->del(caps->priv);
+	caps->impl = NULL;
+}
+
+int
+nvif_disp_caps_ctor(struct nvif_disp *disp, const char *name, struct nvif_disp_caps *caps)
+{
+	const u32 oclass = disp->impl->caps.oclass;
+	int ret;
+
+	ret = disp->impl->caps.new(disp->priv, &caps->impl, &caps->priv);
+	NVIF_ERRON(ret, &disp->object, "[NEW caps%04x]", oclass);
+	if (ret)
+		return ret;
+
+	nvif_object_ctor(&disp->object, name ?: "nvifDispCaps", 0, oclass, &caps->object);
+
+	ret = nvif_object_map_cpu(&caps->object, &caps->impl->map, &caps->map);
+	if (ret)
+		nvif_disp_caps_dtor(caps);
+
+	return ret;
+}
+
+void
 nvif_disp_dtor(struct nvif_disp *disp)
 {
 	if (!disp->impl)

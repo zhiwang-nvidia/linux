@@ -32,6 +32,7 @@ nvkm-y += nvkm/engine/disp/ad102.o
 nvkm-y += nvkm/engine/disp/r535.o
 
 nvkm-y += nvkm/engine/disp/udisp.o
+nvkm-y += nvkm/engine/disp/ucaps.o
 nvkm-y += nvkm/engine/disp/uconn.o
 nvkm-y += nvkm/engine/disp/uoutp.o
 nvkm-y += nvkm/engine/disp/uhead.o
