@@ -21,7 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#define nvkm_udevice(p) container_of((p), struct nvkm_udevice, object)
 #include "priv.h"
 #include "ctrl.h"
 
@@ -34,7 +33,9 @@
 #include <nvif/cl0080.h>
 #include <nvif/unpack.h>
 
-struct nvkm_udevice {
+#define nvkm_udevice nvif_device_priv
+
+struct nvif_device_priv {
 	struct nvkm_object object;
 	struct nvkm_device *device;
 };
@@ -189,7 +190,7 @@ nvkm_udevice_time(struct nvkm_udevice *udev, void *data, u32 size)
 static int
 nvkm_udevice_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
-	struct nvkm_udevice *udev = nvkm_udevice(object);
+	struct nvif_device_priv *udev = container_of(object, typeof(*udev), object);
 	nvif_ioctl(object, "device mthd %08x\n", mthd);
 	switch (mthd) {
 	case NV_DEVICE_V0_INFO:
@@ -206,7 +207,7 @@ static int
 nvkm_udevice_map(struct nvkm_object *object, void *argv, u32 argc,
 		 enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
-	struct nvkm_udevice *udev = nvkm_udevice(object);
+	struct nvif_device_priv *udev = container_of(object, typeof(*udev), object);
 	struct nvkm_device *device = udev->device;
 	*type = NVKM_OBJECT_MAP_IO;
 	*addr = device->func->resource_addr(device, 0);
@@ -217,7 +218,7 @@ nvkm_udevice_map(struct nvkm_object *object, void *argv, u32 argc,
 static int
 nvkm_udevice_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nvkm_udevice *udev = nvkm_udevice(object);
+	struct nvif_device_priv *udev = container_of(object, typeof(*udev), object);
 	struct nvkm_device *device = udev->device;
 	int ret = 0;
 
@@ -238,7 +239,7 @@ done:
 static int
 nvkm_udevice_init(struct nvkm_object *object)
 {
-	struct nvkm_udevice *udev = nvkm_udevice(object);
+	struct nvif_device_priv *udev = container_of(object, typeof(*udev), object);
 	struct nvkm_device *device = udev->device;
 	int ret = 0;
 
@@ -260,7 +261,7 @@ static int
 nvkm_udevice_child_new(const struct nvkm_oclass *oclass,
 		       void *data, u32 size, struct nvkm_object **pobject)
 {
-	struct nvkm_udevice *udev = nvkm_udevice(oclass->parent);
+	struct nvif_device_priv *udev = container_of(oclass->parent, typeof(*udev), object);
 	const struct nvkm_device_oclass *sclass = oclass->priv;
 	return sclass->ctor(udev->device, oclass, data, size, pobject);
 }
@@ -269,7 +270,7 @@ static int
 nvkm_udevice_child_get(struct nvkm_object *object, int index,
 		       struct nvkm_oclass *oclass)
 {
-	struct nvkm_udevice *udev = nvkm_udevice(object);
+	struct nvif_device_priv *udev = container_of(object, typeof(*udev), object);
 	struct nvkm_device *device = udev->device;
 	struct nvkm_engine *engine;
 	u64 mask = (1ULL << NVKM_ENGINE_DMAOBJ) |
@@ -322,7 +323,7 @@ nvkm_udevice_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 		 struct nvkm_object **pobject)
 {
 	struct nvkm_client *client = oclass->client;
-	struct nvkm_udevice *udev;
+	struct nvif_device_priv *udev;
 
 	if (!(udev = kzalloc(sizeof(*udev), GFP_KERNEL)))
 		return -ENOMEM;
