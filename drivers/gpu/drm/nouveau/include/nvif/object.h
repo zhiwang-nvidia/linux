@@ -111,22 +111,6 @@ struct nvif_mclass {
 	ret;                                                                   \
 })
 
-#define nvif_sclass(o,m,u) ({                                                  \
-	const typeof(m[0]) *_mclass = (m);                                     \
-	s32 _oclass = (u);                                                     \
-	int _cid;                                                              \
-	if (_oclass) {                                                         \
-		for (_cid = 0; _mclass[_cid].oclass; _cid++) {                 \
-			if (_mclass[_cid].oclass == _oclass)                   \
-				break;                                         \
-		}                                                              \
-		_cid = _mclass[_cid].oclass ? _cid : -ENOSYS;                  \
-	} else {                                                               \
-		_cid = nvif_mclass((o), _mclass);                              \
-	}                                                                      \
-	_cid;                                                                  \
-})
-
 #define NVIF_RD32_(p,o,dr)   nvif_rd32((p), (o) + (dr))
 #define NVIF_WR32_(p,o,dr,f) nvif_wr32((p), (o) + (dr), (f))
 #define NVIF_RD32(p,A...) DRF_RD(NVIF_RD32_,                  (p), 0, ##A)

@@ -24,22 +24,22 @@
 #include <nvif/printf.h>
 
 #include <nvif/class.h>
-#include <nvif/if0010.h>
 
 void
 nvif_disp_dtor(struct nvif_disp *disp)
 {
-	nvif_object_dtor(&disp->object);
+	if (!disp->impl)
+		return;
+
+	disp->impl->del(disp->priv);
+	disp->impl = NULL;
 }
 
 int
 nvif_disp_ctor(struct nvif_device *device, const char *name, struct nvif_disp *disp)
 {
 	const u32 oclass = device->impl->disp.oclass;
-	struct nvif_disp_v0 args;
 	int ret;
-
-	disp->object.client = NULL;
 
 	switch (oclass) {
 	case AD102_DISP:
@@ -65,18 +65,16 @@ nvif_disp_ctor(struct nvif_device *device, const char *name, struct nvif_disp *d
 		return -ENODEV;
 	}
 
-	args.version = 0;
-
-	ret = nvif_object_ctor(&device->object, name ?: "nvifDisp", 0,
-			       oclass, &args, sizeof(args), &disp->object);
+	ret = device->impl->disp.new(device->priv, &disp->impl, &disp->priv,
+				     nvif_handle(&disp->object));
 	NVIF_ERRON(ret, &device->object, "[NEW disp%04x]", oclass);
 	if (ret)
 		return ret;
 
-	NVIF_DEBUG(&disp->object, "[NEW] conn_mask:%08x outp_mask:%08x head_mask:%08x",
-		   args.conn_mask, args.outp_mask, args.head_mask);
-	disp->conn_mask = args.conn_mask;
-	disp->outp_mask = args.outp_mask;
-	disp->head_mask = args.head_mask;
+	nvif_object_ctor(&device->object, name ?: "nvifDisp", 0, oclass, &disp->object);
+	disp->device = device;
+	disp->conn_mask = disp->impl->conn.mask;
+	disp->outp_mask = disp->impl->outp.mask;
+	disp->head_mask = disp->impl->head.mask;
 	return 0;
 }

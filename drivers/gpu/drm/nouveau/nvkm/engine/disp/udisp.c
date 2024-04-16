@@ -26,7 +26,6 @@
 #include "outp.h"
 
 #include <nvif/class.h>
-#include <nvif/if0010.h>
 
 static int
 nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *sclass)
@@ -102,15 +101,32 @@ nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *scl
 	return -EINVAL;
 }
 
+static void
+nvkm_udisp_del(struct nvif_disp_priv *udisp)
+{
+	struct nvkm_object *object = &udisp->object;
+
+	nvkm_object_fini(object, false);
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_disp_impl
+nvkm_udisp_impl = {
+	.del = nvkm_udisp_del,
+};
+
 static void *
 nvkm_udisp_dtor(struct nvkm_object *object)
 {
 	struct nvif_disp_priv *udisp = container_of(object, typeof(*udisp), object);
 	struct nvkm_disp *disp = udisp->disp;
+	struct nvkm_engine *engine = &disp->engine;
 
 	spin_lock(&disp->user.lock);
 	disp->user.allocated = false;
 	spin_unlock(&disp->user.lock);
+
+	nvkm_engine_unref(&engine);
 	return udisp;
 }
 
@@ -121,46 +137,51 @@ nvkm_udisp = {
 };
 
 int
-nvkm_udisp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nvkm_object **pobject)
+nvkm_udisp_new(struct nvkm_device *device, const struct nvif_disp_impl **pimpl,
+	       struct nvif_disp_priv **ppriv, struct nvkm_object **pobject)
 {
-	struct nvkm_disp *disp = nvkm_disp(oclass->engine);
+	struct nvkm_disp *disp = device->disp;
 	struct nvkm_conn *conn;
 	struct nvkm_outp *outp;
 	struct nvkm_head *head;
-	union nvif_disp_args *args = argv;
 	struct nvif_disp_priv *udisp;
-
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+	struct nvkm_engine *engine;
 
 	udisp = kzalloc(sizeof(*udisp), GFP_KERNEL);
 	if (!udisp)
 		return -ENOMEM;
 
+	engine = nvkm_engine_ref(&disp->engine);
+	if (IS_ERR(engine)) {
+		kfree(udisp);
+		return PTR_ERR(engine);
+	}
+
 	spin_lock(&disp->user.lock);
 	if (disp->user.allocated) {
 		spin_unlock(&disp->user.lock);
+		nvkm_engine_unref(&engine);
 		kfree(udisp);
 		return -EBUSY;
 	}
 	disp->user.allocated = true;
 	spin_unlock(&disp->user.lock);
 
-	nvkm_object_ctor(&nvkm_udisp, oclass, &udisp->object);
+	nvkm_object_ctor(&nvkm_udisp, &(struct nvkm_oclass) {}, &udisp->object);
 	udisp->disp = disp;
-	*pobject = &udisp->object;
+	udisp->impl = nvkm_udisp_impl;
 
-	args->v0.conn_mask = 0;
 	list_for_each_entry(conn, &disp->conns, head)
-		args->v0.conn_mask |= BIT(conn->index);
+		udisp->impl.conn.mask |= BIT(conn->index);
 
-	args->v0.outp_mask = 0;
 	list_for_each_entry(outp, &disp->outps, head)
-		args->v0.outp_mask |= BIT(outp->index);
+		udisp->impl.outp.mask |= BIT(outp->index);
 
-	args->v0.head_mask = 0;
 	list_for_each_entry(head, &disp->heads, head)
-		args->v0.head_mask |= BIT(head->id);
+		udisp->impl.head.mask |= BIT(head->id);
 
+	*pimpl = &udisp->impl;
+	*ppriv = udisp;
+	*pobject = &udisp->object;
 	return 0;
 }

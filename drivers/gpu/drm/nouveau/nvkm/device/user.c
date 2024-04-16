@@ -33,6 +33,7 @@
 #include <subdev/mmu/ummu.h>
 #include <subdev/vfn/uvfn.h>
 #include <engine/disp/priv.h>
+#include <engine/disp/udisp.h>
 #include <engine/fifo/ufifo.h>
 
 struct nvif_device_priv {
@@ -91,6 +92,21 @@ static u64
 nvkm_udevice_time(struct nvif_device_priv *udev)
 {
 	return nvkm_timer_read(udev->device->timer);
+}
+
+static int
+nvkm_udevice_disp_new(struct nvif_device_priv *udev,
+		      const struct nvif_disp_impl **pimpl, struct nvif_disp_priv **ppriv,
+		      u64 handle)
+{
+	struct nvkm_object *object;
+	int ret;
+
+	ret = nvkm_udisp_new(udev->device, pimpl, ppriv, &object);
+	if (ret)
+		return ret;
+
+	return nvkm_object_link_rb(udev->object.client, &udev->object, handle, object);
 }
 
 static int
@@ -185,8 +201,7 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 	struct nvkm_device *device = udev->device;
 	struct nvkm_engine *engine;
 	u64 mask = (1ULL << NVKM_ENGINE_DMAOBJ) |
-		   (1ULL << NVKM_ENGINE_FIFO) |
-		   (1ULL << NVKM_ENGINE_DISP);
+		   (1ULL << NVKM_ENGINE_FIFO);
 	const struct nvkm_device_oclass *sclass = NULL;
 	int i;
 
@@ -319,6 +334,7 @@ nvkm_udevice_new(struct nvkm_device *device,
 
 	if (device->disp) {
 		udev->impl.disp.oclass = device->disp->func->user.root.oclass;
+		udev->impl.disp.new = nvkm_udevice_disp_new;
 	}
 
 	if (device->fifo) {

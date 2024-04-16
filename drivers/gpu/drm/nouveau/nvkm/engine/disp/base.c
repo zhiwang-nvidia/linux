@@ -65,32 +65,6 @@ nvkm_disp_vblank(struct nvkm_disp *disp, int head)
 	nvkm_event_ntfy(&disp->vblank, head, NVKM_DISP_HEAD_EVENT_VBLANK);
 }
 
-static int
-nvkm_disp_class_new(struct nvkm_device *device,
-		    const struct nvkm_oclass *oclass, void *data, u32 size,
-		    struct nvkm_object **pobject)
-{
-	return nvkm_udisp_new(oclass, data, size, pobject);
-}
-
-static const struct nvkm_device_oclass
-nvkm_disp_sclass = {
-	.ctor = nvkm_disp_class_new,
-};
-
-static int
-nvkm_disp_class_get(struct nvkm_oclass *oclass, int index,
-		    const struct nvkm_device_oclass **class)
-{
-	struct nvkm_disp *disp = nvkm_disp(oclass->engine);
-	if (index == 0) {
-		oclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.root.oclass };
-		*class = &nvkm_disp_sclass;
-		return 0;
-	}
-	return 1;
-}
-
 static void
 nvkm_disp_intr(struct nvkm_engine *engine)
 {
@@ -222,7 +196,6 @@ nvkm_disp = {
 	.init = nvkm_disp_init,
 	.fini = nvkm_disp_fini,
 	.intr = nvkm_disp_intr,
-	.base.sclass = nvkm_disp_class_get,
 };
 
 int

@@ -10,6 +10,7 @@ struct nvif_mmu_priv;
 struct nvif_mem_priv;
 struct nvif_vmm_priv;
 struct nvif_faultbuf_priv;
+struct nvif_disp_priv;
 
 struct nvif_event_impl {
 	void (*del)(struct nvif_event_priv *);
@@ -216,6 +217,22 @@ struct nvif_faultbuf_impl {
 	} event;
 };
 
+struct nvif_disp_impl {
+	void (*del)(struct nvif_disp_priv *);
+
+	struct {
+		u32 mask;
+	} conn;
+
+	struct {
+		u32 mask;
+	} outp;
+
+	struct {
+		u32 mask;
+	} head;
+};
+
 struct nvif_device_impl {
 	void (*del)(struct nvif_device_priv *);
 
@@ -282,6 +299,9 @@ struct nvif_device_impl {
 
 	struct {
 		s32 oclass;
+		int (*new)(struct nvif_device_priv *,
+			   const struct nvif_disp_impl **, struct nvif_disp_priv **,
+			   u64 handle);
 	} disp;
 
 	struct nvif_device_impl_fifo {

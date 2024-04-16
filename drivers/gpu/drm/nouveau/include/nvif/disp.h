@@ -4,7 +4,12 @@
 struct nvif_device;
 
 struct nvif_disp {
+	const struct nvif_disp_impl *impl;
+	struct nvif_disp_priv *priv;
 	struct nvif_object object;
+
+	struct nvif_device *device;
+
 	unsigned long conn_mask;
 	unsigned long outp_mask;
 	unsigned long head_mask;
