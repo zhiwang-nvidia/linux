@@ -512,13 +512,13 @@ nv50_crc_ctx_init(struct nv50_head *head, struct nvif_mmu *mmu,
 	ret = nvif_object_ctor(&core->chan.base.user, "kmsCrcNtfyCtxDma",
 			       NV50_DISP_HANDLE_CRC_CTX(head, idx),
 			       NV_DMA_IN_MEMORY,
-			       &(struct nv_dma_v0) {
+			       (&(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
 					.start = ctx->mem.addr,
 					.limit =  ctx->mem.addr
 						+ ctx->mem.size - 1,
-			       }, sizeof(struct nv_dma_v0),
+			       }), sizeof(struct nv_dma_v0),
 			       &ctx->ntfy);
 	if (ret)
 		goto fail_fini;

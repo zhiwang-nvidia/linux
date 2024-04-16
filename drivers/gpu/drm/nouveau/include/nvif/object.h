@@ -28,8 +28,16 @@ nvif_object_constructed(struct nvif_object *object)
 	return object->client != NULL;
 }
 
-int  nvif_object_ctor(struct nvif_object *, const char *name, u32 handle,
-		      s32 oclass, void *, u32, struct nvif_object *);
+int nvif_object_ctor_0(struct nvif_object *, const char *name, u32 handle,
+		       s32 oclass, void *, u32, struct nvif_object *);
+void nvif_object_ctor_1(struct nvif_object *parent, const char *name, u32 handle, s32 oclass,
+			struct nvif_object *);
+
+#define nvif_object_ctor_(A,B,C,D,E,F,G,IMPL,...) IMPL
+#define nvif_object_ctor(A...) nvif_object_ctor_(A, nvif_object_ctor_0, \
+						    nvif_object_ctor__, \
+						    nvif_object_ctor_1)(A)
+
 void nvif_object_dtor(struct nvif_object *);
 int  nvif_object_ioctl(struct nvif_object *, void *, u32, void **);
 int  nvif_object_sclass_get(struct nvif_object *, struct nvif_sclass **);

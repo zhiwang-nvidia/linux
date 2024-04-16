@@ -84,24 +84,24 @@ nv50_core_new(struct nouveau_drm *drm, struct nv50_core **pcore)
 
 	ret = nvif_object_ctor(&core->chan.base.user, "kmsCoreSyncCtxdma", NV50_DISP_HANDLE_SYNCBUF,
 			       NV_DMA_IN_MEMORY,
-			       &(struct nv_dma_v0) {
+			       (&(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
 					.start = disp->sync->offset + 0x0000,
-					.limit = disp->sync->offset + 0x0fff,
-			       }, sizeof(struct nv_dma_v0),
+					.limit = disp->sync->offset + 0x0fff
+			       }), sizeof(struct nv_dma_v0),
 			       &core->sync);
 	if (ret)
 		return ret;
 
 	ret = nvif_object_ctor(&core->chan.base.user, "kmsCoreVramCtxdma", NV50_DISP_HANDLE_VRAM,
 			       NV_DMA_IN_MEMORY,
-			       &(struct nv_dma_v0) {
+			       (&(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
 					.start = 0,
-					.limit = drm->device.info.ram_user - 1,
-			       }, sizeof(struct nv_dma_v0),
+					.limit = drm->device.info.ram_user - 1
+			       }), sizeof(struct nv_dma_v0),
 			       &core->vram);
 	if (ret)
 		return ret;

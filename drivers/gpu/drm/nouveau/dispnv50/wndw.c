@@ -707,24 +707,24 @@ nv50_wndw_ctor(struct nv50_wndw *wndw)
 
 	ret = nvif_object_ctor(&wndw->wndw.base.user, "kmsWndwSyncCtxDma", NV50_DISP_HANDLE_SYNCBUF,
 			       NV_DMA_IN_MEMORY,
-			       &(struct nv_dma_v0) {
+			       (&(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
 					.start = disp->sync->offset + 0x0000,
 					.limit = disp->sync->offset + 0x0fff,
-			       }, sizeof(struct nv_dma_v0),
+			       }), sizeof(struct nv_dma_v0),
 			       &wndw->sync);
 	if (ret)
 		return ret;
 
 	ret = nvif_object_ctor(&wndw->wndw.base.user, "kmsWndwVramCtxDma", NV50_DISP_HANDLE_VRAM,
 			       NV_DMA_IN_MEMORY,
-			       &(struct nv_dma_v0) {
+			       (&(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
 					.access = NV_DMA_V0_ACCESS_RDWR,
 					.start = 0,
 					.limit = drm->device.info.ram_user - 1,
-			       }, sizeof(struct nv_dma_v0),
+			       }), sizeof(struct nv_dma_v0),
 			       &wndw->vram);
 	if (ret)
 		return ret;

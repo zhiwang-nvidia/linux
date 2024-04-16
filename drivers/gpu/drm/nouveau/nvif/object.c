@@ -220,9 +220,23 @@ nvif_object_dtor(struct nvif_object *object)
 	object->client = NULL;
 }
 
+void
+nvif_object_ctor_1(struct nvif_object *parent, const char *name, u32 handle, s32 oclass,
+		   struct nvif_object *object)
+{
+	object->parent = parent->parent;
+	object->client = parent->client;
+	object->name = name ?: "nvifObject";
+	object->handle = handle;
+	object->oclass = oclass;
+	object->priv = NULL;
+	object->map.ptr = NULL;
+	object->map.size = 0;
+}
+
 int
-nvif_object_ctor(struct nvif_object *parent, const char *name, u32 handle,
-		 s32 oclass, void *data, u32 size, struct nvif_object *object)
+nvif_object_ctor_0(struct nvif_object *parent, const char *name, u32 handle,
+		   s32 oclass, void *data, u32 size, struct nvif_object *object)
 {
 	struct {
 		struct nvif_ioctl_v0 ioctl;

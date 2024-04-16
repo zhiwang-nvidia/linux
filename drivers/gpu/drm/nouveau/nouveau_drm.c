@@ -417,12 +417,12 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 
 		ret = nvif_object_ctor(&drm->channel->user, "drmM2mfNtfy",
 				       NvNotify0, NV_DMA_IN_MEMORY,
-				       &(struct nv_dma_v0) {
+				       (&(struct nv_dma_v0) {
 						.target = NV_DMA_V0_TARGET_VRAM,
 						.access = NV_DMA_V0_ACCESS_RDWR,
 						.start = drm->notify->addr,
 						.limit = drm->notify->addr + 31
-				       }, sizeof(struct nv_dma_v0),
+				       }), sizeof(struct nv_dma_v0),
 				       &drm->ntfy);
 		if (ret) {
 			nouveau_accel_gr_fini(drm);
