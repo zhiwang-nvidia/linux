@@ -23,8 +23,25 @@ struct nvif_mapinfo {
 	u64 length;
 };
 
+struct nvif_control_pstate_info {
+	u8  version;
+	u8  count; /* out: number of power states */
+#define NVIF_CONTROL_PSTATE_INFO_USTATE_DISABLE                         (-1)
+#define NVIF_CONTROL_PSTATE_INFO_USTATE_PERFMON                         (-2)
+	s8  ustate_ac; /* out: target pstate index */
+	s8  ustate_dc; /* out: target pstate index */
+	s8  pwrsrc; /* out: current power source */
+#define NVIF_CONTROL_PSTATE_INFO_PSTATE_UNKNOWN                         (-1)
+#define NVIF_CONTROL_PSTATE_INFO_PSTATE_PERFMON                         (-2)
+	s8  pstate; /* out: current pstate index */
+};
+
 struct nvif_control_impl {
 	void (*del)(struct nvif_control_priv *);
+
+	struct {
+		void (*info)(struct nvif_control_priv *, struct nvif_control_pstate_info *);
+	} pstate;
 };
 
 struct nvif_device_impl {

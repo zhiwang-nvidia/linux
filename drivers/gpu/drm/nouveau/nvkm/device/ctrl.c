@@ -37,37 +37,24 @@ struct nvif_control_priv {
 	struct nvkm_device *device;
 };
 
-static int
-nvkm_control_mthd_pstate_info(struct nvkm_control *ctrl, void *data, u32 size)
+static void
+nvkm_control_pstate_info(struct nvif_control_priv *ctrl, struct nvif_control_pstate_info *info)
 {
-	union {
-		struct nvif_control_pstate_info_v0 v0;
-	} *args = data;
 	struct nvkm_clk *clk = ctrl->device->clk;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(&ctrl->object, "control pstate info size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(&ctrl->object, "control pstate info vers %d\n",
-			   args->v0.version);
-	} else
-		return ret;
 
 	if (clk) {
-		args->v0.count = clk->state_nr;
-		args->v0.ustate_ac = clk->ustate_ac;
-		args->v0.ustate_dc = clk->ustate_dc;
-		args->v0.pwrsrc = clk->pwrsrc;
-		args->v0.pstate = clk->pstate;
+		info->count = clk->state_nr;
+		info->ustate_ac = clk->ustate_ac;
+		info->ustate_dc = clk->ustate_dc;
+		info->pwrsrc = clk->pwrsrc;
+		info->pstate = clk->pstate;
 	} else {
-		args->v0.count = 0;
-		args->v0.ustate_ac = NVIF_CONTROL_PSTATE_INFO_V0_USTATE_DISABLE;
-		args->v0.ustate_dc = NVIF_CONTROL_PSTATE_INFO_V0_USTATE_DISABLE;
-		args->v0.pwrsrc = -ENODEV;
-		args->v0.pstate = NVIF_CONTROL_PSTATE_INFO_V0_PSTATE_UNKNOWN;
+		info->count = 0;
+		info->ustate_ac = NVIF_CONTROL_PSTATE_INFO_USTATE_DISABLE;
+		info->ustate_dc = NVIF_CONTROL_PSTATE_INFO_USTATE_DISABLE;
+		info->pwrsrc = -ENODEV;
+		info->pstate = NVIF_CONTROL_PSTATE_INFO_PSTATE_UNKNOWN;
 	}
-
-	return 0;
 }
 
 static int
@@ -177,8 +164,6 @@ nvkm_control_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	struct nvif_control_priv *ctrl = container_of(object, typeof(*ctrl), object);
 	switch (mthd) {
-	case NVIF_CONTROL_PSTATE_INFO:
-		return nvkm_control_mthd_pstate_info(ctrl, data, size);
 	case NVIF_CONTROL_PSTATE_ATTR:
 		return nvkm_control_mthd_pstate_attr(ctrl, data, size);
 	case NVIF_CONTROL_PSTATE_USER:
@@ -205,6 +190,7 @@ nvkm_control_del(struct nvif_control_priv *ctrl)
 static const struct nvif_control_impl
 nvkm_control_impl = {
 	.del = nvkm_control_del,
+	.pstate.info = nvkm_control_pstate_info,
 };
 
 int
