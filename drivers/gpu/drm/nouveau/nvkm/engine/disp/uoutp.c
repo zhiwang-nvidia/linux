@@ -35,6 +35,31 @@ struct nvif_outp_priv {
 	struct nvif_outp_impl impl;
 };
 
+static inline void
+nvkm_uoutp_unlock(struct nvif_outp_priv *uoutp)
+{
+	mutex_unlock(&uoutp->outp->disp->super.mutex);
+}
+
+static inline void
+nvkm_uoutp_lock(struct nvif_outp_priv *uoutp)
+{
+	mutex_lock(&uoutp->outp->disp->super.mutex);
+}
+
+static inline int
+nvkm_uoutp_lock_acquired(struct nvif_outp_priv *uoutp)
+{
+	nvkm_uoutp_lock(uoutp);
+
+	if (!uoutp->outp->ior) {
+		nvkm_uoutp_unlock(uoutp);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int
 nvkm_uoutp_mthd_dp_mst_vcpi(struct nvkm_outp *outp, void *argv, u32 argc)
 {
@@ -480,22 +505,20 @@ nvkm_uoutp_mthd_edid_get(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
-nvkm_uoutp_mthd_detect(struct nvkm_outp *outp, void *argv, u32 argc)
+nvkm_uoutp_detect(struct nvif_outp_priv *uoutp, enum nvif_outp_detect_status *status)
 {
-	union nvif_outp_detect_args *args = argv;
+	struct nvkm_outp *outp = uoutp->outp;
 	int ret;
 
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-	if (!outp->func->detect)
-		return -EINVAL;
-
+	nvkm_uoutp_lock(uoutp);
 	ret = outp->func->detect(outp);
+	nvkm_uoutp_unlock(uoutp);
+
 	switch (ret) {
-	case 0: args->v0.status = NVIF_OUTP_DETECT_V0_NOT_PRESENT; break;
-	case 1: args->v0.status = NVIF_OUTP_DETECT_V0_PRESENT; break;
+	case 0: *status = NVIF_OUTP_DETECT_NOT_PRESENT; break;
+	case 1: *status = NVIF_OUTP_DETECT_PRESENT; break;
 	default:
-		args->v0.status = NVIF_OUTP_DETECT_V0_UNKNOWN;
+		*status = NVIF_OUTP_DETECT_UNKNOWN;
 		break;
 	}
 
@@ -528,7 +551,6 @@ static int
 nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc, bool *invalid)
 {
 	switch (mthd) {
-	case NVIF_OUTP_V0_DETECT     : return nvkm_uoutp_mthd_detect     (outp, argv, argc);
 	case NVIF_OUTP_V0_EDID_GET   : return nvkm_uoutp_mthd_edid_get   (outp, argv, argc);
 	case NVIF_OUTP_V0_INHERIT    : return nvkm_uoutp_mthd_inherit    (outp, argv, argc);
 	case NVIF_OUTP_V0_ACQUIRE    : return nvkm_uoutp_mthd_acquire    (outp, argv, argc);
@@ -626,6 +648,9 @@ nvkm_uoutp_new(struct nvkm_disp *disp, u8 id, const struct nvif_outp_impl **pimp
 	uoutp->outp = outp;
 	uoutp->impl = nvkm_uoutp_impl;
 	uoutp->impl.id = id;
+
+	if (outp->func->detect)
+		uoutp->impl.detect = nvkm_uoutp_detect;
 
 	switch (outp->info.type) {
 	case DCB_OUTPUT_ANALOG:

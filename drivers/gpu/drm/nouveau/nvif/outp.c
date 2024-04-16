@@ -467,26 +467,15 @@ done:
 enum nvif_outp_detect_status
 nvif_outp_detect(struct nvif_outp *outp)
 {
-	struct nvif_outp_detect_v0 args;
+	enum nvif_outp_detect_status status;
 	int ret;
 
-	args.version = 0;
-
-	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_DETECT, &args, sizeof(args));
-	NVIF_ERRON(ret, &outp->object, "[DETECT] status:%02x", args.status);
+	ret = outp->impl->detect(outp->priv, &status);
+	NVIF_ERRON(ret, &outp->object, "[DETECT] status:%02x", status);
 	if (ret)
-		return UNKNOWN;
+		return NVIF_OUTP_DETECT_UNKNOWN;
 
-	switch (args.status) {
-	case NVIF_OUTP_DETECT_V0_NOT_PRESENT: return NOT_PRESENT;
-	case NVIF_OUTP_DETECT_V0_PRESENT: return PRESENT;
-	case NVIF_OUTP_DETECT_V0_UNKNOWN: return UNKNOWN;
-	default:
-		WARN_ON(1);
-		break;
-	}
-
-	return UNKNOWN;
+	return status;
 }
 
 void

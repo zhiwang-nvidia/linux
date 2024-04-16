@@ -244,6 +244,12 @@ struct nvif_conn_impl {
 		     const struct nvif_event_impl **, struct nvif_event_priv **);
 };
 
+enum nvif_outp_detect_status {
+	NVIF_OUTP_DETECT_NOT_PRESENT,
+	NVIF_OUTP_DETECT_PRESENT,
+	NVIF_OUTP_DETECT_UNKNOWN,
+};
+
 struct nvif_outp_impl {
 	void (*del)(struct nvif_outp_priv *);
 
@@ -266,6 +272,8 @@ struct nvif_outp_impl {
 #define NVIF_OUTP_DDC_INVALID 0xff
 	u8 ddc;
 	u8 conn;
+
+	int (*detect)(struct nvif_outp_priv *, enum nvif_outp_detect_status *);
 
 	struct {
 		u32 freq_max;

@@ -256,7 +256,7 @@ nouveau_dp_detect(struct nouveau_connector *nv_connector,
 	}
 
 	hpd = nvif_outp_detect(&nv_encoder->outp);
-	if (hpd == NOT_PRESENT) {
+	if (hpd == NVIF_OUTP_DETECT_NOT_PRESENT) {
 		nvif_outp_dp_aux_pwr(&nv_encoder->outp, false);
 		goto out;
 	}

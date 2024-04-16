@@ -434,11 +434,11 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 			} else {
 				status = nvif_outp_detect(&nv_encoder->outp);
 				switch (status) {
-				case PRESENT:
+				case NVIF_OUTP_DETECT_PRESENT:
 					return nv_encoder;
-				case NOT_PRESENT:
+				case NVIF_OUTP_DETECT_NOT_PRESENT:
 					continue;
-				case UNKNOWN:
+				case NVIF_OUTP_DETECT_UNKNOWN:
 					break;
 				default:
 					WARN_ON(1);
