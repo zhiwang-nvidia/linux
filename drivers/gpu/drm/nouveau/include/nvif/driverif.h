@@ -4,6 +4,7 @@
 struct nvif_client_priv;
 struct nvif_device_priv;
 struct nvif_control_priv;
+struct nvif_usermode_priv;
 
 struct nvif_driver {
 	const char *name;
@@ -69,6 +70,10 @@ struct nvif_control_impl {
 	} pstate;
 };
 
+struct nvif_usermode_impl {
+	void (*del)(struct nvif_usermode_priv *);
+};
+
 struct nvif_device_impl {
 	void (*del)(struct nvif_device_priv *);
 
@@ -117,6 +122,9 @@ struct nvif_device_impl {
 
 	struct {
 		s32 oclass;
+		int (*new)(struct nvif_device_priv *,
+			   const struct nvif_usermode_impl **, struct nvif_usermode_priv **,
+			   u64 handle);
 	} usermode;
 
 	struct {

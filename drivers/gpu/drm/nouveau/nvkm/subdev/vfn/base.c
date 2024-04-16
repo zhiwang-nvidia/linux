@@ -54,7 +54,6 @@ nvkm_vfn_new_(const struct nvkm_vfn_func *func, struct nvkm_device *device,
 			return ret;
 	}
 
-	vfn->user.ctor = nvkm_uvfn_new;
 	vfn->user.base = func->user.base;
 	return 0;
 }

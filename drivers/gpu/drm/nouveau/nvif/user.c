@@ -21,6 +21,7 @@
  */
 #include <nvif/user.h>
 #include <nvif/device.h>
+#include <nvif/driverif.h>
 #include <nvif/printf.h>
 
 #include <nvif/class.h>
@@ -28,8 +29,9 @@
 void
 nvif_user_dtor(struct nvif_device *device)
 {
-	if (device->user.func) {
-		nvif_object_dtor(&device->user.object);
+	if (device->user.impl) {
+		device->user.impl->del(device->user.priv);
+		device->user.impl = NULL;
 		device->user.func = NULL;
 	}
 }
@@ -53,13 +55,15 @@ nvif_user_ctor(struct nvif_device *device, const char *name)
 		return -ENODEV;
 	}
 
-	ret = nvif_object_ctor(&device->object, name ? name : "nvifUsermode",
-			       0, oclass, NULL, 0,
-			       &device->user.object);
+	ret = device->impl->usermode.new(device->priv, &device->user.impl, &device->user.priv,
+					 nvif_handle(&device->user.object));
+	NVIF_ERRON(ret, &device->object, "[NEW usermode%04x]", oclass);
 	if (ret)
 		return ret;
 
-	nvif_object_map(&device->user.object, NULL, 0);
+	nvif_object_ctor(&device->object, name ?: "nvifUsermode", 0, oclass, &device->user.object);
 	device->user.func = func;
+
+	nvif_object_map(&device->user.object, NULL, 0);
 	return 0;
 }

@@ -4,8 +4,11 @@
 struct nvif_device;
 
 struct nvif_user {
-	const struct nvif_user_func *func;
+	const struct nvif_usermode_impl *impl;
+	struct nvif_usermode_priv *priv;
 	struct nvif_object object;
+
+	const struct nvif_user_func *func;
 };
 
 struct nvif_user_func {

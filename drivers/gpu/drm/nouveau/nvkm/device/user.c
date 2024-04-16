@@ -29,6 +29,7 @@
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 #include <subdev/timer.h>
+#include <subdev/vfn/uvfn.h>
 #include <engine/disp/priv.h>
 #include <engine/fifo/ufifo.h>
 
@@ -38,6 +39,20 @@ struct nvif_device_priv {
 
 	struct nvif_device_impl impl;
 };
+
+static int
+nvkm_udevice_usermode_new(struct nvif_device_priv *udev, const struct nvif_usermode_impl **pimpl,
+			  struct nvif_usermode_priv **ppriv, u64 handle)
+{
+	struct nvkm_object *object;
+	int ret;
+
+	ret = nvkm_uvfn_new(udev->device, pimpl, ppriv, &object);
+	if (ret)
+		return ret;
+
+	return nvkm_object_link_rb(udev->object.client, &udev->object, handle, object);
+}
 
 static int
 nvkm_udevice_control_new(struct nvif_device_priv *udev,
@@ -74,6 +89,7 @@ nvkm_udevice_impl = {
 	.del = nvkm_udevice_del,
 	.time = nvkm_udevice_time,
 	.control.new = nvkm_udevice_control_new,
+	.usermode.new = nvkm_udevice_usermode_new,
 };
 
 static int
@@ -154,8 +170,6 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 			sclass = &device->mmu->user;
 		else if (device->fault && index-- == 0)
 			sclass = &device->fault->user;
-		else if (device->vfn && index-- == 0)
-			sclass = &device->vfn->user;
 		else
 			return -EINVAL;
 
@@ -265,6 +279,7 @@ nvkm_udevice_new(struct nvkm_device *device,
 
 	if (device->vfn) {
 		udev->impl.usermode.oclass = device->vfn->user.base.oclass;
+		udev->impl.usermode.new = nvkm_udevice_usermode_new;
 	}
 
 	if (device->mmu) {

@@ -24,7 +24,4 @@ int nvkm_vfn_new_(const struct nvkm_vfn_func *, struct nvkm_device *, enum nvkm_
 		  u32 addr, struct nvkm_vfn **);
 
 extern const struct nvkm_intr_func tu102_vfn_intr;
-
-int nvkm_uvfn_new(struct nvkm_device *, const struct nvkm_oclass *, void *, u32,
-		  struct nvkm_object **);
 #endif
