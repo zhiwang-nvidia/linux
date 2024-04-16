@@ -33,7 +33,7 @@ nvif_device_ctxdma_ctor(struct nvif_device *device, const char *name, s32 oclass
 	int ret;
 
 	ret = device->impl->ctxdma.new(device->priv, oclass, argv, argc,
-				       &ctxdma->impl, &ctxdma->priv, nvif_handle(&ctxdma->object));
+				       &ctxdma->impl, &ctxdma->priv);
 	NVIF_ERRON(ret, &device->object, "[NEW ctxdma%04x]", oclass);
 	if (ret)
 		return ret;

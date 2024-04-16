@@ -152,8 +152,7 @@ nvkm_udevice_ctxdma_impl = {
 
 static int
 nvkm_udevice_ctxdma_new(struct nvif_device_priv *udev, s32 oclass, void *argv, u32 argc,
-			const struct nvif_ctxdma_impl **pimpl, struct nvif_ctxdma_priv **ppriv,
-			u64 handle)
+			const struct nvif_ctxdma_impl **pimpl, struct nvif_ctxdma_priv **ppriv)
 {
 	struct nvkm_dma *dma = udev->device->dma;
 	struct nvkm_dmaobj *dmaobj;
@@ -167,7 +166,8 @@ nvkm_udevice_ctxdma_new(struct nvif_device_priv *udev, s32 oclass, void *argv, u
 	*pimpl = &nvkm_udevice_ctxdma_impl;
 	*ppriv = (void *)dmaobj;
 
-	return nvkm_object_link_rb(udev->object.client, &udev->object, handle, &dmaobj->object);
+	nvkm_object_link(&udev->object, &dmaobj->object);
+	return 0;
 }
 
 static int

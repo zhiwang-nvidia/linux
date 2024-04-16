@@ -30,19 +30,6 @@
 #include <nvif/cl0002.h>
 #include <nvif/unpack.h>
 
-static const struct nvkm_object_func nvkm_dmaobj_func;
-struct nvkm_dmaobj *
-nvkm_dmaobj_search(struct nvkm_client *client, u64 handle)
-{
-	struct nvkm_object *object;
-
-	object = nvkm_object_search(client, handle, &nvkm_dmaobj_func);
-	if (IS_ERR(object))
-		return (void *)object;
-
-	return nvkm_dmaobj(object);
-}
-
 static int
 nvkm_dmaobj_bind(struct nvkm_object *base, struct nvkm_gpuobj *gpuobj,
 		 int align, struct nvkm_gpuobj **pgpuobj)

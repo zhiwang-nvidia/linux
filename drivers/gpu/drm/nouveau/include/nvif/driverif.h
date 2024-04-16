@@ -533,8 +533,7 @@ struct nvif_device_impl {
 
 	struct {
 		int (*new)(struct nvif_device_priv *, s32 oclass, void *argv, u32 argc,
-			   const struct nvif_ctxdma_impl **, struct nvif_ctxdma_priv **,
-			   u64 handle);
+			   const struct nvif_ctxdma_impl **, struct nvif_ctxdma_priv **);
 	} ctxdma;
 
 	struct nvif_device_impl_fifo {
