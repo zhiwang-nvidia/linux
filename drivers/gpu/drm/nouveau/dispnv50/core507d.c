@@ -22,7 +22,6 @@
 #include "core.h"
 #include "head.h"
 
-#include <nvif/if0014.h>
 #include <nvif/push507c.h>
 #include <nvif/timer.h>
 
@@ -115,7 +114,7 @@ core507d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
 	if (ret < 0)
 		return ret;
 
-	time = nvif_msec(core->chan.base.device, 2000ULL,
+	time = nvif_msec(core->chan.disp->device, 2000ULL,
 			 if (NVBO_TD32(bo, NV50_DISP_CORE_NTFY,
 				       NV_DISP_CORE_NOTIFIER_1, CAPABILITIES_1, DONE, ==, TRUE))
 				 break;
@@ -157,8 +156,7 @@ int
 core507d_new_(const struct nv50_core_func *func, struct nouveau_drm *drm,
 	      s32 oclass, struct nv50_core **pcore)
 {
-	struct nvif_disp_chan_v0 args = {};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
 	struct nv50_core *core;
 	int ret;
 
@@ -166,15 +164,22 @@ core507d_new_(const struct nv50_core_func *func, struct nouveau_drm *drm,
 		return -ENOMEM;
 	core->func = func;
 
-	ret = nv50_dmac_create(drm,
-			       &oclass, 0, &args, sizeof(args),
-			       disp->sync->offset, &core->chan);
-	if (ret) {
-		NV_ERROR(drm, "core%04x allocation failed: %d\n", oclass, ret);
-		return ret;
-	}
+	ret = nvif_dispchan_ctor(disp, "kmsChanCore", 0, oclass, &drm->mmu, &core->chan);
+	if (ret)
+		goto done;
 
-	return 0;
+	ret = disp->impl->chan.core.new(disp->priv, core->chan.push.mem.priv,
+					&core->chan.impl, &core->chan.priv,
+					nvif_handle(&core->chan.object));
+	if (ret)
+		goto done;
+
+	ret = nvif_dispchan_oneinit(&core->chan);
+done:
+	if (ret)
+		NV_ERROR(drm, "core%04x allocation failed: %d\n", oclass, ret);
+
+	return ret;
 }
 
 int

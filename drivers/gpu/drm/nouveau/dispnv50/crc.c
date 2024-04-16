@@ -509,7 +509,7 @@ nv50_crc_ctx_init(struct nv50_head *head, struct nvif_mmu *mmu,
 	if (ret)
 		return ret;
 
-	ret = nvif_object_ctor(&core->chan.base.user, "kmsCrcNtfyCtxDma",
+	ret = nvif_object_ctor(&core->chan.object, "kmsCrcNtfyCtxDma",
 			       NV50_DISP_HANDLE_CRC_CTX(head, idx),
 			       NV_DMA_IN_MEMORY,
 			       (&(struct nv_dma_v0) {

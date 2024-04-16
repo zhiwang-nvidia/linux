@@ -25,7 +25,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 
-#include <nvif/if0014.h>
 #include <nvif/push507c.h>
 
 #include <nvhw/class/cl507e.h>
@@ -145,10 +144,7 @@ ovly507e_new_(const struct nv50_wndw_func *func, const u32 *format,
 	      struct nouveau_drm *drm, int head, s32 oclass, u32 interlock_data,
 	      struct nv50_wndw **pwndw)
 {
-	struct nvif_disp_chan_v0 args = {
-		.id = head,
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
 	struct nv50_wndw *wndw;
 	int ret;
 
@@ -159,9 +155,18 @@ ovly507e_new_(const struct nv50_wndw_func *func, const u32 *format,
 	if (*pwndw = wndw, ret)
 		return ret;
 
-	ret = nv50_dmac_create(drm,
-			       &oclass, 0, &args, sizeof(args),
-			       disp->sync->offset, &wndw->wndw);
+	ret = nvif_dispchan_ctor(disp, "kmsChanOvly", wndw->id, oclass, &drm->mmu, &wndw->wndw);
+	if (ret)
+		goto done;
+
+	ret = disp->impl->chan.ovly.new(disp->priv, wndw->id, wndw->wndw.push.mem.priv,
+					&wndw->wndw.impl, &wndw->wndw.priv,
+					nvif_handle(&wndw->wndw.object));
+	if (ret)
+		goto done;
+
+	ret = nvif_dispchan_oneinit(&wndw->wndw);
+done:
 	if (ret) {
 		NV_ERROR(drm, "ovly%04x allocation failed: %d\n", oclass, ret);
 		return ret;

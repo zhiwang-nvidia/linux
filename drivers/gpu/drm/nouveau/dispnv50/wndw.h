@@ -5,6 +5,8 @@
 #include "atom.h"
 #include "lut.h"
 
+#include <nvif/dispchan.h>
+
 struct nv50_wndw_ctxdma {
 	struct list_head head;
 	struct nvif_object object;
@@ -25,8 +27,8 @@ struct nv50_wndw {
 
 	struct nv50_lut ilut;
 
-	struct nv50_dmac wndw;
-	struct nv50_dmac wimm;
+	struct nvif_dispchan wndw;
+	struct nvif_dispchan wimm;
 
 	struct nvif_object vram;
 	struct nvif_object sync;
@@ -104,9 +106,9 @@ extern const struct nv50_wimm_func curs507a;
 bool curs507a_space(struct nv50_wndw *);
 
 static inline __must_check int
-nvif_chan_wait(struct nv50_dmac *dmac, u32 size)
+nvif_chan_wait(struct nvif_dispchan *chan, u32 size)
 {
-	struct nv50_wndw *wndw = container_of(dmac, typeof(*wndw), wimm);
+	struct nv50_wndw *wndw = container_of(chan, typeof(*wndw), wimm);
 	return curs507a_space(wndw) ? 0 : -ETIMEDOUT;
 }
 

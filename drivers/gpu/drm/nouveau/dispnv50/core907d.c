@@ -44,7 +44,7 @@ core907d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
 	if (ret < 0)
 		return ret;
 
-	time = nvif_msec(core->chan.base.device, 2000ULL,
+	time = nvif_msec(core->chan.disp->device, 2000ULL,
 			 if (NVBO_TD32(bo, NV50_DISP_CORE_NTFY,
 				       NV907D_CORE_NOTIFIER_3, CAPABILITIES_4, DONE, ==, TRUE))
 				 break;

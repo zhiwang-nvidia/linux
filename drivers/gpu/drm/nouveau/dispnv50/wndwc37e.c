@@ -25,7 +25,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <nouveau_bo.h>
 
-#include <nvif/if0014.h>
 #include <nvif/pushc37b.h>
 
 #include <nvhw/class/clc37e.h>
@@ -350,10 +349,7 @@ wndwc37e_new_(const struct nv50_wndw_func *func, struct nouveau_drm *drm,
 	      enum drm_plane_type type, int index, s32 oclass, u32 heads,
 	      struct nv50_wndw **pwndw)
 {
-	struct nvif_disp_chan_v0 args = {
-		.id = index,
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
 	struct nv50_wndw *wndw;
 	int ret;
 
@@ -363,9 +359,18 @@ wndwc37e_new_(const struct nv50_wndw_func *func, struct nouveau_drm *drm,
 	if (*pwndw = wndw, ret)
 		return ret;
 
-	ret = nv50_dmac_create(drm,
-			       &oclass, 0, &args, sizeof(args),
-			       disp->sync->offset, &wndw->wndw);
+	ret = nvif_dispchan_ctor(disp, "kmsChanWndw", wndw->id, oclass, &drm->mmu, &wndw->wndw);
+	if (ret)
+		goto done;
+
+	ret = disp->impl->chan.wndw.new(disp->priv, wndw->id, wndw->wndw.push.mem.priv,
+					&wndw->wndw.impl, &wndw->wndw.priv,
+					nvif_handle(&wndw->wndw.object));
+	if (ret)
+		goto done;
+
+	ret = nvif_dispchan_oneinit(&wndw->wndw);
+done:
 	if (ret) {
 		NV_ERROR(drm, "qndw%04x allocation failed: %d\n", oclass, ret);
 		return ret;

@@ -5,9 +5,11 @@
 #include "crc.h"
 #include <nouveau_encoder.h>
 
+#include <nvif/dispchan.h>
+
 struct nv50_core {
 	const struct nv50_core_func *func;
-	struct nv50_dmac chan;
+	struct nvif_dispchan chan;
 
 	struct nvif_object vram;
 	struct nvif_object sync;

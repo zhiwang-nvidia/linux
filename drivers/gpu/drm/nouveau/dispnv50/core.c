@@ -34,7 +34,7 @@ nv50_core_del(struct nv50_core **pcore)
 	if (core) {
 		nvif_object_dtor(&core->sync);
 		nvif_object_dtor(&core->vram);
-		nv50_dmac_destroy(&core->chan);
+		nvif_dispchan_dtor(&core->chan);
 		kfree(*pcore);
 		*pcore = NULL;
 	}
@@ -75,7 +75,7 @@ nv50_core_new(struct nouveau_drm *drm, struct nv50_core **pcore)
 	if (ret)
 		return ret;
 
-	ret = nvif_object_ctor(&core->chan.base.user, "kmsCoreSyncCtxdma", NV50_DISP_HANDLE_SYNCBUF,
+	ret = nvif_object_ctor(&core->chan.object, "kmsCoreSyncCtxdma", NV50_DISP_HANDLE_SYNCBUF,
 			       NV_DMA_IN_MEMORY,
 			       (&(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
@@ -87,7 +87,7 @@ nv50_core_new(struct nouveau_drm *drm, struct nv50_core **pcore)
 	if (ret)
 		return ret;
 
-	ret = nvif_object_ctor(&core->chan.base.user, "kmsCoreVramCtxdma", NV50_DISP_HANDLE_VRAM,
+	ret = nvif_object_ctor(&core->chan.object, "kmsCoreVramCtxdma", NV50_DISP_HANDLE_VRAM,
 			       NV_DMA_IN_MEMORY,
 			       (&(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,

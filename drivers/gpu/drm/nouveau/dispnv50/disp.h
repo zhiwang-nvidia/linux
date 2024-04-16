@@ -1,8 +1,6 @@
 #ifndef __NV50_KMS_H__
 #define __NV50_KMS_H__
 #include <linux/workqueue.h>
-#include <nvif/mem.h>
-#include <nvif/push.h>
 
 #include "nouveau_display.h"
 
@@ -54,17 +52,6 @@ void corec37d_ntfy_init(struct nouveau_bo *, u32);
 
 void head907d_olut_load(struct drm_color_lut *, int size, void __iomem *);
 
-struct nv50_chan {
-	struct nvif_object user;
-	struct nvif_device *device;
-};
-
-struct nv50_dmac {
-	struct nv50_chan base;
-
-	struct nvif_push push;
-};
-
 struct nv50_outp_atom {
 	struct list_head head;
 
@@ -80,11 +67,6 @@ struct nv50_outp_atom {
 		u8 mask;
 	} set, clr;
 };
-
-int nv50_dmac_create(struct nouveau_drm *,
-		     const s32 *oclass, u8 head, void *data, u32 size,
-		     s64 syncbuf, struct nv50_dmac *dmac);
-void nv50_dmac_destroy(struct nv50_dmac *);
 
 /*
  * For normal encoders this just returns the encoder. For active MST encoders,

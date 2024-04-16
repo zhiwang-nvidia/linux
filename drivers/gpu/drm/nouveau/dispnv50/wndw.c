@@ -118,7 +118,7 @@ nv50_wndw_wait_armed(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if (asyw->set.ntfy) {
 		return wndw->func->ntfy_wait_begun(disp->sync,
 						   asyw->ntfy.offset,
-						   wndw->wndw.base.device);
+						   wndw->wndw.disp->device);
 	}
 	return 0;
 }
@@ -644,11 +644,11 @@ nv50_wndw_destroy(struct drm_plane *plane)
 		nv50_wndw_ctxdma_del(ctxdma);
 	}
 
-	nv50_dmac_destroy(&wndw->wimm);
+	nvif_dispchan_dtor(&wndw->wimm);
 
 	nvif_object_dtor(&wndw->vram);
 	nvif_object_dtor(&wndw->sync);
-	nv50_dmac_destroy(&wndw->wndw);
+	nvif_dispchan_dtor(&wndw->wndw);
 
 	nv50_lut_fini(&wndw->ilut);
 
@@ -702,10 +702,10 @@ nv50_wndw_ctor(struct nv50_wndw *wndw)
 	struct nv50_disp *disp = nv50_disp(wndw->plane.dev);
 	int ret;
 
-	if (!nvif_object_constructed(&wndw->wndw.base.user))
+	if (!wndw->wndw.impl)
 		return 0;
 
-	ret = nvif_object_ctor(&wndw->wndw.base.user, "kmsWndwSyncCtxDma", NV50_DISP_HANDLE_SYNCBUF,
+	ret = nvif_object_ctor(&wndw->wndw.object, "kmsWndwSyncCtxDma", NV50_DISP_HANDLE_SYNCBUF,
 			       NV_DMA_IN_MEMORY,
 			       (&(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
@@ -717,7 +717,7 @@ nv50_wndw_ctor(struct nv50_wndw *wndw)
 	if (ret)
 		return ret;
 
-	ret = nvif_object_ctor(&wndw->wndw.base.user, "kmsWndwVramCtxDma", NV50_DISP_HANDLE_VRAM,
+	ret = nvif_object_ctor(&wndw->wndw.object, "kmsWndwVramCtxDma", NV50_DISP_HANDLE_VRAM,
 			       NV_DMA_IN_MEMORY,
 			       (&(struct nv_dma_v0) {
 					.target = NV_DMA_V0_TARGET_VRAM,
@@ -754,7 +754,7 @@ nv50_wndw_prep(const struct nv50_wndw_func *func, struct drm_device *dev,
 	wndw->interlock.type = interlock_type;
 	wndw->interlock.data = interlock_data;
 
-	wndw->ctxdma.parent = &wndw->wndw.base.user;
+	wndw->ctxdma.parent = &wndw->wndw.object;
 	INIT_LIST_HEAD(&wndw->ctxdma.list);
 
 	for (nformat = 0; format[nformat]; nformat++);

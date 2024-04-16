@@ -21,61 +21,112 @@
  */
 #include "udisp.h"
 #include "ucaps.h"
-#include "chan.h"
+#include "uchan.h"
 #include "uconn.h"
 #include "uhead.h"
 #include "uoutp.h"
-
-#include <nvif/class.h>
+#include <subdev/mmu/umem.h>
 
 static int
-nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *sclass)
+nvkm_udisp_chan_new(struct nvif_disp_priv *udisp, const struct nvkm_disp_func_chan *func,
+		    u8 nr, u8 id, struct nvif_mem_priv *umem,
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv,
+		    u64 handle)
 {
-	struct nvkm_disp *disp = container_of(object, struct nvif_disp_priv, object)->disp;
+	struct nvkm_memory *memory = NULL;
+	struct nvkm_object *object;
+	int ret;
 
-	if (disp->func->user.core.oclass && index-- == 0) {
-		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.core.oclass };
-		sclass->ctor = nvkm_disp_core_new;
-		return 0;
-	}
+	if (id >= nr)
+		return -EINVAL;
 
-	if (disp->func->user.base.oclass && index-- == 0) {
-		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.base.oclass };
-		sclass->ctor = nvkm_disp_chan_new;
-		return 0;
-	}
+	if (umem)
+		memory = nvkm_umem_ref(umem);
 
-	if (disp->func->user.ovly.oclass && index-- == 0) {
-		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.ovly.oclass };
-		sclass->ctor = nvkm_disp_chan_new;
-		return 0;
-	}
+	ret = nvkm_disp_chan_new(udisp->disp, func, id, memory, pimpl, ppriv, &object);
+	nvkm_memory_unref(&memory);
+	if (ret)
+		return ret;
 
-	if (disp->func->user.curs.oclass && index-- == 0) {
-		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.curs.oclass };
-		sclass->ctor = nvkm_disp_chan_new;
-		return 0;
-	}
+	if (handle)
+		return nvkm_object_link_rb(udisp->object.client, &udisp->object, handle, object);
 
-	if (disp->func->user.oimm.oclass && index-- == 0) {
-		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.oimm.oclass };
-		sclass->ctor = nvkm_disp_chan_new;
-		return 0;
-	}
+	nvkm_object_link(&udisp->object, object);
+	return 0;
+}
 
-	if (disp->func->user.wndw.oclass && index-- == 0) {
-		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.wndw.oclass };
-		sclass->ctor = nvkm_disp_wndw_new;
-		return 0;
-	}
+static int
+nvkm_udisp_oimm_new(struct nvif_disp_priv *udisp, u8 id,
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv)
+{
+	struct nvkm_disp *disp = udisp->disp;
 
-	if (disp->func->user.wimm.oclass && index-- == 0) {
-		sclass->base = (struct nvkm_sclass) { 0, 0, disp->func->user.wimm.oclass };
-		sclass->ctor = nvkm_disp_wndw_new;
-		return 0;
-	}
+	return nvkm_udisp_chan_new(udisp, &disp->func->user.oimm, disp->head.nr, id, NULL,
+				   pimpl, ppriv, 0);
+}
 
-	return -EINVAL;
+static int
+nvkm_udisp_curs_new(struct nvif_disp_priv *udisp, u8 id,
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv)
+{
+	struct nvkm_disp *disp = udisp->disp;
+
+	return nvkm_udisp_chan_new(udisp, &disp->func->user.curs, disp->head.nr, id, NULL,
+				   pimpl, ppriv, 0);
+}
+
+static int
+nvkm_udisp_wimm_new(struct nvif_disp_priv *udisp, u8 id, struct nvif_mem_priv *umem,
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv,
+		    u64 handle)
+{
+	struct nvkm_disp *disp = udisp->disp;
+
+	return nvkm_udisp_chan_new(udisp, &disp->func->user.wimm, disp->wndw.nr, id, umem,
+				   pimpl, ppriv, 0);
+}
+
+static int
+nvkm_udisp_wndw_new(struct nvif_disp_priv *udisp, u8 id, struct nvif_mem_priv *umem,
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv,
+		    u64 handle)
+{
+	struct nvkm_disp *disp = udisp->disp;
+
+	return nvkm_udisp_chan_new(udisp, &disp->func->user.wndw, disp->wndw.nr, id, umem,
+				   pimpl, ppriv, handle);
+}
+
+static int
+nvkm_udisp_ovly_new(struct nvif_disp_priv *udisp, u8 id, struct nvif_mem_priv *umem,
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv,
+		    u64 handle)
+{
+	struct nvkm_disp *disp = udisp->disp;
+
+	return nvkm_udisp_chan_new(udisp, &disp->func->user.ovly, disp->head.nr, id, umem,
+				   pimpl, ppriv, handle);
+}
+
+static int
+nvkm_udisp_base_new(struct nvif_disp_priv *udisp, u8 id, struct nvif_mem_priv *umem,
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv,
+		    u64 handle)
+{
+	struct nvkm_disp *disp = udisp->disp;
+
+	return nvkm_udisp_chan_new(udisp, &disp->func->user.base, disp->head.nr, id, umem,
+				   pimpl, ppriv, handle);
+}
+
+static int
+nvkm_udisp_core_new(struct nvif_disp_priv *udisp, struct nvif_mem_priv *umem,
+		    const struct nvif_disp_chan_impl **pimpl, struct nvif_disp_chan_priv **ppriv,
+		    u64 handle)
+{
+	struct nvkm_disp *disp = udisp->disp;
+
+	return nvkm_udisp_chan_new(udisp, &disp->func->user.core, 1, 0, umem, pimpl, ppriv, handle);
 }
 
 static int
@@ -173,7 +224,6 @@ nvkm_udisp_dtor(struct nvkm_object *object)
 static const struct nvkm_object_func
 nvkm_udisp = {
 	.dtor = nvkm_udisp_dtor,
-	.sclass = nvkm_udisp_sclass,
 };
 
 int
@@ -227,17 +277,24 @@ nvkm_udisp_new(struct nvkm_device *device, const struct nvif_disp_impl **pimpl,
 
 	if (disp->func->user.core.oclass) {
 		udisp->impl.chan.core.oclass = disp->func->user.core.oclass;
+		udisp->impl.chan.core.new = nvkm_udisp_core_new;
 		udisp->impl.chan.curs.oclass = disp->func->user.curs.oclass;
+		udisp->impl.chan.curs.new = nvkm_udisp_curs_new;
 
 		if (!disp->func->user.wndw.oclass) {
 			/* EVO */
 			udisp->impl.chan.base.oclass = disp->func->user.base.oclass;
+			udisp->impl.chan.base.new = nvkm_udisp_base_new;
 			udisp->impl.chan.ovly.oclass = disp->func->user.ovly.oclass;
+			udisp->impl.chan.ovly.new = nvkm_udisp_ovly_new;
 			udisp->impl.chan.oimm.oclass = disp->func->user.oimm.oclass;
+			udisp->impl.chan.oimm.new = nvkm_udisp_oimm_new;
 		} else {
 			/* NVDisplay (GV100-) */
 			udisp->impl.chan.wndw.oclass = disp->func->user.wndw.oclass;
+			udisp->impl.chan.wndw.new = nvkm_udisp_wndw_new;
 			udisp->impl.chan.wimm.oclass = disp->func->user.wimm.oclass;
+			udisp->impl.chan.wimm.new = nvkm_udisp_wimm_new;
 		}
 	}
 

@@ -23,7 +23,6 @@
 #include "atom.h"
 #include "wndw.h"
 
-#include <nvif/if0014.h>
 #include <nvif/pushc37b.h>
 
 #include <nvhw/class/clc37b.h>
@@ -68,14 +67,21 @@ static int
 wimmc37b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	       s32 oclass, struct nv50_wndw *wndw)
 {
-	struct nvif_disp_chan_v0 args = {
-		.id = wndw->id,
-	};
+	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
 	int ret;
 
-	ret = nv50_dmac_create(drm,
-			       &oclass, 0, &args, sizeof(args), -1,
-			       &wndw->wimm);
+	ret = nvif_dispchan_ctor(disp, "kmsChanWimm", wndw->id, oclass, &drm->mmu, &wndw->wimm);
+	if (ret)
+		goto done;
+
+	ret = disp->impl->chan.wimm.new(disp->priv, wndw->id, wndw->wimm.push.mem.priv,
+					&wndw->wimm.impl, &wndw->wimm.priv,
+					nvif_handle(&wndw->wimm.object));
+	if (ret)
+		goto done;
+
+	ret = nvif_dispchan_oneinit(&wndw->wimm);
+done:
 	if (ret) {
 		NV_ERROR(drm, "wimm%04x allocation failed: %d\n", oclass, ret);
 		return ret;

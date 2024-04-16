@@ -117,13 +117,14 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 	*pchan = NULL;
 }
 
-static void
+static int
 nouveau_channel_kick(struct nvif_push *push)
 {
 	struct nouveau_channel *chan = container_of(push, typeof(*chan), chan.push);
 	chan->dma.cur = chan->dma.cur + (chan->chan.push.cur - chan->chan.push.bgn);
 	FIRE_RING(chan);
 	chan->chan.push.bgn = chan->chan.push.cur;
+	return 0;
 }
 
 static int

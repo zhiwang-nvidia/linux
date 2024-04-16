@@ -42,7 +42,7 @@ struct nvif_push {
 	u32 *end;
 
 	int (*wait)(struct nvif_push *push, u32 size);
-	void (*kick)(struct nvif_push *push);
+	int (*kick)(struct nvif_push *push);
 };
 
 static inline __must_check int
@@ -62,8 +62,7 @@ PUSH_WAIT(struct nvif_push *push, u32 size)
 static inline int
 PUSH_KICK(struct nvif_push *push)
 {
-	push->kick(push);
-	return 0;
+	return push->kick(push);
 }
 
 #ifdef CONFIG_NOUVEAU_DEBUG_PUSH

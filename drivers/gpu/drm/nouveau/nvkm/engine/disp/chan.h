@@ -29,10 +29,6 @@ struct nvkm_disp_chan {
 	} user;
 };
 
-int nvkm_disp_core_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
-int nvkm_disp_chan_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
-int nvkm_disp_wndw_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
-
 struct nvkm_disp_chan_func {
 	int (*push)(struct nvkm_disp_chan *);
 	int (*init)(struct nvkm_disp_chan *);
