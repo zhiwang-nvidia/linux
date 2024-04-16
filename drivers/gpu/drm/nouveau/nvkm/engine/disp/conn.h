@@ -13,7 +13,7 @@ struct nvkm_conn {
 
 	struct list_head head;
 
-	struct nvkm_object object;
+	bool user; /* protected by disp->user.lock */
 };
 
 int nvkm_conn_new(struct nvkm_disp *, int index, struct nvbios_connE *,

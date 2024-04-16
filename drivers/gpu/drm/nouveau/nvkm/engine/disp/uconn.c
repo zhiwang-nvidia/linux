@@ -19,8 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#define nvkm_uconn(p) container_of((p), struct nvkm_conn, object)
-#include "conn.h"
+#include "uconn.h"
 #include "outp.h"
 
 #include <core/client.h>
@@ -29,6 +28,11 @@
 #include <subdev/i2c.h>
 
 #include <nvif/if0011.h>
+
+struct nvif_conn_priv {
+	struct nvkm_object object;
+	struct nvkm_conn *conn;
+};
 
 static int
 nvkm_uconn_uevent_gsp(struct nvkm_object *object, u64 token, u32 bits)
@@ -94,7 +98,7 @@ nvkm_connector_is_dp_dms(u8 type)
 static int
 nvkm_uconn_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
 {
-	struct nvkm_conn *conn = nvkm_uconn(object);
+	struct nvkm_conn *conn = container_of(object, struct nvif_conn_priv, object)->conn;
 	struct nvkm_disp *disp = conn->disp;
 	struct nvkm_device *device = disp->engine.subdev.device;
 	struct nvkm_outp *outp;
@@ -151,13 +155,13 @@ nvkm_uconn_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_
 static void *
 nvkm_uconn_dtor(struct nvkm_object *object)
 {
-	struct nvkm_conn *conn = nvkm_uconn(object);
-	struct nvkm_disp *disp = conn->disp;
+	struct nvif_conn_priv *uconn = container_of(object, typeof(*uconn), object);
+	struct nvkm_disp *disp = uconn->conn->disp;
 
 	spin_lock(&disp->user.lock);
-	conn->object.func = NULL;
+	uconn->conn->user = false;
 	spin_unlock(&disp->user.lock);
-	return NULL;
+	return uconn;
 }
 
 static const struct nvkm_object_func
@@ -173,7 +177,7 @@ nvkm_uconn_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	struct nvkm_disp *disp = container_of(oclass->parent, struct nvif_disp_priv, object)->disp;
 	struct nvkm_conn *cont, *conn = NULL;
 	union nvif_conn_args *args = argv;
-	int ret;
+	struct nvif_conn_priv *uconn;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
 		return -ENOSYS;
@@ -188,39 +192,46 @@ nvkm_uconn_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	if (!conn)
 		return -EINVAL;
 
-	ret = -EBUSY;
-	spin_lock(&disp->user.lock);
-	if (!conn->object.func) {
-		switch (conn->info.type) {
-		case DCB_CONNECTOR_VGA      : args->v0.type = NVIF_CONN_V0_VGA; break;
-		case DCB_CONNECTOR_TV_0     :
-		case DCB_CONNECTOR_TV_1     :
-		case DCB_CONNECTOR_TV_3     : args->v0.type = NVIF_CONN_V0_TV; break;
-		case DCB_CONNECTOR_DMS59_0  :
-		case DCB_CONNECTOR_DMS59_1  :
-		case DCB_CONNECTOR_DVI_I    : args->v0.type = NVIF_CONN_V0_DVI_I; break;
-		case DCB_CONNECTOR_DVI_D    : args->v0.type = NVIF_CONN_V0_DVI_D; break;
-		case DCB_CONNECTOR_LVDS     : args->v0.type = NVIF_CONN_V0_LVDS; break;
-		case DCB_CONNECTOR_LVDS_SPWG: args->v0.type = NVIF_CONN_V0_LVDS_SPWG; break;
-		case DCB_CONNECTOR_DMS59_DP0:
-		case DCB_CONNECTOR_DMS59_DP1:
-		case DCB_CONNECTOR_DP       :
-		case DCB_CONNECTOR_mDP      :
-		case DCB_CONNECTOR_USB_C    : args->v0.type = NVIF_CONN_V0_DP; break;
-		case DCB_CONNECTOR_eDP      : args->v0.type = NVIF_CONN_V0_EDP; break;
-		case DCB_CONNECTOR_HDMI_0   :
-		case DCB_CONNECTOR_HDMI_1   :
-		case DCB_CONNECTOR_HDMI_C   : args->v0.type = NVIF_CONN_V0_HDMI; break;
-		default:
-			WARN_ON(1);
-			ret = -EINVAL;
-			break;
-		}
-
-		nvkm_object_ctor(&nvkm_uconn, oclass, &conn->object);
-		*pobject = &conn->object;
-		ret = 0;
+	switch (conn->info.type) {
+	case DCB_CONNECTOR_VGA      : args->v0.type = NVIF_CONN_V0_VGA; break;
+	case DCB_CONNECTOR_TV_0     :
+	case DCB_CONNECTOR_TV_1     :
+	case DCB_CONNECTOR_TV_3     : args->v0.type = NVIF_CONN_V0_TV; break;
+	case DCB_CONNECTOR_DMS59_0  :
+	case DCB_CONNECTOR_DMS59_1  :
+	case DCB_CONNECTOR_DVI_I    : args->v0.type = NVIF_CONN_V0_DVI_I; break;
+	case DCB_CONNECTOR_DVI_D    : args->v0.type = NVIF_CONN_V0_DVI_D; break;
+	case DCB_CONNECTOR_LVDS     : args->v0.type = NVIF_CONN_V0_LVDS; break;
+	case DCB_CONNECTOR_LVDS_SPWG: args->v0.type = NVIF_CONN_V0_LVDS_SPWG; break;
+	case DCB_CONNECTOR_DMS59_DP0:
+	case DCB_CONNECTOR_DMS59_DP1:
+	case DCB_CONNECTOR_DP       :
+	case DCB_CONNECTOR_mDP      :
+	case DCB_CONNECTOR_USB_C    : args->v0.type = NVIF_CONN_V0_DP; break;
+	case DCB_CONNECTOR_eDP      : args->v0.type = NVIF_CONN_V0_EDP; break;
+	case DCB_CONNECTOR_HDMI_0   :
+	case DCB_CONNECTOR_HDMI_1   :
+	case DCB_CONNECTOR_HDMI_C   : args->v0.type = NVIF_CONN_V0_HDMI; break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
 	}
+
+	uconn = kzalloc(sizeof(*uconn), GFP_KERNEL);
+	if (!uconn)
+		return -ENOMEM;
+
+	spin_lock(&disp->user.lock);
+	if (conn->user) {
+		spin_unlock(&disp->user.lock);
+		kfree(uconn);
+		return -EBUSY;
+	}
+	conn->user = true;
 	spin_unlock(&disp->user.lock);
-	return ret;
+
+	nvkm_object_ctor(&nvkm_uconn, oclass, &uconn->object);
+	uconn->conn = conn;
+	*pobject = &uconn->object;
+	return 0;
 }
