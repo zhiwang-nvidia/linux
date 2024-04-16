@@ -201,7 +201,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	INIT_LIST_HEAD(&cli->worker);
 	mutex_init(&cli->lock);
 
-	ret = nvif_client_ctor(&drm->_client, cli->name, &cli->base);
+	ret = nvif_client_ctor(&drm->client, cli->name, &cli->base);
 	if (ret) {
 		NV_PRINTK(err, cli, "Client allocation failed: %d\n", ret);
 		goto done;
@@ -269,7 +269,7 @@ nouveau_accel_ce_init(struct nouveau_drm *drm)
 		return;
 	}
 
-	ret = nouveau_channel_new(&drm->client, false, runm, NvDmaFB, NvDmaTT, &drm->cechan);
+	ret = nouveau_channel_new(&drm->cli, false, runm, NvDmaFB, NvDmaTT, &drm->cechan);
 	if (ret)
 		NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
 }
@@ -297,7 +297,7 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 		return;
 	}
 
-	ret = nouveau_channel_new(&drm->client, false, runm, NvDmaFB, NvDmaTT, &drm->channel);
+	ret = nouveau_channel_new(&drm->cli, false, runm, NvDmaFB, NvDmaTT, &drm->channel);
 	if (ret) {
 		NV_ERROR(drm, "failed to create kernel channel, %d\n", ret);
 		nouveau_accel_gr_fini(drm);
@@ -495,15 +495,15 @@ nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 	drm->nvkm = nvkm;
 
 	nvif_parent_ctor(&nouveau_parent, &drm->parent);
-	drm->_client.object.parent = &drm->parent;
+	drm->client.object.parent = &drm->parent;
 
 	ret = nvkm_driver_ctor(drm->nvkm, &driver, &impl, &priv);
 	if (ret)
 		goto fail_alloc;
 
-	nvif_driver_ctor(&drm->parent, driver, "drm", impl, priv, &drm->_client);
+	nvif_driver_ctor(&drm->parent, driver, "drm", impl, priv, &drm->client);
 
-	ret = nvif_device_ctor(&drm->_client, "drmDevice", &drm->device);
+	ret = nvif_device_ctor(&drm->client, "drmDevice", &drm->device);
 	if (ret) {
 		NV_ERROR(drm, "Device allocation failed: %d\n", ret);
 		goto fail_nvif;
@@ -631,7 +631,7 @@ fail_wq:
 fail_nvif:
 	nvif_mmu_dtor(&drm->mmu);
 	nvif_device_dtor(&drm->device);
-	nvif_client_dtor(&drm->_client);
+	nvif_client_dtor(&drm->client);
 fail_alloc:
 	nvif_parent_dtor(&drm->parent);
 	kfree(drm);
@@ -687,7 +687,7 @@ nouveau_drm_device_fini(struct drm_device *dev)
 	destroy_workqueue(drm->sched_wq);
 	nvif_mmu_dtor(&drm->mmu);
 	nvif_device_dtor(&drm->device);
-	nvif_client_dtor(&drm->_client);
+	nvif_client_dtor(&drm->client);
 	nvif_parent_dtor(&drm->parent);
 	mutex_destroy(&drm->clients_lock);
 	kfree(drm);
@@ -888,7 +888,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	}
 
 	NV_DEBUG(drm, "suspending object tree...\n");
-	ret = nvif_client_suspend(&drm->_client);
+	ret = nvif_client_suspend(&drm->client);
 	if (ret)
 		goto fail_client;
 
@@ -913,7 +913,7 @@ nouveau_do_resume(struct drm_device *dev, bool runtime)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	NV_DEBUG(drm, "resuming object tree...\n");
-	ret = nvif_client_resume(&drm->_client);
+	ret = nvif_client_resume(&drm->client);
 	if (ret) {
 		NV_ERROR(drm, "Client resume failed with error: %d\n", ret);
 		return ret;

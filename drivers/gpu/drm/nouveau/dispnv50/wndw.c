@@ -736,7 +736,7 @@ nv50_wndw_prep(const struct nv50_wndw_func *func, struct drm_device *dev,
 	       struct nv50_wndw **pwndw)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_mmu *mmu = &drm->client.mmu;
+	struct nvif_mmu *mmu = &drm->cli.mmu;
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_wndw *wndw;
 	const u64 *format_modifiers;

@@ -543,7 +543,7 @@ int nv50_crc_set_source(struct drm_crtc *crtc, const char *source_str)
 	struct nv50_head *head = nv50_head(crtc);
 	struct nv50_crc *crc = &head->crc;
 	const struct nv50_crc_func *func = nv50_disp(dev)->core->func->crc;
-	struct nvif_mmu *mmu = &nouveau_drm(dev)->client.mmu;
+	struct nvif_mmu *mmu = &nouveau_drm(dev)->cli.mmu;
 	struct nv50_head_atom *asyh;
 	struct drm_crtc_state *crtc_state;
 	enum nv50_crc_source source;

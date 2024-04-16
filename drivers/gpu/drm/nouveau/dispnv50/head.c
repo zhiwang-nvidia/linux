@@ -612,7 +612,7 @@ nv50_head_create(struct drm_device *dev, int index)
 				   head->func->olut_size);
 
 	if (head->func->olut_set) {
-		ret = nv50_lut_init(disp, &drm->client.mmu, &head->olut);
+		ret = nv50_lut_init(disp, &drm->cli.mmu, &head->olut);
 		if (ret) {
 			nv50_head_destroy(crtc);
 			return ERR_PTR(ret);

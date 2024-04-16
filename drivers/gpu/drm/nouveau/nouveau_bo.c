@@ -832,7 +832,7 @@ nouveau_bo_move_prep(struct nouveau_drm *drm, struct ttm_buffer_object *bo,
 {
 	struct nouveau_mem *old_mem = nouveau_mem(bo->resource);
 	struct nouveau_mem *new_mem = nouveau_mem(reg);
-	struct nvif_vmm *vmm = &drm->client.vmm.vmm;
+	struct nvif_vmm *vmm = &drm->cli.vmm.vmm;
 	int ret;
 
 	ret = nvif_vmm_get(vmm, NVIF_VMM_GET_LAZY, false, old_mem->mem.impl->page, 0,

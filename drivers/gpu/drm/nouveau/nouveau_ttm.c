@@ -159,7 +159,7 @@ const struct ttm_resource_manager_func nv04_gart_manager = {
 static int
 nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)
 {
-	struct nvif_mmu *mmu = &drm->client.mmu;
+	struct nvif_mmu *mmu = &drm->cli.mmu;
 	int typei;
 
 	typei = nvif_mmu_type(mmu, NVIF_MEM_HOST | NVIF_MEM_MAPPABLE |
@@ -262,7 +262,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 {
 	struct nvkm_device *device = nvxx_device(drm);
 	struct nvkm_pci *pci = device->pci;
-	struct nvif_mmu *mmu = &drm->client.mmu;
+	struct nvif_mmu *mmu = &drm->cli.mmu;
 	struct drm_device *dev = drm->dev;
 	int typei, ret;
 

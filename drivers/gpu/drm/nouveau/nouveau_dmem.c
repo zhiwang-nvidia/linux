@@ -254,7 +254,7 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm, struct page **ppage)
 	chunk->pagemap.ops = &nouveau_dmem_pagemap_ops;
 	chunk->pagemap.owner = drm->dev;
 
-	ret = nouveau_bo_new(&drm->client, DMEM_CHUNK_SIZE, 0,
+	ret = nouveau_bo_new(&drm->cli, DMEM_CHUNK_SIZE, 0,
 			     NOUVEAU_GEM_DOMAIN_VRAM, 0, 0, NULL, NULL,
 			     &chunk->bo);
 	if (ret)

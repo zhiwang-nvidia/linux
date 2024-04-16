@@ -2604,7 +2604,7 @@ nv50_display_create(struct drm_device *dev)
 	dev->mode_config.normalize_zpos = true;
 
 	/* small shared memory area we use for notifiers and semaphores */
-	ret = nouveau_bo_new(&drm->client, 4096, 0x1000,
+	ret = nouveau_bo_new(&drm->cli, 4096, 0x1000,
 			     NOUVEAU_GEM_DOMAIN_VRAM,
 			     0, 0x0000, NULL, NULL, &disp->sync);
 	if (!ret) {

@@ -203,14 +203,11 @@ u_memcpya(uint64_t user, unsigned int nmemb, unsigned int size)
 struct nouveau_drm {
 	struct nvkm_device *nvkm;
 	struct nvif_parent parent;
-	struct nvif_client _client;
+	struct nvif_client client;
 	struct nvif_device device;
 	struct nvif_mmu mmu;
 
-	union {
-		struct nouveau_cli client;
-		struct nouveau_cli cli;
-	};
+	struct nouveau_cli cli;
 	struct drm_device *dev;
 
 	struct list_head clients;
@@ -340,25 +337,28 @@ void nouveau_drm_device_remove(struct drm_device *dev);
 	dev_##l(_cli->drm->dev->dev, "%s: "f, _cli->name, ##a);                \
 } while(0)
 
-#define NV_FATAL(drm,f,a...) NV_PRINTK(crit, &(drm)->client, f, ##a)
-#define NV_ERROR(drm,f,a...) NV_PRINTK(err, &(drm)->client, f, ##a)
-#define NV_WARN(drm,f,a...) NV_PRINTK(warn, &(drm)->client, f, ##a)
-#define NV_INFO(drm,f,a...) NV_PRINTK(info, &(drm)->client, f, ##a)
+#define NV_PRINTK_(l,drm,f,a...) do {          \
+	dev_##l(drm->dev->dev, "drm: "f, ##a); \
+} while(0)
+#define NV_FATAL(drm,f,a...) NV_PRINTK_(crit, (drm), f, ##a)
+#define NV_ERROR(drm,f,a...) NV_PRINTK_(err, (drm), f, ##a)
+#define NV_WARN(drm,f,a...) NV_PRINTK_(warn, (drm), f, ##a)
+#define NV_INFO(drm,f,a...) NV_PRINTK_(info, (drm), f, ##a)
 
 #define NV_DEBUG(drm,f,a...) do {                                              \
 	if (drm_debug_enabled(DRM_UT_DRIVER))                                  \
-		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
+		NV_PRINTK_(info, (drm), f, ##a);                               \
 } while(0)
 #define NV_ATOMIC(drm,f,a...) do {                                             \
 	if (drm_debug_enabled(DRM_UT_ATOMIC))                                  \
-		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
+		NV_PRINTK_(info, (drm), f, ##a);                               \
 } while(0)
 
 #define NV_PRINTK_ONCE(l,c,f,a...) NV_PRINTK(l##_once,c,f, ##a)
 
-#define NV_ERROR_ONCE(drm,f,a...) NV_PRINTK_ONCE(err, &(drm)->client, f, ##a)
-#define NV_WARN_ONCE(drm,f,a...) NV_PRINTK_ONCE(warn, &(drm)->client, f, ##a)
-#define NV_INFO_ONCE(drm,f,a...) NV_PRINTK_ONCE(info, &(drm)->client, f, ##a)
+#define NV_ERROR_ONCE(drm,f,a...) NV_PRINTK_ONCE(err, &(drm)->cli, f, ##a)
+#define NV_WARN_ONCE(drm,f,a...) NV_PRINTK_ONCE(warn, &(drm)->cli, f, ##a)
+#define NV_INFO_ONCE(drm,f,a...) NV_PRINTK_ONCE(info, &(drm)->cli, f, ##a)
 
 extern int nouveau_modeset;
 

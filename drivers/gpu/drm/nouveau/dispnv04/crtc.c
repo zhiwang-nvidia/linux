@@ -1317,7 +1317,7 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 	drm_crtc_helper_add(&nv_crtc->base, &nv04_crtc_helper_funcs);
 	drm_mode_crtc_set_gamma_size(&nv_crtc->base, 256);
 
-	ret = nouveau_bo_new(&nouveau_drm(dev)->client, 64*64*4, 0x100,
+	ret = nouveau_bo_new(&nouveau_drm(dev)->cli, 64*64*4, 0x100,
 			     NOUVEAU_GEM_DOMAIN_VRAM, 0, 0x0000, NULL, NULL,
 			     &nv_crtc->cursor.nvbo);
 	if (!ret) {
