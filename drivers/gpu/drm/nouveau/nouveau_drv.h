@@ -40,6 +40,7 @@
 
 #include <linux/notifier.h>
 
+#include <nvif/chan.h>
 #include <nvif/client.h>
 #include <nvif/ctxdma.h>
 #include <nvif/device.h>
@@ -237,7 +238,7 @@ struct nouveau_drm {
 			    struct ttm_buffer_object *,
 			    struct ttm_resource *, struct ttm_resource *);
 		struct nouveau_channel *chan;
-		struct nvif_object copy;
+		struct nvif_engobj copy;
 		int mtrr;
 		int type_vram;
 		int type_host[2];

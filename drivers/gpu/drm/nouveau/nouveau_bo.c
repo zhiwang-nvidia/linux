@@ -965,14 +965,13 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 		if (chan == NULL)
 			continue;
 
-		ret = nvif_object_ctor(&chan->chan.object, "ttmBoMove",
-				       mthd->oclass | (mthd->engine << 16),
-				       mthd->oclass, NULL, 0,
+		ret = nvif_engobj_ctor(&chan->chan, "ttmBoMove",
+				       (mthd->engine << 16) | mthd->oclass, mthd->oclass,
 				       &drm->ttm.copy);
 		if (ret == 0) {
-			ret = mthd->init(chan, drm->ttm.copy.handle);
+			ret = mthd->init(chan, drm->ttm.copy.object.handle);
 			if (ret) {
-				nvif_object_dtor(&drm->ttm.copy);
+				nvif_engobj_dtor(&drm->ttm.copy);
 				continue;
 			}
 

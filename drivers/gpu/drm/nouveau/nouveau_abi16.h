@@ -14,7 +14,7 @@ int nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS);
 
 struct nouveau_abi16_ntfy {
 	struct nvif_ctxdma ctxdma;
-	struct nvif_object engobj;
+	struct nvif_engobj engobj;
 	struct list_head head;
 	struct nvkm_mm_node *node;
 };
@@ -22,7 +22,7 @@ struct nouveau_abi16_ntfy {
 struct nouveau_abi16_chan {
 	struct list_head head;
 	struct nouveau_channel *chan;
-	struct nvif_object ce;
+	struct nvif_engobj ce;
 	struct list_head notifiers;
 	struct nouveau_bo *ntfy;
 	struct nouveau_vma *ntfy_vma;

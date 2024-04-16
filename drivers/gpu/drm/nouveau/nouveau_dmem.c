@@ -570,7 +570,7 @@ nvc0b5_migrate_clear(struct nouveau_drm *drm, u32 length,
 static int
 nouveau_dmem_migrate_init(struct nouveau_drm *drm)
 {
-	switch (drm->ttm.copy.oclass) {
+	switch (drm->ttm.copy.object.oclass) {
 	case PASCAL_DMA_COPY_A:
 	case PASCAL_DMA_COPY_B:
 	case  VOLTA_DMA_COPY_A:

@@ -81,9 +81,7 @@ struct nouveau_abi16_obj {
 	u64 object;
 
 	union {
-		struct {
-			struct nvif_object object;
-		} engobj;
+		struct nvif_engobj engobj;
 	};
 
 	struct list_head head;
@@ -141,7 +139,7 @@ nouveau_abi16_ntfy_fini(struct nouveau_abi16_chan *chan,
 	if (ntfy->ctxdma.impl)
 		nvif_ctxdma_dtor(&ntfy->ctxdma);
 	else
-		nvif_object_dtor(&ntfy->engobj);
+		nvif_engobj_dtor(&ntfy->engobj);
 	nvkm_mm_free(&chan->heap, &ntfy->node);
 	list_del(&ntfy->head);
 	kfree(ntfy);
@@ -179,7 +177,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 
 	/* destroy channel object, all children will be killed too */
 	if (chan->chan) {
-		nvif_object_dtor(&chan->ce);
+		nvif_engobj_dtor(&chan->ce);
 		nouveau_channel_del(&chan->chan);
 	}
 
@@ -400,7 +398,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
 		init->subchan[0].handle = 0x00000000;
 		init->subchan[0].grclass = 0x0000;
-		init->subchan[1].handle = chan->chan->nvsw.handle;
+		init->subchan[1].handle = chan->chan->nvsw.object.handle;
 		init->subchan[1].grclass = 0x506e;
 		init->nr_subchan = 2;
 	}
@@ -415,14 +413,14 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	 */
 	switch (device->info.family) {
 	case NV_DEVICE_INFO_V0_VOLTA:
-		ret = nvif_object_ctor(&chan->chan->chan.object, "abi16CeWar", 0, VOLTA_DMA_COPY_A,
-				       NULL, 0, &chan->ce);
+		ret = nvif_engobj_ctor(&chan->chan->chan, "abi16CeWar", 0, VOLTA_DMA_COPY_A,
+				       &chan->ce);
 		if (ret)
 			goto done;
 		break;
 	case NV_DEVICE_INFO_V0_TURING:
-		ret = nvif_object_ctor(&chan->chan->chan.object, "abi16CeWar", 0, TURING_DMA_COPY_A,
-				       NULL, 0, &chan->ce);
+		ret = nvif_engobj_ctor(&chan->chan->chan, "abi16CeWar", 0, TURING_DMA_COPY_A,
+				       &chan->ce);
 		if (ret)
 			goto done;
 		break;
@@ -536,8 +534,8 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 
 	list_add(&ntfy->head, &chan->notifiers);
 
-	ret = nvif_object_ctor(&chan->chan->chan.object, "abi16EngObj", init->handle,
-			       oclass, NULL, 0, &ntfy->engobj);
+	ret = nvif_engobj_ctor(&chan->chan->chan, "abi16EngObj", init->handle, oclass,
+			       &ntfy->engobj);
 
 	if (ret)
 		nouveau_abi16_ntfy_fini(chan, ntfy);
@@ -681,8 +679,11 @@ nouveau_abi16_ioctl_del(struct nouveau_abi16 *abi16, struct nvif_ioctl_v0 *ioctl
 		return -EINVAL;
 
 	obj = nouveau_abi16_obj_find(abi16, ioctl->object);
-	if (obj)
+	if (obj) {
+		if (obj->type == ENGOBJ)
+			nvif_engobj_dtor(&obj->engobj);
 		nouveau_abi16_obj_del(obj);
+	}
 
 	return 0;
 }
@@ -722,8 +723,8 @@ nouveau_abi16_ioctl_new(struct nouveau_abi16 *abi16, struct nvif_ioctl_v0 *ioctl
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	ret = nvif_object_ctor(&chan->chan->chan.object, "abi16EngObj", args->handle, args->oclass,
-			       NULL, 0, &obj->engobj.object);
+	ret = nvif_engobj_ctor(&chan->chan->chan, "abi16EngObj", args->handle, args->oclass,
+			       &obj->engobj);
 	if (ret)
 		nouveau_abi16_obj_del(obj);
 

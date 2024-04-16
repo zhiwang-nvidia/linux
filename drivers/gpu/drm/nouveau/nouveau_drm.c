@@ -257,7 +257,7 @@ static void
 nouveau_accel_ce_fini(struct nouveau_drm *drm)
 {
 	nouveau_channel_idle(drm->cechan);
-	nvif_object_dtor(&drm->ttm.copy);
+	nvif_engobj_dtor(&drm->ttm.copy);
 	nouveau_channel_del(&drm->cechan);
 }
 
@@ -315,15 +315,13 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 	 * synchronisation of page flips, as well as to implement fences
 	 * on TNT/TNT2 HW that lacks any kind of support in host.
 	 */
-	if (!drm->channel->nvsw.client && device->info.family < NV_DEVICE_INFO_V0_TESLA) {
-		ret = nvif_object_ctor(&drm->channel->chan.object, "drmNvsw",
-				       NVDRM_NVSW, nouveau_abi16_swclass(drm),
-				       NULL, 0, &drm->channel->nvsw);
+	if (device->info.family < NV_DEVICE_INFO_V0_TESLA) {
+		ret = nvif_engobj_ctor(&drm->channel->chan, "drmNvSw", NVDRM_NVSW,
+				       nouveau_abi16_swclass(drm), &drm->channel->nvsw);
 
 		if (ret == 0 && device->info.chipset >= 0x11) {
-			ret = nvif_object_ctor(&drm->channel->chan.object, "drmBlit",
-					       0x005f, 0x009f,
-					       NULL, 0, &drm->channel->blit);
+			ret = nvif_engobj_ctor(&drm->channel->chan, "drmBlit", 0x005f, 0x009f,
+					       &drm->channel->blit);
 		}
 
 		if (ret == 0) {
@@ -332,12 +330,12 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 			ret = PUSH_WAIT(push, 8);
 			if (ret == 0) {
 				if (device->info.chipset >= 0x11) {
-					PUSH_NVSQ(push, NV05F, 0x0000, drm->channel->blit.handle);
+					PUSH_NVSQ(push, NV05F, 0x0000, 0x005f);
 					PUSH_NVSQ(push, NV09F, 0x0120, 0,
 							       0x0124, 1,
 							       0x0128, 2);
 				}
-				PUSH_NVSQ(push, NV_SW, 0x0000, drm->channel->nvsw.handle);
+				PUSH_NVSQ(push, NV_SW, 0x0000, drm->channel->nvsw.object.handle);
 			}
 		}
 

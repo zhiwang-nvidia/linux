@@ -21,6 +21,7 @@ struct nvif_disp_chan_priv;
 struct nvif_ctxdma_priv;
 struct nvif_cgrp_priv;
 struct nvif_chan_priv;
+struct nvif_engobj_priv;
 
 struct nvif_event_impl {
 	void (*del)(struct nvif_event_priv *);
@@ -431,6 +432,10 @@ struct nvif_disp_impl {
 	} chan;
 };
 
+struct nvif_engobj_impl {
+	void (*del)(struct nvif_engobj_priv *);
+};
+
 struct nvif_chan_impl {
 	void (*del)(struct nvif_chan_priv *);
 
@@ -460,6 +465,12 @@ struct nvif_chan_impl {
 		int (*new)(struct nvif_chan_priv *, u32 handle, s32 oclass, void *argv, u32 argc,
 			   const struct nvif_ctxdma_impl **, struct nvif_ctxdma_priv **);
 	} ctxdma;
+
+	struct {
+		int (*new)(struct nvif_chan_priv *, u32 handle, u8 engi, s32 oclass,
+			   const struct nvif_engobj_impl **, struct nvif_engobj_priv **,
+			   u64 object);
+	} engobj;
 };
 
 struct nvif_cgrp_impl {

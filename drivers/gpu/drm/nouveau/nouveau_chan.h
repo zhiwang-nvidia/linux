@@ -26,7 +26,7 @@ struct nouveau_channel {
 
 	struct nvif_ctxdma vram;
 	struct nvif_ctxdma gart;
-	struct nvif_object nvsw;
+	struct nvif_engobj nvsw;
 
 	struct {
 		struct nouveau_bo *buffer;
@@ -52,7 +52,7 @@ struct nouveau_channel {
 	u32 user_get;
 	u32 user_put;
 
-	struct nvif_object blit;
+	struct nvif_engobj blit;
 
 	struct nvif_event kill;
 	atomic_t killed;

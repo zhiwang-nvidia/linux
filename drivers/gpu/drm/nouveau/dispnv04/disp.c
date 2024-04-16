@@ -236,7 +236,7 @@ nv04_display_create(struct drm_device *dev)
 
 	/* Request page flip completion event. */
 	if (drm->channel) {
-		ret = nvif_event_ctor(&drm->channel->nvsw, "kmsFlip", 0, nv04_flip_complete,
+		ret = nvif_event_ctor(&drm->channel->nvsw.object, "kmsFlip", 0, nv04_flip_complete,
 				      true, NULL, 0, &disp->flip);
 		if (ret)
 			return ret;

@@ -46,6 +46,21 @@ struct nvkm_uobj {
 	int hash;
 };
 
+static void
+nvkm_uchan_object_del(struct nvif_engobj_priv *priv)
+{
+	struct nvkm_uobj *uobj = (void *)priv;
+	struct nvkm_object *object = &uobj->oproxy.base;
+
+	nvkm_object_fini(object, false);
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_engobj_impl
+nvkm_uchan_object_impl = {
+	.del = nvkm_uchan_object_del,
+};
+
 static int
 nvkm_uchan_object_fini_1(struct nvkm_oproxy *oproxy, bool suspend)
 {
@@ -162,7 +177,7 @@ nvkm_uchan_object_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 					.client = oclass->client,
 					.parent = uobj->cctx->vctx->ectx->object ?: oclass->parent,
 					.engine = engn->engine,
-				 }, argv, argc, &uobj->oproxy.object);
+				 }, NULL, 0, &uobj->oproxy.object);
 	if (ret)
 		return ret;
 
@@ -176,54 +191,87 @@ nvkm_uchan_object_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 }
 
 static int
-nvkm_uchan_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *oclass)
+nvkm_uchan_engobj_new(struct nvif_chan_priv *uchan, u32 handle, u8 engi, s32 oclass,
+		      const struct nvif_engobj_impl **pimpl, struct nvif_engobj_priv **ppriv,
+		      u64 _handle)
 {
-	struct nvkm_chan *chan = container_of(object, struct nvif_chan_priv, object)->chan;
-	struct nvkm_engn *engn;
-	int ret, runq = 0;
+	struct nvkm_chan *chan = uchan->chan;
+	struct nvkm_runl *runl = chan->cgrp->runl;
+	struct nvkm_engn *engt, *engn = NULL;
+	struct nvkm_engine *engine;
+	struct nvkm_oclass _oclass = {};
+	struct nvkm_object *object = NULL;
+	int ret, i = 0;
 
-	nvkm_runl_foreach_engn(engn, chan->cgrp->runl) {
-		struct nvkm_engine *engine = engn->engine;
-		int c = 0;
-
-		/* Each runqueue, on runlists with multiple, has its own LCE. */
-		if (engn->runl->func->runqs) {
-			if (engine->subdev.type == NVKM_ENGINE_CE) {
-				if (chan->runq != runq++)
-					continue;
-			}
+	nvkm_runl_foreach_engn(engt, runl) {
+		if (i++ == engi) {
+			engn = engt;
+			break;
 		}
-
-		oclass->engine = engine;
-		oclass->base.oclass = 0;
-
-		if (engine->func->fifo.sclass) {
-			ret = engine->func->fifo.sclass(oclass, index);
-			if (oclass->base.oclass) {
-				if (!oclass->base.ctor)
-					oclass->base.ctor = nvkm_object_new;
-				oclass->ctor = nvkm_uchan_object_new;
-				return 0;
-			}
-
-			index -= ret;
-			continue;
-		}
-
-		while (engine->func->sclass[c].oclass) {
-			if (c++ == index) {
-				oclass->base = engine->func->sclass[index];
-				if (!oclass->base.ctor)
-					oclass->base.ctor = nvkm_object_new;
-				oclass->ctor = nvkm_uchan_object_new;
-				return 0;
-			}
-		}
-
-		index -= c;
 	}
 
-	return -EINVAL;
+	if (!engn)
+		return -EINVAL;
+
+	engine = engn->engine;
+
+	_oclass.handle = handle;
+	_oclass.client = uchan->object.client;
+	_oclass.parent = &uchan->object;
+	_oclass.engine = engine;
+
+	if (engine->func->fifo.sclass) {
+		i = 0;
+		do {
+			_oclass.base.oclass = 0;
+			engine->func->fifo.sclass(&_oclass, i++);
+			if (_oclass.base.oclass == oclass)
+				break;
+		} while (_oclass.base.oclass);
+	} else {
+		for (i = 0; engine->func->sclass[i].oclass; i++) {
+			if (engine->func->sclass[i].oclass == oclass) {
+				_oclass.base = engine->func->sclass[i];
+				break;
+			}
+		}
+	}
+
+	if (!_oclass.base.oclass)
+		return -EINVAL;
+
+	if (!_oclass.base.ctor)
+		_oclass.base.ctor = nvkm_object_new;
+
+	if (engine) {
+		_oclass.engine = nvkm_engine_ref(engine);
+		if (IS_ERR(_oclass.engine))
+			return PTR_ERR(_oclass.engine);
+	}
+
+	ret = nvkm_uchan_object_new(&_oclass, NULL, 0, &object);
+	nvkm_engine_unref(&_oclass.engine);
+	if (ret)
+		goto done;
+
+	ret = nvkm_object_init(object);
+	if (ret) {
+		nvkm_object_fini(object, false);
+		goto done;
+	}
+
+	*pimpl = &nvkm_uchan_object_impl;
+	*ppriv = (void *)container_of(object, struct nvkm_uobj, oproxy.base);
+
+	ret = nvkm_object_link_rb(uchan->object.client, &uchan->object, _handle, object);
+	if (ret)
+		nvkm_object_fini(object, false);
+
+done:
+	if (ret)
+		nvkm_object_del(&object);
+
+	return ret;
 }
 
 static void
@@ -310,6 +358,7 @@ nvkm_uchan_impl = {
 	.del = nvkm_uchan_del,
 	.event.killed = nvkm_uchan_event_killed,
 	.ctxdma.new = nvkm_uchan_ctxdma_new,
+	.engobj.new = nvkm_uchan_engobj_new,
 };
 
 static int
@@ -356,7 +405,6 @@ nvkm_uchan = {
 	.dtor = nvkm_uchan_dtor,
 	.init = nvkm_uchan_init,
 	.fini = nvkm_uchan_fini,
-	.sclass = nvkm_uchan_sclass,
 };
 
 struct nvkm_chan *

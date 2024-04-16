@@ -95,8 +95,8 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		if (chan->chan.impl)
 			nouveau_svmm_part(chan->vmm->svmm, chan->inst);
 
-		nvif_object_dtor(&chan->blit);
-		nvif_object_dtor(&chan->nvsw);
+		nvif_engobj_dtor(&chan->blit);
+		nvif_engobj_dtor(&chan->nvsw);
 		nvif_ctxdma_dtor(&chan->gart);
 		nvif_ctxdma_dtor(&chan->vram);
 		nvif_event_dtor(&chan->kill);
@@ -459,9 +459,8 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 
 	/* allocate software object class (used for fences on <= nv05) */
 	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
-		ret = nvif_object_ctor(&chan->chan.object, "abi16NvswFence", 0x006e,
-				       NVIF_CLASS_SW_NV04,
-				       NULL, 0, &chan->nvsw);
+		ret = nvif_engobj_ctor(&chan->chan, "abi16NvswFence", 0x006e,
+				       NVIF_CLASS_SW_NV04, &chan->nvsw);
 		if (ret)
 			return ret;
 
@@ -469,7 +468,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 		if (ret)
 			return ret;
 
-		PUSH_NVSQ(&chan->chan.push, NV_SW, 0x0000, chan->nvsw.handle);
+		PUSH_NVSQ(&chan->chan.push, NV_SW, 0x0000, chan->nvsw.object.handle);
 		PUSH_KICK(&chan->chan.push);
 	}
 

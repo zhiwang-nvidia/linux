@@ -32,4 +32,14 @@ int nvif_chan_event_ctor(struct nvif_chan *, const char *name,
 
 int nvif_chan_ctxdma_ctor(struct nvif_chan *, const char *name, u32 handle, s32 oclass,
 			  void *argv, u32 argc, struct nvif_ctxdma *);
+
+struct nvif_engobj {
+	const struct nvif_engobj_impl *impl;
+	struct nvif_engobj_priv *priv;
+	struct nvif_object object;
+};
+
+int nvif_engobj_ctor(struct nvif_chan *chan, const char *name, u32 handle, s32 oclass,
+		     struct nvif_engobj *);
+void nvif_engobj_dtor(struct nvif_engobj *);
 #endif

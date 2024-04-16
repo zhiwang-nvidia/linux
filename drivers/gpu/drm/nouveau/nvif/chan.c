@@ -24,6 +24,57 @@
 #include <nvif/ctxdma.h>
 #include <nvif/device.h>
 
+void
+nvif_engobj_dtor(struct nvif_engobj *engobj)
+{
+	if (!engobj->impl)
+		return;
+
+	engobj->impl->del(engobj->priv);
+	engobj->impl = NULL;
+}
+
+int
+nvif_engobj_ctor(struct nvif_chan *chan, const char *name, u32 handle, s32 oclass,
+		 struct nvif_engobj *engobj)
+{
+	const struct nvif_device_impl_fifo *fifo = &chan->device->impl->fifo;
+	const struct nvif_device_impl_runl *runl = &fifo->runl[chan->runl];
+	int ret = -ENODEV, engi;
+
+	for (engi = 0; engi < runl->engn_nr; engi++) {
+		int engine = runl->engn[engi].engine;
+		int runq = 0;
+
+		for (int i = 0; i < fifo->engine[engine].oclass_nr; i++) {
+			if (fifo->engine[engine].oclass[i] == oclass) {
+				if (fifo->engine[engine].type == NVIF_ENGINE_CE) {
+					if (chan->runq != runq++)
+						continue;
+				}
+
+				ret = 0;
+				break;
+			}
+		}
+
+		if (ret == 0)
+			break;
+	}
+
+	if (ret)
+		return ret;
+
+	ret = chan->impl->engobj.new(chan->priv, handle, engi, oclass, &engobj->impl,
+				     &engobj->priv, nvif_handle(&engobj->object));
+	NVIF_ERRON(ret, &chan->object, "[NEW engobj handle:%08x oclass:%08x]", handle, oclass);
+	if (ret)
+		return ret;
+
+	nvif_object_ctor(&chan->object, name ?: "nvifEngObj", handle, oclass, &engobj->object);
+	return 0;
+}
+
 int
 nvif_chan_ctxdma_ctor(struct nvif_chan *chan, const char *name, u32 handle, s32 oclass,
 		      void *argv, u32 argc, struct nvif_ctxdma *ctxdma)
