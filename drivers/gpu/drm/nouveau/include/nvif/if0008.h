@@ -1,16 +1,8 @@
 #ifndef __NVIF_IF0008_H__
 #define __NVIF_IF0008_H__
 
-#define NVIF_MMU_V0_HEAP                                                   0x00
 #define NVIF_MMU_V0_TYPE                                                   0x01
 #define NVIF_MMU_V0_KIND                                                   0x02
-
-struct nvif_mmu_heap_v0 {
-	__u8  version;
-	__u8  index;
-	__u8  pad02[6];
-	__u64 size;
-};
 
 struct nvif_mmu_type_v0 {
 	__u8  version;

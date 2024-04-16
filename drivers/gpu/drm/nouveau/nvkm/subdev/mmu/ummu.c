@@ -54,26 +54,6 @@ nvkm_ummu_sclass(struct nvkm_object *object, int index,
 }
 
 static int
-nvkm_ummu_heap(struct nvkm_ummu *ummu, void *argv, u32 argc)
-{
-	struct nvkm_mmu *mmu = ummu->mmu;
-	union {
-		struct nvif_mmu_heap_v0 v0;
-	} *args = argv;
-	int ret = -ENOSYS;
-	u8 index;
-
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		if ((index = args->v0.index) >= mmu->heap_nr)
-			return -EINVAL;
-		args->v0.size = mmu->heap[index].size;
-	} else
-		return ret;
-
-	return 0;
-}
-
-static int
 nvkm_ummu_type(struct nvkm_ummu *ummu, void *argv, u32 argc)
 {
 	struct nvkm_mmu *mmu = ummu->mmu;
@@ -147,7 +127,6 @@ nvkm_ummu_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 {
 	struct nvif_mmu_priv *ummu = container_of(object, typeof(*ummu), object);
 	switch (mthd) {
-	case NVIF_MMU_V0_HEAP: return nvkm_ummu_heap(ummu, argv, argc);
 	case NVIF_MMU_V0_TYPE: return nvkm_ummu_type(ummu, argv, argc);
 	case NVIF_MMU_V0_KIND: return nvkm_ummu_kind(ummu, argv, argc);
 	default:
@@ -185,6 +164,8 @@ nvkm_ummu_new(struct nvkm_device *device, const struct nvif_mmu_impl **pimpl,
 	ummu->impl.heap_nr = mmu->heap_nr;
 	ummu->impl.type_nr = mmu->type_nr;
 	ummu->impl.kind_nr = kinds;
+	for (int i = 0; i < mmu->heap_nr; i++)
+		ummu->impl.heap[i].size = mmu->heap[i].size;
 
 	ummu->impl.mem.oclass = mmu->func->mem.user.oclass;
 

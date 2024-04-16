@@ -34,7 +34,6 @@ nvif_mmu_dtor(struct nvif_mmu *mmu)
 
 	kfree(mmu->kind);
 	kfree(mmu->type);
-	kfree(mmu->heap);
 	mmu->impl->del(mmu->priv);
 	mmu->impl = NULL;
 }
@@ -46,7 +45,6 @@ nvif_mmu_ctor(struct nvif_device *device, const char *name, struct nvif_mmu *mmu
 	int ret, i;
 
 	mmu->impl = NULL;
-	mmu->heap = NULL;
 	mmu->type = NULL;
 	mmu->kind = NULL;
 
@@ -58,32 +56,18 @@ nvif_mmu_ctor(struct nvif_device *device, const char *name, struct nvif_mmu *mmu
 
 	nvif_object_ctor(&device->object, name ?: "nvifMmu", 0, oclass, &mmu->object);
 
-	mmu->heap_nr = mmu->impl->heap_nr;
 	mmu->type_nr = mmu->impl->type_nr;
 	mmu->kind_nr = mmu->impl->kind_nr;
 
-	mmu->heap = kmalloc_array(mmu->heap_nr, sizeof(*mmu->heap),
-				  GFP_KERNEL);
 	mmu->type = kmalloc_array(mmu->type_nr, sizeof(*mmu->type),
 				  GFP_KERNEL);
-	if (ret = -ENOMEM, !mmu->heap || !mmu->type)
+	if (ret = -ENOMEM, !mmu->type)
 		goto done;
 
 	mmu->kind = kmalloc_array(mmu->kind_nr, sizeof(*mmu->kind),
 				  GFP_KERNEL);
 	if (!mmu->kind && mmu->kind_nr)
 		goto done;
-
-	for (i = 0; i < mmu->heap_nr; i++) {
-		struct nvif_mmu_heap_v0 args = { .index = i };
-
-		ret = nvif_object_mthd(&mmu->object, NVIF_MMU_V0_HEAP,
-				       &args, sizeof(args));
-		if (ret)
-			goto done;
-
-		mmu->heap[i].size = args.size;
-	}
 
 	for (i = 0; i < mmu->type_nr; i++) {
 		struct nvif_mmu_type_v0 args = { .index = i };

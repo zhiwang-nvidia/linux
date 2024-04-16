@@ -8,14 +8,9 @@ struct nvif_mmu {
 	const struct nvif_mmu_impl *impl;
 	struct nvif_mmu_priv *priv;
 	struct nvif_object object;
-	u8  heap_nr;
 	u8  type_nr;
 	u8  kind_inv;
 	u16 kind_nr;
-
-	struct {
-		u64 size;
-	} *heap;
 
 	struct {
 #define NVIF_MEM_VRAM                                                      0x01

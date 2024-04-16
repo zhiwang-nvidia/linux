@@ -86,6 +86,10 @@ struct nvif_mmu_impl {
 	u16 kind_nr;
 
 	struct {
+		u64 size;
+	} heap[4];
+
+	struct {
 		s32 oclass;
 	} mem;
 
