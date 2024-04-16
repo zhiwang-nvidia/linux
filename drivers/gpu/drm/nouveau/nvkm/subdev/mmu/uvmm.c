@@ -34,6 +34,8 @@
 struct nvif_vmm_priv {
 	struct nvkm_object object;
 	struct nvkm_vmm *vmm;
+
+	struct nvif_vmm_impl impl;
 };
 
 static const struct nvkm_object_func nvkm_uvmm;
@@ -521,6 +523,19 @@ nvkm_uvmm_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 	return -EINVAL;
 }
 
+static void
+nvkm_uvmm_del(struct nvif_vmm_priv *uvmm)
+{
+	struct nvkm_object *object = &uvmm->object;
+
+	nvkm_object_del(&object);
+}
+
+static const struct nvif_vmm_impl
+nvkm_uvmm_impl = {
+	.del = nvkm_uvmm_del,
+};
+
 static void *
 nvkm_uvmm_dtor(struct nvkm_object *object)
 {
@@ -537,33 +552,22 @@ nvkm_uvmm = {
 };
 
 int
-nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+nvkm_uvmm_new(struct nvkm_mmu *mmu, u8 type, u64 addr, u64 size, void *argv, u32 argc,
+	      const struct nvif_vmm_impl **pimpl, struct nvif_vmm_priv **ppriv,
 	      struct nvkm_object **pobject)
 {
-	struct nvkm_mmu *mmu = container_of(oclass->parent, struct nvif_mmu_priv, object)->mmu;
-	const bool more = oclass->base.maxver >= 0;
-	union {
-		struct nvif_vmm_v0 v0;
-	} *args = argv;
 	const struct nvkm_vmm_page *page;
 	struct nvif_vmm_priv *uvmm;
 	int ret = -ENOSYS;
-	u64 addr, size;
 	bool managed, raw;
 
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, more))) {
-		managed = args->v0.type == NVIF_VMM_V0_TYPE_MANAGED;
-		raw = args->v0.type == NVIF_VMM_V0_TYPE_RAW;
-		addr = args->v0.addr;
-		size = args->v0.size;
-	} else
-		return ret;
+	managed = type == NVIF_VMM_TYPE_MANAGED;
+	raw = type == NVIF_VMM_TYPE_RAW;
 
 	if (!(uvmm = kzalloc(sizeof(*uvmm), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_object_ctor(&nvkm_uvmm, oclass, &uvmm->object);
-	*pobject = &uvmm->object;
+	nvkm_object_ctor(&nvkm_uvmm, &(struct nvkm_oclass) {}, &uvmm->object);
 
 	if (!mmu->vmm) {
 		ret = mmu->func->vmm.ctor(mmu, managed || raw, addr, size,
@@ -571,7 +575,7 @@ nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		if (ret)
 			return ret;
 
-		uvmm->vmm->debug = max(uvmm->vmm->debug, oclass->client->debug);
+		uvmm->vmm->debug = NV_DBG_ERROR;
 	} else {
 		if (size)
 			return -EINVAL;
@@ -586,11 +590,16 @@ nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 			return ret;
 	}
 
+	uvmm->impl = nvkm_uvmm_impl;
+	uvmm->impl.start = uvmm->vmm->start;
+	uvmm->impl.limit = uvmm->vmm->limit;
+
 	page = uvmm->vmm->func->page;
-	args->v0.page_nr = 0;
 	while (page && (page++)->shift)
-		args->v0.page_nr++;
-	args->v0.addr = uvmm->vmm->start;
-	args->v0.size = uvmm->vmm->limit;
+		uvmm->impl.page_nr++;
+
+	*pimpl = &uvmm->impl;
+	*ppriv = uvmm;
+	*pobject = &uvmm->object;
 	return 0;
 }

@@ -1,17 +1,5 @@
 #ifndef __NVIF_IF000C_H__
 #define __NVIF_IF000C_H__
-struct nvif_vmm_v0 {
-	__u8  version;
-	__u8  page_nr;
-#define NVIF_VMM_V0_TYPE_UNMANAGED                                         0x00
-#define NVIF_VMM_V0_TYPE_MANAGED                                           0x01
-#define NVIF_VMM_V0_TYPE_RAW                                               0x02
-	__u8  type;
-	__u8  pad03[5];
-	__u64 addr;
-	__u64 size;
-	__u8  data[];
-};
 
 #define NVIF_VMM_V0_PAGE                                                   0x00
 #define NVIF_VMM_V0_GET                                                    0x01

@@ -1,14 +1,9 @@
 #ifndef __NVIF_VMM_H__
 #define __NVIF_VMM_H__
 #include <nvif/object.h>
+#include <nvif/driverif.h> /* NVIF_VMM_TYPE */
 struct nvif_mem;
 struct nvif_mmu;
-
-enum nvif_vmm_type {
-	UNMANAGED,
-	MANAGED,
-	RAW,
-};
 
 enum nvif_vmm_get {
 	ADDR,
@@ -22,9 +17,9 @@ struct nvif_vma {
 };
 
 struct nvif_vmm {
+	const struct nvif_vmm_impl *impl;
+	struct nvif_vmm_priv *priv;
 	struct nvif_object object;
-	u64 start;
-	u64 limit;
 
 	struct {
 		u8 shift;
@@ -33,7 +28,6 @@ struct nvif_vmm {
 		bool host:1;
 		bool comp:1;
 	} *page;
-	int page_nr;
 };
 
 int nvif_vmm_ctor(struct nvif_mmu *, const char *name,

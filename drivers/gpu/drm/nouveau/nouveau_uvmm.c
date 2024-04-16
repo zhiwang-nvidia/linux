@@ -1865,7 +1865,7 @@ nouveau_uvmm_ioctl_vm_init(struct drm_device *dev,
 	/* GPUVM takes care from here on. */
 	drm_gem_object_put(r_obj);
 
-	ret = nvif_vmm_ctor(&cli->mmu, "uvmm", RAW,
+	ret = nvif_vmm_ctor(&cli->mmu, "uvmm", NVIF_VMM_TYPE_RAW,
 			    init->kernel_managed_addr,
 			    init->kernel_managed_size,
 			    NULL, 0, &uvmm->vmm.vmm);

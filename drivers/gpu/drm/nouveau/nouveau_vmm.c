@@ -131,7 +131,7 @@ nouveau_vmm_fini(struct nouveau_vmm *vmm)
 int
 nouveau_vmm_init(struct nouveau_cli *cli, struct nouveau_vmm *vmm)
 {
-	int ret = nvif_vmm_ctor(&cli->mmu, "drmVmm", UNMANAGED,
+	int ret = nvif_vmm_ctor(&cli->mmu, "drmVmm", NVIF_VMM_TYPE_UNMANAGED,
 				PAGE_SIZE, 0, NULL, 0, &vmm->vmm);
 	if (ret)
 		return ret;

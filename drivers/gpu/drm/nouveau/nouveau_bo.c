@@ -264,7 +264,7 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 domain,
 		nvbo->mode = tile_mode;
 
 		/* Determine the desirable target GPU page size for the buffer. */
-		for (i = 0; i < vmm->page_nr; i++) {
+		for (i = 0; i < vmm->impl->page_nr; i++) {
 			/* Because we cannot currently allow VMM maps to fail
 			 * during buffer migration, we need to determine page
 			 * size for the buffer up-front, and pre-allocate its
@@ -311,7 +311,7 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 domain,
 			return ERR_PTR(-EINVAL);
 
 		/* Determine the desirable target GPU page size for the buffer. */
-		for (i = 0; i < vmm->page_nr; i++) {
+		for (i = 0; i < vmm->impl->page_nr; i++) {
 			/* Because we cannot currently allow VMM maps to fail
 			 * during buffer migration, we need to determine page
 			 * size for the buffer up-front, and pre-allocate its

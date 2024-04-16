@@ -5,8 +5,6 @@ struct nvkm_device;
 
 #include <nvif/driverif.h>
 
-#define nvkm_ummu nvif_mmu_priv
-
 struct nvif_mmu_priv {
 	struct nvkm_object object;
 	struct nvkm_mmu *mmu;

@@ -26,20 +26,18 @@
 #include <core/client.h>
 
 static int
-nvkm_ummu_sclass(struct nvkm_object *object, int index,
-		 struct nvkm_oclass *oclass)
+nvkm_ummu_vmm_new(struct nvif_mmu_priv *ummu, enum nvif_vmm_type type, u64 addr, u64 size,
+		  void *argv, u32 argc, const struct nvif_vmm_impl **pimpl,
+		  struct nvif_vmm_priv **ppriv, u64 handle)
 {
-	struct nvkm_mmu *mmu = container_of(object, struct nvif_mmu_priv, object)->mmu;
+	struct nvkm_object *object;
+	int ret;
 
-	if (mmu->func->vmm.user.oclass) {
-		if (index-- == 0) {
-			oclass->base = mmu->func->vmm.user;
-			oclass->ctor = nvkm_uvmm_new;
-			return 0;
-		}
-	}
+	ret = nvkm_uvmm_new(ummu->mmu, type, addr, size, argv, argc, pimpl, ppriv, &object);
+	if (ret)
+		return ret;
 
-	return -EINVAL;
+	return nvkm_object_link_rb(ummu->object.client, &ummu->object, handle, object);
 }
 
 static int
@@ -71,7 +69,6 @@ nvkm_ummu_impl = {
 
 static const struct nvkm_object_func
 nvkm_ummu = {
-	.sclass = nvkm_ummu_sclass,
 };
 
 int
@@ -119,6 +116,7 @@ nvkm_ummu_new(struct nvkm_device *device, const struct nvif_mmu_impl **pimpl,
 	ummu->impl.mem.new = nvkm_ummu_mem_new;
 
 	ummu->impl.vmm.oclass = mmu->func->vmm.user.oclass;
+	ummu->impl.vmm.new = nvkm_ummu_vmm_new;
 
 	*pimpl = &ummu->impl;
 	*ppriv = ummu;

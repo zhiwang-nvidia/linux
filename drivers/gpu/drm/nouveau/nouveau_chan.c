@@ -208,7 +208,7 @@ nouveau_channel_prep(struct nouveau_cli *cli,
 		args.target = NV_DMA_V0_TARGET_VM;
 		args.access = NV_DMA_V0_ACCESS_VM;
 		args.start = 0;
-		args.limit = chan->vmm->vmm.limit - 1;
+		args.limit = chan->vmm->vmm.impl->limit - 1;
 	} else
 	if (chan->push.buffer->bo.resource->mem_type == TTM_PL_VRAM) {
 		if (device->info.family == NV_DEVICE_INFO_V0_TNT) {
@@ -236,7 +236,7 @@ nouveau_channel_prep(struct nouveau_cli *cli,
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
-			args.limit = chan->vmm->vmm.limit - 1;
+			args.limit = chan->vmm->vmm.impl->limit - 1;
 		}
 	}
 
@@ -404,7 +404,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_VM;
 			args.start = 0;
-			args.limit = chan->vmm->vmm.limit - 1;
+			args.limit = chan->vmm->vmm.impl->limit - 1;
 		} else {
 			args.target = NV_DMA_V0_TARGET_VRAM;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
@@ -422,7 +422,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_VM;
 			args.start = 0;
-			args.limit = chan->vmm->vmm.limit - 1;
+			args.limit = chan->vmm->vmm.impl->limit - 1;
 		} else
 		if (drm->agp.bridge) {
 			args.target = NV_DMA_V0_TARGET_AGP;
@@ -433,7 +433,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
-			args.limit = chan->vmm->vmm.limit - 1;
+			args.limit = chan->vmm->vmm.impl->limit - 1;
 		}
 
 		ret = nvif_object_ctor(&chan->user, "abi16ChanGartCtxDma", gart,

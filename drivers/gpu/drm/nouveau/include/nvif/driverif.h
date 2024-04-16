@@ -7,6 +7,7 @@ struct nvif_control_priv;
 struct nvif_usermode_priv;
 struct nvif_mmu_priv;
 struct nvif_mem_priv;
+struct nvif_vmm_priv;
 
 struct nvif_driver {
 	const char *name;
@@ -88,6 +89,20 @@ struct nvif_mem_impl {
 	int (*unmap)(struct nvif_mem_priv *);
 };
 
+enum nvif_vmm_type {
+	NVIF_VMM_TYPE_UNMANAGED,
+	NVIF_VMM_TYPE_MANAGED,
+	NVIF_VMM_TYPE_RAW,
+};
+
+struct nvif_vmm_impl {
+	void (*del)(struct nvif_vmm_priv *);
+
+	u64 start;
+	u64 limit;
+	u8 page_nr;
+};
+
 struct nvif_mmu_impl {
 	void (*del)(struct nvif_mmu_priv *);
 
@@ -125,6 +140,9 @@ struct nvif_mmu_impl {
 
 	struct {
 		s32 oclass;
+		int (*new)(struct nvif_mmu_priv *, enum nvif_vmm_type type, u64 addr, u64 size,
+			   void *, u32, const struct nvif_vmm_impl **, struct nvif_vmm_priv **,
+			   u64 handle);
 	} vmm;
 };
 

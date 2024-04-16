@@ -20,7 +20,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <nvif/vmm.h>
+#include <nvif/driverif.h>
 #include <nvif/mem.h>
+#include <nvif/printf.h>
 
 #include <nvif/if000c.h>
 
@@ -191,8 +193,12 @@ nvif_vmm_raw_sparse(struct nvif_vmm *vmm, u64 addr, u64 size, bool ref)
 void
 nvif_vmm_dtor(struct nvif_vmm *vmm)
 {
+	if (!vmm->impl)
+		return;
+
 	kfree(vmm->page);
-	nvif_object_dtor(&vmm->object);
+	vmm->impl->del(vmm->priv);
+	vmm->impl = NULL;
 }
 
 int
@@ -200,47 +206,27 @@ nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name,
 	      enum nvif_vmm_type type, u64 addr, u64 size, void *argv, u32 argc,
 	      struct nvif_vmm *vmm)
 {
-	struct nvif_vmm_v0 *args;
-	u32 argn = sizeof(*args) + argc;
-	int ret = -ENOSYS, i;
+	const u32 oclass = mmu->impl->vmm.oclass;
+	int ret, i;
 
-	vmm->object.client = NULL;
 	vmm->page = NULL;
 
-	if (!(args = kmalloc(argn, GFP_KERNEL)))
-		return -ENOMEM;
-	args->version = 0;
-	args->addr = addr;
-	args->size = size;
-
-	switch (type) {
-	case UNMANAGED: args->type = NVIF_VMM_V0_TYPE_UNMANAGED; break;
-	case MANAGED: args->type = NVIF_VMM_V0_TYPE_MANAGED; break;
-	case RAW: args->type = NVIF_VMM_V0_TYPE_RAW; break;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
-	memcpy(args->data, argv, argc);
-
-	ret = nvif_object_ctor(&mmu->object, name ? name : "nvifVmm", 0,
-			       mmu->impl->vmm.oclass, args, argn, &vmm->object);
+	ret = mmu->impl->vmm.new(mmu->priv, type, addr, size, argv, argc, &vmm->impl, &vmm->priv,
+				 nvif_handle(&vmm->object));
+	NVIF_ERRON(ret, &mmu->object, "[NEW vmm%08x]", oclass);
 	if (ret)
-		goto done;
+		return ret;
 
-	vmm->start = args->addr;
-	vmm->limit = args->size;
+	nvif_object_ctor(&mmu->object, name ?: "nvifVmm", 0, oclass, &vmm->object);
 
-	vmm->page_nr = args->page_nr;
-	vmm->page = kmalloc_array(vmm->page_nr, sizeof(*vmm->page),
+	vmm->page = kmalloc_array(vmm->impl->page_nr, sizeof(*vmm->page),
 				  GFP_KERNEL);
 	if (!vmm->page) {
 		ret = -ENOMEM;
 		goto done;
 	}
 
-	for (i = 0; i < vmm->page_nr; i++) {
+	for (i = 0; i < vmm->impl->page_nr; i++) {
 		struct nvif_vmm_page_v0 args = { .index = i };
 
 		ret = nvif_object_mthd(&vmm->object, NVIF_VMM_V0_PAGE,
@@ -258,6 +244,6 @@ nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name,
 done:
 	if (ret)
 		nvif_vmm_dtor(vmm);
-	kfree(args);
+
 	return ret;
 }
