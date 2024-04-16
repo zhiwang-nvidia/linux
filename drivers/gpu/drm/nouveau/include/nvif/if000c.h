@@ -6,8 +6,6 @@
 
 struct nvif_vmm_raw_v0 {
 	__u8 version;
-#define NVIF_VMM_RAW_V0_GET	0x0
-#define NVIF_VMM_RAW_V0_PUT	0x1
 #define NVIF_VMM_RAW_V0_MAP	0x2
 #define NVIF_VMM_RAW_V0_UNMAP	0x3
 #define NVIF_VMM_RAW_V0_SPARSE	0x4

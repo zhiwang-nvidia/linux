@@ -260,37 +260,37 @@ nvkm_uvmm_page_index(struct nvif_vmm_priv *uvmm, u64 size, u8 shift, u8 *refd)
 }
 
 static int
-nvkm_uvmm_mthd_raw_get(struct nvkm_uvmm *uvmm, struct nvif_vmm_raw_v0 *args)
+nvkm_uvmm_raw_get(struct nvif_vmm_priv *uvmm, u8 shift, u64 addr, u64 size)
 {
 	struct nvkm_vmm *vmm = uvmm->vmm;
 	u8 refd;
 	int ret;
 
-	if (!nvkm_vmm_in_managed_range(vmm, args->addr, args->size))
+	if (!nvkm_vmm_in_managed_range(vmm, addr, size))
 		return -EINVAL;
 
-	ret = nvkm_uvmm_page_index(uvmm, args->size, args->shift, &refd);
+	ret = nvkm_uvmm_page_index(uvmm, size, shift, &refd);
 	if (ret)
 		return ret;
 
-	return nvkm_vmm_raw_get(vmm, args->addr, args->size, refd);
+	return nvkm_vmm_raw_get(vmm, addr, size, refd);
 }
 
 static int
-nvkm_uvmm_mthd_raw_put(struct nvkm_uvmm *uvmm, struct nvif_vmm_raw_v0 *args)
+nvkm_uvmm_raw_put(struct nvif_vmm_priv *uvmm, u8 shift, u64 addr, u64 size)
 {
 	struct nvkm_vmm *vmm = uvmm->vmm;
 	u8 refd;
 	int ret;
 
-	if (!nvkm_vmm_in_managed_range(vmm, args->addr, args->size))
+	if (!nvkm_vmm_in_managed_range(vmm, addr, size))
 		return -EINVAL;
 
-	ret = nvkm_uvmm_page_index(uvmm, args->size, args->shift, &refd);
+	ret = nvkm_uvmm_page_index(uvmm, size, shift, &refd);
 	if (ret)
 		return ret;
 
-	nvkm_vmm_raw_put(vmm, args->addr, args->size, refd);
+	nvkm_vmm_raw_put(vmm, addr, size, refd);
 
 	return 0;
 }
@@ -382,10 +382,6 @@ nvkm_uvmm_mthd_raw(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 		return ret;
 
 	switch (args->v0.op) {
-	case NVIF_VMM_RAW_V0_GET:
-		return nvkm_uvmm_mthd_raw_get(uvmm, &args->v0);
-	case NVIF_VMM_RAW_V0_PUT:
-		return nvkm_uvmm_mthd_raw_put(uvmm, &args->v0);
 	case NVIF_VMM_RAW_V0_MAP:
 		return nvkm_uvmm_mthd_raw_map(uvmm, &args->v0);
 	case NVIF_VMM_RAW_V0_UNMAP:
@@ -433,6 +429,8 @@ nvkm_uvmm_impl = {
 	.unmap = nvkm_uvmm_unmap,
 	.pfnmap = nvkm_uvmm_pfnmap,
 	.pfnclr = nvkm_uvmm_pfnclr,
+	.raw.get = nvkm_uvmm_raw_get,
+	.raw.put = nvkm_uvmm_raw_put,
 };
 
 static void *

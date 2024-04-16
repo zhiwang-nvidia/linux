@@ -135,6 +135,11 @@ struct nvif_vmm_impl {
 #define NVIF_VMM_PFNMAP_NONE       0x0000000000000000ULL
 	int (*pfnmap)(struct nvif_vmm_priv *, u8 page, u64 addr, u64 size, u64 *phys);
 	int (*pfnclr)(struct nvif_vmm_priv *, u64 addr, u64 size);
+
+	struct {
+		int (*get)(struct nvif_vmm_priv *, u8 shift, u64 addr, u64 size);
+		int (*put)(struct nvif_vmm_priv *, u8 shift, u64 addr, u64 size);
+	} raw;
 };
 
 struct nvif_mmu_impl {
