@@ -206,6 +206,7 @@ nouveau_cli_fini(struct nouveau_cli *cli)
 	nouveau_vmm_fini(&cli->svm);
 	nouveau_vmm_fini(&cli->vmm);
 	nvif_mmu_dtor(&cli->mmu);
+	cli->device.object.map.ptr = NULL;
 	nvif_device_dtor(&cli->device);
 	if (cli != &cli->drm->master) {
 		mutex_lock(&cli->drm->master.lock);
@@ -266,6 +267,8 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 		NV_PRINTK(err, cli, "Device allocation failed: %d\n", ret);
 		goto done;
 	}
+
+	cli->device.object.map.ptr = drm->device.object.map.ptr;
 
 	ret = nvif_mclass(&cli->device.object, mmus);
 	if (ret < 0) {
@@ -587,6 +590,18 @@ nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 	if (ret)
 		goto fail_alloc;
 
+	ret = nvif_device_ctor(&drm->master.base, "drmDevice", &drm->device);
+	if (ret) {
+		NV_ERROR(drm, "Device allocation failed: %d\n", ret);
+		goto fail_nvif;
+	}
+
+	ret = nvif_device_map(&drm->device);
+	if (ret) {
+		NV_ERROR(drm, "Failed to map PRI: %d\n", ret);
+		goto fail_nvif;
+	}
+
 	drm->sched_wq = alloc_workqueue("nouveau_sched_wq_shared", 0,
 					WQ_MAX_ACTIVE);
 	if (!drm->sched_wq) {
@@ -666,6 +681,7 @@ fail_master:
 fail_wq:
 	destroy_workqueue(drm->sched_wq);
 fail_nvif:
+	nvif_device_dtor(&drm->device);
 	nvif_client_dtor(&drm->master.base);
 fail_alloc:
 	nvif_parent_dtor(&drm->parent);
@@ -721,6 +737,7 @@ nouveau_drm_device_fini(struct drm_device *dev)
 	nouveau_cli_fini(&drm->client);
 	nouveau_cli_fini(&drm->master);
 	destroy_workqueue(drm->sched_wq);
+	nvif_device_dtor(&drm->device);
 	nvif_client_dtor(&drm->master.base);
 	nvif_parent_dtor(&drm->parent);
 	mutex_destroy(&drm->clients_lock);
