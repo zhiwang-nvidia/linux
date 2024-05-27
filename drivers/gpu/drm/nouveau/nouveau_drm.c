@@ -209,9 +209,11 @@ nouveau_cli_fini(struct nouveau_cli *cli)
 	nouveau_vmm_fini(&cli->vmm);
 	nvif_mmu_dtor(&cli->mmu);
 	nvif_device_dtor(&cli->device);
-	mutex_lock(&cli->drm->master.lock);
-	nvif_client_dtor(&cli->base);
-	mutex_unlock(&cli->drm->master.lock);
+	if (cli != &cli->drm->master) {
+		mutex_lock(&cli->drm->master.lock);
+		nvif_client_dtor(&cli->base);
+		mutex_unlock(&cli->drm->master.lock);
+	}
 }
 
 static int
@@ -253,10 +255,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	INIT_LIST_HEAD(&cli->worker);
 	mutex_init(&cli->lock);
 
-	if (cli == &drm->master) {
-		ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug,
-				       cli->name, device, &cli->base);
-	} else {
+	if (cli != &drm->master) {
 		mutex_lock(&drm->master.lock);
 		ret = nvif_client_ctor(&drm->master.base, cli->name, device,
 				       &cli->base);
@@ -593,11 +592,16 @@ nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 	nvif_parent_ctor(&nouveau_parent, &drm->parent);
 	drm->master.base.object.parent = &drm->parent;
 
+	ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug, "drm",
+			       nouveau_name(dev), &drm->master.base);
+	if (ret)
+		goto fail_alloc;
+
 	drm->sched_wq = alloc_workqueue("nouveau_sched_wq_shared", 0,
 					WQ_MAX_ACTIVE);
 	if (!drm->sched_wq) {
 		ret = -ENOMEM;
-		goto fail_alloc;
+		goto fail_nvif;
 	}
 
 	ret = nouveau_cli_init(drm, "DRM-master", &drm->master);
@@ -674,6 +678,8 @@ fail_master:
 	nouveau_cli_fini(&drm->master);
 fail_wq:
 	destroy_workqueue(drm->sched_wq);
+fail_nvif:
+	nvif_client_dtor(&drm->master.base);
 fail_alloc:
 	nvif_parent_dtor(&drm->parent);
 	kfree(drm);
@@ -728,6 +734,7 @@ nouveau_drm_device_fini(struct drm_device *dev)
 	nouveau_cli_fini(&drm->client);
 	nouveau_cli_fini(&drm->master);
 	destroy_workqueue(drm->sched_wq);
+	nvif_client_dtor(&drm->master.base);
 	nvif_parent_dtor(&drm->parent);
 	mutex_destroy(&drm->clients_lock);
 	kfree(drm);
