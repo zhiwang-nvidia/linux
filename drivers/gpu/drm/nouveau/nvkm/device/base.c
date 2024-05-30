@@ -2962,6 +2962,9 @@ nvkm_device_del(struct nvkm_device **pdevice)
 	struct nvkm_device *device = *pdevice;
 	struct nvkm_subdev *subdev, *subtmp;
 	if (device) {
+		auxiliary_device_delete(&device->auxdev);
+		auxiliary_device_uninit(&device->auxdev);
+
 		nvkm_intr_dtor(device);
 
 		list_for_each_entry_safe_reverse(subdev, subtmp, &device->subdev, head)
@@ -3007,6 +3010,16 @@ nvkm_device_endianness(struct nvkm_device *device)
 
 	/* CPU/GPU endianness should (hopefully) match. */
 	return true;
+}
+
+static DEFINE_IDA(nvkm_device_id);
+
+static void
+nvkm_device_release(struct device *dev)
+{
+	struct nvkm_device *device = container_of(dev, typeof(*device), auxdev.dev);
+
+	ida_free(&nvkm_device_id, device->auxdev.id);
 }
 
 int
@@ -3312,5 +3325,25 @@ done:
 		iounmap(device->pri);
 		device->pri = NULL;
 	}
+
+	if (ret == 0) {
+		ret = ida_alloc(&nvkm_device_id, GFP_KERNEL);
+		if (ret < 0)
+			return ret;
+
+		device->auxdev.dev.parent = device->dev;
+		device->auxdev.dev.release = nvkm_device_release;
+		device->auxdev.name = "device";
+		device->auxdev.id = ret;
+
+		ret = auxiliary_device_init(&device->auxdev);
+		if (ret)
+			return ret;
+
+		ret = auxiliary_device_add(&device->auxdev);
+		if (ret)
+			auxiliary_device_uninit(&device->auxdev);
+	}
+
 	return ret;
 }

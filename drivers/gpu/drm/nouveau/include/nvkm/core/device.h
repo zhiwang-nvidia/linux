@@ -5,6 +5,8 @@
 #include <core/intr.h>
 enum nvkm_subdev_type;
 
+#include <linux/auxiliary_bus.h>
+
 enum nvkm_device_type {
 	NVKM_DEVICE_PCI,
 	NVKM_DEVICE_AGP,
@@ -78,6 +80,7 @@ struct nvkm_device {
 		bool legacy_done;
 	} intr;
 
+	struct auxiliary_device auxdev;
 	const struct nvif_driver_func *driver;
 };
 
