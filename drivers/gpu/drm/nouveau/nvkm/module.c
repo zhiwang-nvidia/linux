@@ -28,7 +28,7 @@ char *nvkm_cfg;
 char *nvkm_dbg;
 int nvkm_runpm = -1;
 
-void __exit
+static void __exit
 nvkm_exit(void)
 {
 #ifdef CONFIG_PCI
@@ -41,7 +41,7 @@ nvkm_exit(void)
 #endif
 }
 
-int __init
+static int __init
 nvkm_init(void)
 {
 	int ret;
@@ -62,3 +62,7 @@ nvkm_init(void)
 
 	return 0;
 }
+
+MODULE_LICENSE("GPL and additional rights");
+module_init(nvkm_init);
+module_exit(nvkm_exit);
