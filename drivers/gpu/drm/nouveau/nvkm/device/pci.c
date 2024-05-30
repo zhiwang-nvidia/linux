@@ -1610,6 +1610,85 @@ nvkm_device_pci_func = {
 
 #include "nouveau_drv.h"
 
+static int
+nvkm_device_pci_pm_runtime_resume(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct nvkm_device *device = nouveau_drm(drm_dev)->nvkm;
+	struct pci_dev *pdev = nvkm_device_pci(device)->pdev;
+	int ret;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
+
+	pci_set_master(pdev);
+
+	/* do magic */
+	nvkm_mask(device, 0x088488, (1 << 25), (1 << 25));
+	return 0;
+}
+
+static int
+nvkm_device_pci_pm_runtime_suspend(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct nvkm_device *device = nouveau_drm(drm_dev)->nvkm;
+	struct pci_dev *pdev = nvkm_device_pci(device)->pdev;
+
+	nvkm_acpi_switcheroo_set_powerdown();
+
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_ignore_hotplug(pdev);
+	pci_set_power_state(pdev, PCI_D3cold);
+	return 0;
+}
+
+static int
+nvkm_device_pci_pm_resume(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct nvkm_device *device = nouveau_drm(drm_dev)->nvkm;
+	struct pci_dev *pdev = nvkm_device_pci(device)->pdev;
+	int ret;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
+
+	pci_set_master(pdev);
+	return 0;
+}
+
+static int
+nvkm_device_pci_pm_suspend(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct nvkm_device *device = nouveau_drm(drm_dev)->nvkm;
+	struct pci_dev *pdev = nvkm_device_pci(device)->pdev;
+
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+	udelay(200);
+	return 0;
+}
+
+static const struct dev_pm_ops
+nvkm_device_pci_pm = {
+	.suspend = nvkm_device_pci_pm_suspend,
+	.resume = nvkm_device_pci_pm_resume,
+	.runtime_suspend = nvkm_device_pci_pm_runtime_suspend,
+	.runtime_resume = nvkm_device_pci_pm_runtime_resume,
+};
+
 static void
 nvkm_device_pci_remove(struct pci_dev *dev)
 {
@@ -1782,4 +1861,5 @@ struct pci_driver
 nvkm_device_pci_driver = {
 	.probe = nvkm_device_pci_probe,
 	.remove = nvkm_device_pci_remove,
+	.driver.pm = &nvkm_device_pci_pm,
 };
