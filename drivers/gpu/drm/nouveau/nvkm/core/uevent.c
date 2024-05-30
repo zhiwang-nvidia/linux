@@ -111,7 +111,7 @@ nvkm_uevent_ntfy(struct nvkm_event_ntfy *ntfy, u32 bits)
 	if (uevent->func)
 		return uevent->func(uevent->parent, uevent->object.object, bits);
 
-	return client->event(uevent->object.object, NULL, 0);
+	return nvkm_client_event(client, uevent->object.object, NULL, 0);
 }
 
 int

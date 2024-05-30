@@ -50,7 +50,7 @@ nvkm_uconn_uevent_gsp(struct nvkm_object *object, u64 token, u32 bits)
 	if (bits & NVKM_DPYID_IRQ)
 		args.v0.types |= NVIF_CONN_EVENT_V0_IRQ;
 
-	return object->client->event(token, &args, sizeof(args.v0));
+	return nvkm_client_event(object->client, token, &args, sizeof(args.v0));
 }
 
 static int
@@ -67,7 +67,7 @@ nvkm_uconn_uevent_aux(struct nvkm_object *object, u64 token, u32 bits)
 	if (bits & NVKM_I2C_IRQ)
 		args.v0.types |= NVIF_CONN_EVENT_V0_IRQ;
 
-	return object->client->event(token, &args, sizeof(args.v0));
+	return nvkm_client_event(object->client, token, &args, sizeof(args.v0));
 }
 
 static int
@@ -82,7 +82,7 @@ nvkm_uconn_uevent_gpio(struct nvkm_object *object, u64 token, u32 bits)
 	if (bits & NVKM_GPIO_LO)
 		args.v0.types |= NVIF_CONN_EVENT_V0_UNPLUG;
 
-	return object->client->event(token, &args, sizeof(args.v0));
+	return nvkm_client_event(object->client, token, &args, sizeof(args.v0));
 }
 
 static bool

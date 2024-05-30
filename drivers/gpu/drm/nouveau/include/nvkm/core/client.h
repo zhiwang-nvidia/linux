@@ -19,6 +19,7 @@ struct nvkm_client {
 
 int nvkm_client_new(const char *name, struct nvkm_device *, int (*event)(u64, void *, u32),
 		    const struct nvif_client_impl **, struct nvif_client_priv **);
+int nvkm_client_event(struct nvkm_client *client, u64 token, void *repv, u32 repc);
 
 /* logging for client-facing objects */
 #define nvif_printk(o,l,p,f,a...) do {                                         \

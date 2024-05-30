@@ -31,6 +31,12 @@
 #include <nvif/event.h>
 #include <nvif/unpack.h>
 
+int
+nvkm_client_event(struct nvkm_client *client, u64 token, void *repv, u32 repc)
+{
+	return client->event(token, repv, repc);
+}
+
 static int
 nvkm_client_new_device(struct nvif_client_priv *client,
 		       const struct nvif_device_impl **pimpl, struct nvif_device_priv **ppriv)
