@@ -1585,30 +1585,6 @@ nvkm_device_pci_irq(struct nvkm_device *device)
 	return nvkm_device_pci(device)->pdev->irq;
 }
 
-static void
-nvkm_device_pci_fini(struct nvkm_device *device, bool suspend)
-{
-	struct nvkm_device_pci *pdev = nvkm_device_pci(device);
-	if (suspend) {
-		pci_disable_device(pdev->pdev);
-		pdev->suspend = true;
-	}
-}
-
-static int
-nvkm_device_pci_preinit(struct nvkm_device *device)
-{
-	struct nvkm_device_pci *pdev = nvkm_device_pci(device);
-	if (pdev->suspend) {
-		int ret = pci_enable_device(pdev->pdev);
-		if (ret)
-			return ret;
-		pci_set_master(pdev->pdev);
-		pdev->suspend = false;
-	}
-	return 0;
-}
-
 static void *
 nvkm_device_pci_dtor(struct nvkm_device *device)
 {
@@ -1621,8 +1597,6 @@ static const struct nvkm_device_func
 nvkm_device_pci_func = {
 	.pci = nvkm_device_pci,
 	.dtor = nvkm_device_pci_dtor,
-	.preinit = nvkm_device_pci_preinit,
-	.fini = nvkm_device_pci_fini,
 	.irq = nvkm_device_pci_irq,
 	.resource_addr = nvkm_device_pci_resource_addr,
 	.resource_size = nvkm_device_pci_resource_size,
@@ -1689,6 +1663,8 @@ nvkm_device_pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		kfree(pdev);
 		return ret;
 	}
+
+	pci_set_master(pci_dev);
 
 	ret = nvkm_device_ctor(&nvkm_device_pci_func, quirk, &pci_dev->dev,
 			       pci_is_pcie(pci_dev) ? NVKM_DEVICE_PCIE :

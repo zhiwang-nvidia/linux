@@ -772,8 +772,6 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 
 	device = pci_get_drvdata(pdev);
 
-	pci_set_master(pdev);
-
 	if (nouveau_atomic)
 		driver_pci.driver_features |= DRIVER_ATOMIC;
 
@@ -783,15 +781,11 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 		goto fail_nvkm;
 	}
 
-	ret = pci_enable_device(pdev);
-	if (ret)
-		goto fail_drm;
-
 	pci_set_drvdata(pdev, drm_dev);
 
 	ret = nouveau_drm_device_init(drm_dev, device);
 	if (ret)
-		goto fail_pci;
+		goto fail_drm;
 
 	ret = drm_dev_register(drm_dev, pent->driver_data);
 	if (ret)
@@ -807,8 +801,6 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 
 fail_drm_dev_init:
 	nouveau_drm_device_fini(drm_dev);
-fail_pci:
-	pci_disable_device(pdev);
 fail_drm:
 	drm_dev_put(drm_dev);
 fail_nvkm:
@@ -835,7 +827,6 @@ nouveau_drm_remove(struct pci_dev *pdev)
 	if (drm->old_pm_cap)
 		pdev->pm_cap = drm->old_pm_cap;
 	nouveau_drm_device_remove(dev);
-	pci_disable_device(pdev);
 
 	nvkm_device_pci_driver.remove(pdev);
 }

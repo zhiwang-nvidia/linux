@@ -6,7 +6,6 @@
 struct nvkm_device_pci {
 	struct nvkm_device device;
 	struct pci_dev *pdev;
-	bool suspend;
 
 	struct dev_pm_domain vga_pm_domain;
 };
