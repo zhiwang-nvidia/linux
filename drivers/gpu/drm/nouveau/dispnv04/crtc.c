@@ -1072,7 +1072,7 @@ nv04_finish_page_flip(struct nouveau_channel *chan,
 	return 0;
 }
 
-int
+enum nvif_event_stat
 nv04_flip_complete(struct nvif_event *event, void *argv, u32 argc)
 {
 	struct nv04_display *disp = container_of(event, typeof(*disp), flip);
@@ -1272,7 +1272,7 @@ static const struct drm_plane_funcs nv04_primary_plane_funcs = {
 	DRM_PLANE_NON_ATOMIC_FUNCS,
 };
 
-static int
+static enum nvif_event_stat
 nv04_crtc_vblank_handler(struct nvif_event *event, void *repv, u32 repc)
 {
 	struct nouveau_crtc *nv_crtc = container_of(event, struct nouveau_crtc, vblank);

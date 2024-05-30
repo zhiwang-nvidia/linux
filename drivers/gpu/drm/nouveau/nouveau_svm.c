@@ -870,7 +870,7 @@ nouveau_svm_fault(struct work_struct *work)
 		nouveau_svm_fault_replay(svm);
 }
 
-static int
+static enum nvif_event_stat
 nouveau_svm_event(struct nvif_event *event, void *argv, u32 argc)
 {
 	struct nouveau_svm_fault_buffer *buffer = container_of(event, typeof(*buffer), notify);

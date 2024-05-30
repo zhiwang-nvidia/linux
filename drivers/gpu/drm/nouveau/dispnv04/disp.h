@@ -182,5 +182,5 @@ nouveau_bios_run_init_table(struct drm_device *dev, u16 table,
 	);
 }
 
-int nv04_flip_complete(struct nvif_event *, void *, u32);
+enum nvif_event_stat nv04_flip_complete(struct nvif_event *, void *, u32);
 #endif

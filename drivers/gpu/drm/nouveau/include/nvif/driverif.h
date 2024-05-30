@@ -23,6 +23,11 @@ struct nvif_cgrp_priv;
 struct nvif_chan_priv;
 struct nvif_engobj_priv;
 
+enum nvif_event_stat {
+	NVIF_EVENT_KEEP,
+	NVIF_EVENT_DROP,
+};
+
 struct nvif_event_impl {
 	void (*del)(struct nvif_event_priv *);
 	int (*allow)(struct nvif_event_priv *);

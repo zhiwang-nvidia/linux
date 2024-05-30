@@ -1199,7 +1199,7 @@ nouveau_connector_hpd(struct nouveau_connector *nv_connector, u64 bits)
 	spin_unlock_irqrestore(&drm->hpd_lock, flags);
 }
 
-static int
+static enum nvif_event_stat
 nouveau_connector_irq(struct nvif_event *event, void *repv, u32 repc)
 {
 	struct nouveau_connector *nv_connector = container_of(event, typeof(*nv_connector), irq);
@@ -1208,7 +1208,7 @@ nouveau_connector_irq(struct nvif_event *event, void *repv, u32 repc)
 	return NVIF_EVENT_KEEP;
 }
 
-static int
+static enum nvif_event_stat
 nouveau_connector_hotplug(struct nvif_event *event, void *repv, u32 repc)
 {
 	struct nouveau_connector *nv_connector = container_of(event, typeof(*nv_connector), hpd);

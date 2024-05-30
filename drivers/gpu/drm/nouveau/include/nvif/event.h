@@ -2,11 +2,10 @@
 #ifndef __NVIF_EVENT_H__
 #define __NVIF_EVENT_H__
 #include <nvif/object.h>
+#include <nvif/driverif.h>
 struct nvif_event;
 
-#define NVIF_EVENT_KEEP 0
-#define NVIF_EVENT_DROP 1
-typedef int (*nvif_event_func)(struct nvif_event *, void *repv, u32 repc);
+typedef enum nvif_event_stat (*nvif_event_func)(struct nvif_event *, void *repv, u32 repc);
 
 struct nvif_event {
 	const struct nvif_event_impl *impl;

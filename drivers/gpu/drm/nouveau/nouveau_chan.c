@@ -47,7 +47,7 @@ nouveau_channel_kill(struct nouveau_channel *chan)
 		nouveau_fence_context_kill(chan->fence, -ENODEV);
 }
 
-static int
+static enum nvif_event_stat
 nouveau_channel_killed(struct nvif_event *event, void *repv, u32 repc)
 {
 	struct nouveau_channel *chan = container_of(event, typeof(*chan), kill);

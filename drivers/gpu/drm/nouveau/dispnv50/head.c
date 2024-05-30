@@ -549,7 +549,7 @@ nvd9_head_func = {
 	.late_register = nv50_head_late_register,
 };
 
-static int
+static enum nvif_event_stat
 nv50_head_vblank_handler(struct nvif_event *event, void *repv, u32 repc)
 {
 	struct nouveau_crtc *nv_crtc = container_of(event, struct nouveau_crtc, vblank);

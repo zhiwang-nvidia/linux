@@ -168,7 +168,7 @@ nouveau_fence_uevent_work(struct work_struct *work)
 	spin_unlock_irqrestore(&fctx->lock, flags);
 }
 
-static int
+static enum nvif_event_stat
 nouveau_fence_wait_uevent_handler(struct nvif_event *event, void *repv, u32 repc)
 {
 	struct nouveau_fence_chan *fctx = container_of(event, typeof(*fctx), event);
