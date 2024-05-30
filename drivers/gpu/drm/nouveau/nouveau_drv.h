@@ -218,8 +218,6 @@ struct nouveau_drm {
 	 */
 	struct mutex clients_lock;
 
-	u8 old_pm_cap;
-
 	struct {
 		struct agp_bridge_data *bridge;
 		u32 base;

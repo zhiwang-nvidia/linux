@@ -7,6 +7,8 @@ struct nvkm_device_pci {
 	struct nvkm_device device;
 	struct pci_dev *pdev;
 
+	u8 old_pm_cap;
+
 	struct dev_pm_domain vga_pm_domain;
 };
 
