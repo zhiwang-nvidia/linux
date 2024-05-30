@@ -240,6 +240,7 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 		      struct nvkm_device **pdevice)
 {
 	struct nvkm_device_tegra *tdev;
+	struct nvkm_device *device;
 	unsigned long rate;
 	int ret;
 
@@ -248,6 +249,7 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 
 	tdev->func = func;
 	tdev->pdev = pdev;
+	device = &tdev->device;
 
 	if (func->require_vdd) {
 		tdev->vdd = devm_regulator_get(&pdev->dev, "vdd");
@@ -311,15 +313,14 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 	ret = nvkm_device_ctor(&nvkm_device_tegra_func, NULL, &pdev->dev,
 			       NVKM_DEVICE_TEGRA, pdev->id, NULL,
 			       &tdev->device);
-	if (ret)
-		goto powerdown;
+	if (ret) {
+		nvkm_device_del(&device);
+		return ret;
+	}
 
 	*pdevice = &tdev->device;
-
 	return 0;
 
-powerdown:
-	nvkm_device_tegra_power_down(tdev);
 remove:
 	nvkm_device_tegra_remove_iommu(tdev);
 free:

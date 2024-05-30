@@ -1633,11 +1633,8 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 	const struct nvkm_device_pci_vendor *pciv;
 	const char *name = NULL;
 	struct nvkm_device_pci *pdev;
+	struct nvkm_device *device;
 	int ret, bits;
-
-	ret = pci_enable_device(pci_dev);
-	if (ret)
-		return ret;
 
 	switch (pci_dev->vendor) {
 	case 0x10de: pcid = nvkm_device_pci_10de; break;
@@ -1664,12 +1661,16 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 		pcid++;
 	}
 
-	if (!(pdev = kzalloc(sizeof(*pdev), GFP_KERNEL))) {
-		pci_disable_device(pci_dev);
+	if (!(pdev = kzalloc(sizeof(*pdev), GFP_KERNEL)))
 		return -ENOMEM;
-	}
-	*pdevice = &pdev->device;
 	pdev->pdev = pci_dev;
+	device = &pdev->device;
+
+	ret = pci_enable_device(pci_dev);
+	if (ret) {
+		kfree(pdev);
+		return ret;
+	}
 
 	ret = nvkm_device_ctor(&nvkm_device_pci_func, quirk, &pci_dev->dev,
 			       pci_is_pcie(pci_dev) ? NVKM_DEVICE_PCIE :
@@ -1682,7 +1683,7 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 			       &pdev->device);
 
 	if (ret)
-		return ret;
+		goto done;
 
 	/* Set DMA mask based on capabilities reported by the MMU subdev. */
 	if (pdev->device.mmu && !pdev->device.pci->agp.bridge)
@@ -1696,5 +1697,12 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 		pdev->device.mmu->dma_bits = 32;
 	}
 
+done:
+	if (ret) {
+		nvkm_device_del(&device);
+		return ret;
+	}
+
+	*pdevice = &pdev->device;
 	return 0;
 }
