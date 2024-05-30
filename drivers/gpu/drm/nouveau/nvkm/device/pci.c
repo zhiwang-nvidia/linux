@@ -26,6 +26,7 @@
 #include "acpi.h"
 #include "priv.h"
 
+#include <linux/aperture.h>
 #include <linux/vga_switcheroo.h>
 
 struct nvkm_device_pci_device {
@@ -1699,6 +1700,11 @@ nvkm_device_pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 				    PCI_FUNC(pci_dev->devfn), name,
 			       &pdev->device);
 
+	if (ret)
+		goto done;
+
+	/* Remove conflicting drivers (vesafb, efifb etc). */
+	ret = aperture_remove_conflicting_pci_devices(pci_dev, "nvkm");
 	if (ret)
 		goto done;
 

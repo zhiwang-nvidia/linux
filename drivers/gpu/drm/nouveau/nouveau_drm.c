@@ -772,11 +772,6 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 
 	device = pci_get_drvdata(pdev);
 
-	/* Remove conflicting drivers (vesafb, efifb etc). */
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &driver_pci);
-	if (ret)
-		return ret;
-
 	pci_set_master(pdev);
 
 	if (nouveau_atomic)
