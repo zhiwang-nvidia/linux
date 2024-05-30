@@ -1380,7 +1380,6 @@ nouveau_drm_init(void)
 	platform_driver_register(&nouveau_platform_driver);
 #endif
 
-	nouveau_register_dsm_handler();
 	nouveau_backlight_ctor();
 
 #ifdef CONFIG_PCI
@@ -1400,7 +1399,6 @@ nouveau_drm_exit(void)
 	pci_unregister_driver(&nouveau_drm_pci_driver);
 #endif
 	nouveau_backlight_dtor();
-	nouveau_unregister_dsm_handler();
 
 #ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
 	platform_driver_unregister(&nouveau_platform_driver);

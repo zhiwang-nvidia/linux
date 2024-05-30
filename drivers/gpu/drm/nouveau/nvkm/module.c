@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include <core/module.h>
+#include <device/acpi.h>
 
 char *nvkm_cfg;
 char *nvkm_dbg;
@@ -27,10 +28,12 @@ char *nvkm_dbg;
 void __exit
 nvkm_exit(void)
 {
+	nvkm_acpi_switcheroo_fini();
 }
 
 int __init
 nvkm_init(void)
 {
+	nvkm_acpi_switcheroo_init();
 	return 0;
 }
