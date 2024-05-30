@@ -26,6 +26,8 @@
 #include "acpi.h"
 #include "priv.h"
 
+#include <linux/vga_switcheroo.h>
+
 struct nvkm_device_pci_device {
 	u16 device;
 	const char *name;
@@ -1647,6 +1649,9 @@ nvkm_device_pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	struct nvkm_device_pci *pdev;
 	struct nvkm_device *device;
 	int ret, bits;
+
+	if (vga_switcheroo_client_probe_defer(pci_dev))
+		return -EPROBE_DEFER;
 
 	switch (pci_dev->vendor) {
 	case 0x10de: pcid = nvkm_device_pci_10de; break;
