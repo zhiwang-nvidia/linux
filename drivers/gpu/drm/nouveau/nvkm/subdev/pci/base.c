@@ -27,6 +27,8 @@
 #include <core/option.h>
 #include <core/pci.h>
 
+#include <linux/vgaarb.h>
+
 void
 nvkm_pci_msi_rearm(struct nvkm_device *device)
 {
@@ -62,6 +64,29 @@ nvkm_pci_mask(struct nvkm_pci *pci, u16 addr, u32 mask, u32 value)
 	return data;
 }
 
+#include "nouveau_drv.h"
+
+static unsigned int
+nvkm_pci_vga_set_decode(struct pci_dev *pdev, bool state)
+{
+	struct nvkm_device *device = nouveau_drm(pci_get_drvdata(pdev))->nvkm;
+
+	if (device->card_type == NV_40 &&
+	    device->chipset >= 0x4c)
+		nvkm_wr32(device, 0x088060, state);
+	else
+	if (device->chipset >= 0x40)
+		nvkm_wr32(device, 0x088054, state);
+	else
+		nvkm_wr32(device, 0x001854, state);
+
+	if (state)
+		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
+		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+	else
+		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+}
+
 void
 nvkm_pci_rom_shadow(struct nvkm_pci *pci, bool shadow)
 {
@@ -76,11 +101,16 @@ nvkm_pci_rom_shadow(struct nvkm_pci *pci, bool shadow)
 static int
 nvkm_pci_fini(struct nvkm_subdev *subdev, bool suspend)
 {
+	struct nvkm_device_pci *pdev = subdev->device->func->pci(subdev->device);
 	struct nvkm_pci *pci = nvkm_pci(subdev);
+
+	if (!subdev->use.enabled)
+		return 0;
 
 	if (pci->agp.bridge)
 		nvkm_agp_fini(pci);
 
+	vga_client_unregister(pdev->pdev);
 	return 0;
 }
 
@@ -111,6 +141,7 @@ nvkm_pci_oneinit(struct nvkm_subdev *subdev)
 static int
 nvkm_pci_init(struct nvkm_subdev *subdev)
 {
+	struct nvkm_device_pci *pdev = subdev->device->func->pci(subdev->device);
 	struct nvkm_pci *pci = nvkm_pci(subdev);
 	int ret;
 
@@ -131,6 +162,7 @@ nvkm_pci_init(struct nvkm_subdev *subdev)
 	if (pci->msi)
 		pci->func->msi_rearm(pci);
 
+	vga_client_register(pdev->pdev, nvkm_pci_vga_set_decode);
 	return 0;
 }
 

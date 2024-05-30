@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-#include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 
 #include <drm/drm_fb_helper.h>
@@ -7,28 +6,6 @@
 #include "nouveau_drv.h"
 #include "nouveau_acpi.h"
 #include "nouveau_vga.h"
-
-static unsigned int
-nouveau_vga_set_decode(struct pci_dev *pdev, bool state)
-{
-	struct nouveau_drm *drm = nouveau_drm(pci_get_drvdata(pdev));
-	struct nvif_device *device = &drm->device;
-
-	if (device->impl->family == NVIF_DEVICE_CURIE &&
-	    device->impl->chipset >= 0x4c)
-		nvif_wr32(device, 0x088060, state);
-	else
-	if (device->impl->chipset >= 0x40)
-		nvif_wr32(device, 0x088054, state);
-	else
-		nvif_wr32(device, 0x001854, state);
-
-	if (state)
-		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
-		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
-	else
-		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
-}
 
 static void
 nouveau_switcheroo_set_state(struct pci_dev *pdev,
@@ -92,8 +69,6 @@ nouveau_vga_init(struct nouveau_drm *drm)
 		return;
 	pdev = to_pci_dev(dev->dev);
 
-	vga_client_register(pdev, nouveau_vga_set_decode);
-
 	/* don't register Thunderbolt eGPU with vga_switcheroo */
 	if (pci_is_thunderbolt_attached(pdev))
 		return;
@@ -115,8 +90,6 @@ nouveau_vga_fini(struct nouveau_drm *drm)
 	if (!dev_is_pci(dev->dev))
 		return;
 	pdev = to_pci_dev(dev->dev);
-
-	vga_client_unregister(pdev);
 
 	if (pci_is_thunderbolt_attached(pdev))
 		return;
