@@ -27,7 +27,7 @@ int
 nv50_oimm_init(struct nouveau_drm *drm, struct nv50_wndw *wndw)
 {
 	int (*ctor)(struct nouveau_drm *, s32, struct nv50_wndw *);
-	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
+	struct nvif_disp *disp = nv50_disp(&drm->dev)->disp;
 
 	switch (disp->impl->chan.oimm.oclass) {
 	case GK104_DISP_OVERLAY: ctor = oimm507b_init; break;

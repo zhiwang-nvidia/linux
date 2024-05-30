@@ -134,7 +134,7 @@ nouveau_decode_mod(struct nouveau_drm *drm,
 		   uint32_t *tile_mode,
 		   uint8_t *kind)
 {
-	struct nouveau_display *disp = nouveau_display(drm->dev);
+	struct nouveau_display *disp = nouveau_display(&drm->dev);
 	BUG_ON(!tile_mode || !kind);
 
 	if (modifier == DRM_FORMAT_MOD_LINEAR) {
@@ -193,7 +193,7 @@ nouveau_validate_decode_mod(struct nouveau_drm *drm,
 			    uint32_t *tile_mode,
 			    uint8_t *kind)
 {
-	struct nouveau_display *disp = nouveau_display(drm->dev);
+	struct nouveau_display *disp = nouveau_display(&drm->dev);
 	int mod;
 
 	if (drm->device.impl->family < NVIF_DEVICE_TESLA)
@@ -461,7 +461,7 @@ static void
 nouveau_display_hpd_work(struct work_struct *work)
 {
 	struct nouveau_drm *drm = container_of(work, typeof(*drm), hpd_work);
-	struct drm_device *dev = drm->dev;
+	struct drm_device *dev = &drm->dev;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	u32 pending;
@@ -534,7 +534,7 @@ nouveau_display_hpd_work(struct work_struct *work)
 	if (first_changed_connector)
 		drm_connector_put(first_changed_connector);
 
-	pm_runtime_mark_last_busy(drm->dev->dev);
+	pm_runtime_mark_last_busy(dev->dev);
 noop:
 	pm_runtime_put_autosuspend(dev->dev);
 }
@@ -551,20 +551,20 @@ nouveau_display_acpi_ntfy(struct notifier_block *nb, unsigned long val,
 
 	if (!strcmp(info->device_class, ACPI_VIDEO_CLASS)) {
 		if (info->type == ACPI_VIDEO_NOTIFY_PROBE) {
-			ret = pm_runtime_get(drm->dev->dev);
+			ret = pm_runtime_get(drm->dev.dev);
 			if (ret == 1 || ret == -EACCES) {
 				/* If the GPU is already awake, or in a state
 				 * where we can't wake it up, it can handle
 				 * it's own hotplug events.
 				 */
-				pm_runtime_put_autosuspend(drm->dev->dev);
+				pm_runtime_put_autosuspend(drm->dev.dev);
 			} else if (ret == 0 || ret == -EINPROGRESS) {
 				/* We've started resuming the GPU already, so
 				 * it will handle scheduling a full reprobe
 				 * itself
 				 */
 				NV_DEBUG(drm, "ACPI requested connector reprobe\n");
-				pm_runtime_put_noidle(drm->dev->dev);
+				pm_runtime_put_noidle(drm->dev.dev);
 			} else {
 				NV_WARN(drm, "Dropped ACPI reprobe event due to RPM error: %d\n",
 					ret);

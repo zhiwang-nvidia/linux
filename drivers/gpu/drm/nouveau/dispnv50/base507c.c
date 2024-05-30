@@ -303,11 +303,11 @@ base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 	      struct nouveau_drm *drm, int head, s32 oclass, u32 interlock_data,
 	      struct nv50_wndw **pwndw)
 {
-	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
+	struct nvif_disp *disp = nv50_disp(&drm->dev)->disp;
 	struct nv50_wndw *wndw;
 	int ret;
 
-	ret = nv50_wndw_prep(func, drm->dev, DRM_PLANE_TYPE_PRIMARY,
+	ret = nv50_wndw_prep(func, &drm->dev, DRM_PLANE_TYPE_PRIMARY,
 			     "base", head, format, BIT(head),
 			     NV50_DISP_INTERLOCK_BASE, interlock_data, &wndw);
 	if (*pwndw = wndw, ret)

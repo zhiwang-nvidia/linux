@@ -27,7 +27,7 @@ int
 nv50_base_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
 {
 	int (*ctor)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
-	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
+	struct nvif_disp *disp = nv50_disp(&drm->dev)->disp;
 
 	switch (disp->impl->chan.base.oclass) {
 	case GK110_DISP_BASE_CHANNEL_DMA: ctor = base917c_new; break;

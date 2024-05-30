@@ -1817,7 +1817,6 @@ nouveau_uvmm_ioctl_vm_init(struct drm_device *dev,
 {
 	struct nouveau_uvmm *uvmm;
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct drm_device *drm = cli->drm->dev;
 	struct drm_gem_object *r_obj;
 	struct drm_nouveau_vm_init *init = data;
 	u64 kernel_managed_end;
@@ -1844,7 +1843,7 @@ nouveau_uvmm_ioctl_vm_init(struct drm_device *dev,
 		goto out_unlock;
 	}
 
-	r_obj = drm_gpuvm_resv_object_alloc(drm);
+	r_obj = drm_gpuvm_resv_object_alloc(dev);
 	if (!r_obj) {
 		kfree(uvmm);
 		ret = -ENOMEM;
@@ -1855,7 +1854,7 @@ nouveau_uvmm_ioctl_vm_init(struct drm_device *dev,
 	mt_init_flags(&uvmm->region_mt, MT_FLAGS_LOCK_EXTERN);
 	mt_set_external_lock(&uvmm->region_mt, &uvmm->mutex);
 
-	drm_gpuvm_init(&uvmm->base, cli->name, 0, drm, r_obj,
+	drm_gpuvm_init(&uvmm->base, cli->name, 0, dev, r_obj,
 		       NOUVEAU_VA_SPACE_START,
 		       NOUVEAU_VA_SPACE_END,
 		       init->kernel_managed_addr,

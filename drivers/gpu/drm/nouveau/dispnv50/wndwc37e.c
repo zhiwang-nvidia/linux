@@ -349,11 +349,11 @@ wndwc37e_new_(const struct nv50_wndw_func *func, struct nouveau_drm *drm,
 	      enum drm_plane_type type, int index, s32 oclass, u32 heads,
 	      struct nv50_wndw **pwndw)
 {
-	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
+	struct nvif_disp *disp = nv50_disp(&drm->dev)->disp;
 	struct nv50_wndw *wndw;
 	int ret;
 
-	ret = nv50_wndw_prep(func, drm->dev, type, "wndw", index,
+	ret = nv50_wndw_prep(func, &drm->dev, type, "wndw", index,
 			     wndwc37e_format, heads, NV50_DISP_INTERLOCK_WNDW,
 			     BIT(index), &wndw);
 	if (*pwndw = wndw, ret)

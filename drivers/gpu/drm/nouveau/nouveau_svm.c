@@ -274,7 +274,7 @@ nouveau_svmm_invalidate_range_start(struct mmu_notifier *mn,
 	 * the invalidation is handled as part of the migration process.
 	 */
 	if (update->event == MMU_NOTIFY_MIGRATE &&
-	    update->owner == svmm->vmm->cli->drm->dev)
+	    update->owner == &svmm->vmm->cli->drm->dev)
 		goto out;
 
 	if (limit > svmm->unmanaged.start && start < svmm->unmanaged.limit) {
@@ -506,7 +506,7 @@ static bool nouveau_svm_range_invalidate(struct mmu_interval_notifier *mni,
 		container_of(mni, struct svm_notifier, notifier);
 
 	if (range->event == MMU_NOTIFY_EXCLUSIVE &&
-	    range->owner == sn->svmm->vmm->cli->drm->dev)
+	    range->owner == &sn->svmm->vmm->cli->drm->dev)
 		return true;
 
 	/*
@@ -606,7 +606,7 @@ static int nouveau_atomic_range_fault(struct nouveau_svmm *svmm,
 		notifier_seq = mmu_interval_read_begin(&notifier->notifier);
 		mmap_read_lock(mm);
 		ret = make_device_exclusive_range(mm, start, start + PAGE_SIZE,
-					    &page, drm->dev);
+					    &page, &drm->dev);
 		mmap_read_unlock(mm);
 		if (ret <= 0 || !page) {
 			ret = -EINVAL;
@@ -655,7 +655,7 @@ static int nouveau_range_fault(struct nouveau_svmm *svmm,
 		.notifier = &notifier->notifier,
 		.default_flags = hmm_flags,
 		.hmm_pfns = hmm_pfns,
-		.dev_private_owner = drm->dev,
+		.dev_private_owner = &drm->dev,
 	};
 	struct mm_struct *mm = svmm->notifier.mm;
 	struct nvif_vmm *vmm = &svmm->vmm->vmm;

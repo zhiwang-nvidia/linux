@@ -364,7 +364,7 @@ nv50_audio_component_get_eld(struct device *kdev, int port, int dev_id,
 
 	mutex_lock(&drm->audio.lock);
 
-	drm_for_each_encoder(encoder, drm->dev) {
+	drm_for_each_encoder(encoder, drm_dev) {
 		struct nouveau_connector *nv_connector = NULL;
 
 		if (encoder->encoder_type == DRM_MODE_ENCODER_DPMST)
@@ -437,7 +437,7 @@ static const struct component_ops nv50_audio_component_bind_ops = {
 static void
 nv50_audio_component_init(struct nouveau_drm *drm)
 {
-	if (component_add(drm->dev->dev, &nv50_audio_component_bind_ops))
+	if (component_add(drm->dev.dev, &nv50_audio_component_bind_ops))
 		return;
 
 	drm->audio.component_registered = true;
@@ -450,7 +450,7 @@ nv50_audio_component_fini(struct nouveau_drm *drm)
 	if (!drm->audio.component_registered)
 		return;
 
-	component_del(drm->dev->dev, &nv50_audio_component_bind_ops);
+	component_del(drm->dev.dev, &nv50_audio_component_bind_ops);
 	drm->audio.component_registered = false;
 	mutex_destroy(&drm->audio.lock);
 }
@@ -1855,7 +1855,7 @@ nv50_disp_atomic_commit_core(struct drm_atomic_state *state, u32 *interlock)
 	struct drm_dp_mst_topology_mgr *mgr;
 	struct drm_dp_mst_topology_state *mst_state;
 	struct nouveau_drm *drm = nouveau_drm(state->dev);
-	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct nv50_disp *disp = nv50_disp(&drm->dev);
 	struct nv50_atom *atom = nv50_atom(state);
 	struct nv50_core *core = disp->core;
 	struct nv50_outp_atom *outp;
@@ -2518,7 +2518,7 @@ nv50_display_read_hw_or_state(struct drm_device *dev, struct nv50_disp *disp,
 static void
 nv50_display_read_hw_state(struct nouveau_drm *drm)
 {
-	struct drm_device *dev = drm->dev;
+	struct drm_device *dev = &drm->dev;
 	struct drm_encoder *encoder;
 	struct drm_modeset_acquire_ctx ctx;
 	struct nv50_disp *disp = nv50_disp(dev);

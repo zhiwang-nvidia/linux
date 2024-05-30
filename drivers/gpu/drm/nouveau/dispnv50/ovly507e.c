@@ -144,11 +144,11 @@ ovly507e_new_(const struct nv50_wndw_func *func, const u32 *format,
 	      struct nouveau_drm *drm, int head, s32 oclass, u32 interlock_data,
 	      struct nv50_wndw **pwndw)
 {
-	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
+	struct nvif_disp *disp = nv50_disp(&drm->dev)->disp;
 	struct nv50_wndw *wndw;
 	int ret;
 
-	ret = nv50_wndw_prep(func, drm->dev, DRM_PLANE_TYPE_OVERLAY,
+	ret = nv50_wndw_prep(func, &drm->dev, DRM_PLANE_TYPE_OVERLAY,
 			     "ovly", head, format, BIT(head),
 			     NV50_DISP_INTERLOCK_OVLY, interlock_data,
 			     &wndw);

@@ -982,8 +982,8 @@ static int
 nv04_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		     uint32_t buffer_handle, uint32_t width, uint32_t height)
 {
-	struct nouveau_drm *drm = nouveau_drm(crtc->dev);
-	struct drm_device *dev = drm->dev;
+	struct drm_device *dev = crtc->dev;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_bo *cursor = NULL;
 	struct drm_gem_object *gem;
@@ -1043,7 +1043,7 @@ nv04_finish_page_flip(struct nouveau_channel *chan,
 {
 	struct nouveau_fence_chan *fctx = chan->fence;
 	struct nouveau_drm *drm = chan->cli->drm;
-	struct drm_device *dev = drm->dev;
+	struct drm_device *dev = &drm->dev;
 	struct nv04_page_flip_state *s;
 	unsigned long flags;
 
@@ -1081,7 +1081,7 @@ nv04_flip_complete(struct nvif_event *event, void *argv, u32 argc)
 	struct nv04_page_flip_state state;
 
 	if (!nv04_finish_page_flip(chan, &state)) {
-		nv_set_crtc_base(drm->dev, drm_crtc_index(state.crtc),
+		nv_set_crtc_base(&drm->dev, drm_crtc_index(state.crtc),
 				 state.offset + state.crtc->y *
 				 state.pitch + state.crtc->x *
 				 state.bpp / 8);
@@ -1099,7 +1099,7 @@ nv04_page_flip_emit(struct nouveau_channel *chan,
 {
 	struct nouveau_fence_chan *fctx = chan->fence;
 	struct nouveau_drm *drm = chan->cli->drm;
-	struct drm_device *dev = drm->dev;
+	struct drm_device *dev = &drm->dev;
 	struct nvif_push *push = &chan->chan.push;
 	unsigned long flags;
 	int ret;

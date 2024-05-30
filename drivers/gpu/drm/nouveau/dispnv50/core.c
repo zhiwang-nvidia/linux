@@ -44,7 +44,7 @@ int
 nv50_core_new(struct nouveau_drm *drm, struct nv50_core **pcore)
 {
 	int (*ctor)(struct nouveau_drm *, s32, struct nv50_core **);
-	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct nv50_disp *disp = nv50_disp(&drm->dev);
 	struct nv50_core *core;
 	int ret;
 

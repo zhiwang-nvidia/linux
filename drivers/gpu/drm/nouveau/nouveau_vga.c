@@ -10,7 +10,7 @@
 static void
 nouveau_switcheroo_set_state(const struct nvif_driver_func *driver, enum vga_switcheroo_state state)
 {
-	struct drm_device *dev = container_of(driver, struct nouveau_drm, driver)->dev;
+	struct drm_device *dev = &container_of(driver, struct nouveau_drm, driver)->dev;
 
 	if (state == VGA_SWITCHEROO_ON) {
 		pr_err("VGA switcheroo: switched nouveau on\n");
@@ -28,7 +28,7 @@ nouveau_switcheroo_set_state(const struct nvif_driver_func *driver, enum vga_swi
 static void
 nouveau_switcheroo_reprobe(const struct nvif_driver_func *driver)
 {
-	struct drm_device *dev = container_of(driver, struct nouveau_drm, driver)->dev;
+	struct drm_device *dev = &container_of(driver, struct nouveau_drm, driver)->dev;
 
 	drm_fb_helper_output_poll_changed(dev);
 }
@@ -36,7 +36,7 @@ nouveau_switcheroo_reprobe(const struct nvif_driver_func *driver)
 static bool
 nouveau_switcheroo_can_switch(const struct nvif_driver_func *driver)
 {
-	struct drm_device *dev = container_of(driver, struct nouveau_drm, driver)->dev;
+	struct drm_device *dev = &container_of(driver, struct nouveau_drm, driver)->dev;
 
 	/*
 	 * FIXME: open_count is protected by drm_global_mutex but that would lead to

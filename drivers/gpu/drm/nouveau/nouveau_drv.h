@@ -201,6 +201,8 @@ u_memcpya(uint64_t user, unsigned int nmemb, unsigned int size)
 #include <nvif/parent.h>
 
 struct nouveau_drm {
+	struct drm_device dev;
+
 	struct nvkm_device *nvkm;
 	struct nvif_parent parent;
 	struct nvif_driver_func driver;
@@ -209,7 +211,6 @@ struct nouveau_drm {
 	struct nvif_mmu mmu;
 
 	struct nouveau_cli cli;
-	struct drm_device *dev;
 
 	struct list_head clients;
 
@@ -331,11 +332,11 @@ void nouveau_drm_device_remove(struct drm_device *dev);
 
 #define NV_PRINTK(l,c,f,a...) do {                                             \
 	struct nouveau_cli *_cli = (c);                                        \
-	dev_##l(_cli->drm->dev->dev, "%s: "f, _cli->name, ##a);                \
+	dev_##l(_cli->drm->dev.dev, "%s: "f, _cli->name, ##a);                 \
 } while(0)
 
 #define NV_PRINTK_(l,drm,f,a...) do {          \
-	dev_##l(drm->dev->dev, "drm: "f, ##a); \
+	dev_##l(drm->dev.dev, "drm: "f, ##a);  \
 } while(0)
 #define NV_FATAL(drm,f,a...) NV_PRINTK_(crit, (drm), f, ##a)
 #define NV_ERROR(drm,f,a...) NV_PRINTK_(err, (drm), f, ##a)

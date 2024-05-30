@@ -67,7 +67,7 @@ static int
 wimmc37b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	       s32 oclass, struct nv50_wndw *wndw)
 {
-	struct nvif_disp *disp = nv50_disp(drm->dev)->disp;
+	struct nvif_disp *disp = nv50_disp(&drm->dev)->disp;
 	int ret;
 
 	ret = nvif_dispchan_ctor(disp, "kmsChanWimm", wndw->id, oclass, &drm->mmu, &wndw->wimm);
