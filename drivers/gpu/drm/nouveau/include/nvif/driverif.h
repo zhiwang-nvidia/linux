@@ -2,6 +2,7 @@
 #ifndef __NVIF_DRIVERIF_H__
 #define __NVIF_DRIVERIF_H__
 #include <drm/display/drm_dp.h>
+#include <linux/vga_switcheroo.h>
 
 struct nvif_event_priv;
 struct nvif_client_priv;
@@ -36,6 +37,12 @@ struct nvif_event_impl {
 
 struct nvif_driver_func {
 	enum nvif_event_stat (*event)(u64 token, void *repv, u32 repc);
+
+	struct nvif_driver_func_switcheroo {
+		bool (*can_switch)(const struct nvif_driver_func *);
+		void (*set_state)(const struct nvif_driver_func *, enum vga_switcheroo_state);
+		void (*reprobe)(const struct nvif_driver_func *);
+	} switcheroo;
 };
 
 struct nvif_driver {

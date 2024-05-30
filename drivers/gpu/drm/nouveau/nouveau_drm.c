@@ -503,6 +503,7 @@ nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 
 	nvif_parent_ctor(&nouveau_parent, &drm->parent);
 	drm->driver = nouveau_driver;
+	drm->driver.switcheroo = nouveau_switcheroo;
 	drm->client.object.parent = &drm->parent;
 
 	ret = nvkm_driver_ctor(drm->nvkm, &driver, &impl, &priv);
@@ -586,8 +587,6 @@ nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 	if (drm->device.impl->chipset == 0xc1)
 		nvif_mask(&drm->device, 0x00088080, 0x00000800, 0x00000000);
 
-	nouveau_vga_init(drm);
-
 	ret = nouveau_ttm_init(drm);
 	if (ret)
 		goto fail_ttm;
@@ -632,7 +631,6 @@ fail_dispctor:
 fail_bios:
 	nouveau_ttm_fini(drm);
 fail_ttm:
-	nouveau_vga_fini(drm);
 	nouveau_cli_fini(&drm->cli);
 fail_wq:
 	destroy_workqueue(drm->sched_wq);
@@ -671,7 +669,6 @@ nouveau_drm_device_fini(struct drm_device *dev)
 	nouveau_bios_takedown(dev);
 
 	nouveau_ttm_fini(drm);
-	nouveau_vga_fini(drm);
 
 	/*
 	 * There may be existing clients from as-yet unclosed files. For now,

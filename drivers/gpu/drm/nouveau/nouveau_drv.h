@@ -295,8 +295,6 @@ struct nouveau_drm {
 	/* led management */
 	struct nouveau_led *led;
 
-	struct dev_pm_domain vga_pm_domain;
-
 	struct nouveau_svm *svm;
 
 	struct nouveau_dmem *dmem;

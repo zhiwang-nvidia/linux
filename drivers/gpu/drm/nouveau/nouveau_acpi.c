@@ -8,14 +8,6 @@
 #include "nouveau_drv.h"
 #include "nouveau_acpi.h"
 
-bool nouveau_is_optimus(void) {
-	return nouveau_dsm_priv.optimus_detected;
-}
-
-bool nouveau_is_v1_dsm(void) {
-	return nouveau_dsm_priv.dsm_detected;
-}
-
 void *
 nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
 {

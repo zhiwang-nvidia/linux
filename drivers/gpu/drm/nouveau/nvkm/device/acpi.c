@@ -23,8 +23,10 @@
  */
 #include "acpi.h"
 
-#include <core/device.h>
+#include <core/pci.h>
 #include <subdev/clk.h>
+
+#include <nvif/driverif.h>
 
 #include <linux/mxm-wmi.h>
 #include <linux/vga_switcheroo.h>
@@ -188,6 +190,48 @@ static int nouveau_dsm_set_discrete_state(acpi_handle handle, enum vga_switchero
 	nouveau_dsm(handle, NOUVEAU_DSM_POWER, arg);
 	return 0;
 }
+
+#include "nouveau_drv.h"
+#include "nouveau_acpi.h"
+
+static void
+nvkm_acpi_switcheroo_reprobe(struct pci_dev *pdev)
+{
+	struct nvkm_device *device = nouveau_drm(pci_get_drvdata(pdev))->nvkm;
+
+	device->driver->switcheroo.reprobe(device->driver);
+}
+
+static void
+nvkm_acpi_switcheroo_set_state(struct pci_dev *pdev,
+			     enum vga_switcheroo_state state)
+{
+	struct nvkm_device *device = nouveau_drm(pci_get_drvdata(pdev))->nvkm;
+
+	if (state == VGA_SWITCHEROO_OFF) {
+		if (nouveau_dsm_priv.dsm_detected || nouveau_dsm_priv.optimus_detected)
+			return;
+
+		nvkm_acpi_switcheroo_set_powerdown();
+	}
+
+	device->driver->switcheroo.set_state(device->driver, state);
+}
+
+static bool
+nvkm_acpi_switcheroo_can_switch(struct pci_dev *pdev)
+{
+	struct nvkm_device *device = nouveau_drm(pci_get_drvdata(pdev))->nvkm;
+
+	return device->driver->switcheroo.can_switch(device->driver);
+}
+
+static const struct vga_switcheroo_client_ops
+nvkm_acpi_switcheroo_ops = {
+	.can_switch = nvkm_acpi_switcheroo_can_switch,
+	.set_gpu_state = nvkm_acpi_switcheroo_set_state,
+	.reprobe = nvkm_acpi_switcheroo_reprobe,
+};
 
 static int nouveau_dsm_switchto(enum vga_switcheroo_client_id id)
 {
@@ -380,16 +424,53 @@ nvkm_acpi_ntfy(struct notifier_block *nb, unsigned long val, void *data)
 void
 nvkm_acpi_fini(struct nvkm_device *device)
 {
+	struct nvkm_device_pci *pdev;
+
+	if (!device->func->pci)
+		return;
+
+	pdev = device->func->pci(device);
+	(void)pdev;
+
 #ifdef CONFIG_ACPI
 	unregister_acpi_notifier(&device->acpi.nb);
+#endif
+
+#ifdef CONFIG_VGA_SWITCHEROO
+	if (pci_is_thunderbolt_attached(pdev->pdev))
+		return;
+
+	vga_switcheroo_unregister_client(pdev->pdev);
+	if (device->runpm == NVKM_DEVICE_RUNPM_V1)
+		vga_switcheroo_fini_domain_pm_ops(device->dev);
 #endif
 }
 
 void
 nvkm_acpi_init(struct nvkm_device *device)
 {
+	struct nvkm_device_pci *pdev;
+
+	if (!device->func->pci)
+		return;
+
+	pdev = device->func->pci(device);
+	(void)pdev;
+
 #ifdef CONFIG_ACPI
 	device->acpi.nb.notifier_call = nvkm_acpi_ntfy;
 	register_acpi_notifier(&device->acpi.nb);
+#endif
+
+#ifdef CONFIG_VGA_SWITCHEROO
+	/* don't register Thunderbolt eGPU with vga_switcheroo */
+	if (pci_is_thunderbolt_attached(pdev->pdev))
+		return;
+
+	vga_switcheroo_register_client(pdev->pdev, &nvkm_acpi_switcheroo_ops,
+				       device->runpm != NVKM_DEVICE_RUNPM_NONE);
+
+	if (device->runpm == NVKM_DEVICE_RUNPM_V1)
+		vga_switcheroo_init_domain_pm_ops(device->dev, &pdev->vga_pm_domain);
 #endif
 }
