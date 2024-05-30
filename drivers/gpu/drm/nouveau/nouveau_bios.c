@@ -114,7 +114,7 @@ static int call_lvds_manufacturer_script(struct drm_device *dev, struct dcb_outp
 	uint8_t sub = bios->data[bios->fp.xlated_entry + script] + (bios->fp.link_c_increment && dcbent->or & DCB_OUTPUT_C ? 1 : 0);
 	uint16_t scriptofs = ROM16(bios->data[bios->init_script_tbls_ptr + sub * 2]);
 #ifdef __powerpc__
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct nvif_device *device = &drm->device;
 #endif
 
 	if (!bios->fp.xlated_entry || !sub || !scriptofs)
@@ -129,8 +129,8 @@ static int call_lvds_manufacturer_script(struct drm_device *dev, struct dcb_outp
 #ifdef __powerpc__
 	/* Powerbook specific quirks */
 	if (script == LVDS_RESET &&
-	    (pdev->device == 0x0179 || pdev->device == 0x0189 ||
-	     pdev->device == 0x0329))
+	    (device->impl->pci.device_id == 0x0179 || device->impl->pci.device_id == 0x0189 ||
+	     device->impl->pci.device_id == 0x0329))
 		nv_write_tmds(dev, dcbent->or, 0, 0x02, 0x72);
 #endif
 

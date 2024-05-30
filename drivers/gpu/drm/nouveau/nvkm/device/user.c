@@ -357,6 +357,19 @@ nvkm_udevice_new(struct nvkm_device *device,
 		break;
 	}
 
+	if (dev_is_pci(device->dev)) {
+		struct pci_dev *pdev = to_pci_dev(device->dev);
+
+		udev->impl.pci.pcie = pci_is_pcie(pdev);
+		udev->impl.pci.domain = pci_domain_nr(pdev->bus);
+		udev->impl.pci.vendor_id = pdev->vendor;
+		udev->impl.pci.device_id = pdev->device;
+		udev->impl.pci.subvendor_id = pdev->subsystem_vendor;
+		udev->impl.pci.subdevice_id = pdev->subsystem_device;
+	}
+
+	udev->impl.bar1.addr = device->func->resource_addr(device, 1);
+
 	udev->impl.chipset  = device->chipset;
 	udev->impl.revision = device->chiprev;
 

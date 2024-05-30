@@ -507,7 +507,6 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 	struct drm_device *dev = connector->dev;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	if (nv_connector->detected_encoder == nv_encoder)
 		return;
@@ -530,8 +529,8 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 		connector->doublescan_allowed = true;
 		if (drm->device.impl->family == NVIF_DEVICE_KELVIN ||
 		    (drm->device.impl->family == NVIF_DEVICE_CELSIUS &&
-		     (pdev->device & 0x0ff0) != 0x0100 &&
-		     (pdev->device & 0x0ff0) != 0x0150))
+		     (drm->device.impl->pci.device_id & 0x0ff0) != 0x0100 &&
+		     (drm->device.impl->pci.device_id & 0x0ff0) != 0x0150))
 			/* HW is broken */
 			connector->interlace_allowed = false;
 		else

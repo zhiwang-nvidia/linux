@@ -199,19 +199,17 @@ nv04_update_arb(struct drm_device *dev, int VClk, int bpp,
 	int MClk = nouveau_hw_get_clock(dev, PLL_MEMORY);
 	int NVClk = nouveau_hw_get_clock(dev, PLL_CORE);
 	uint32_t cfg1 = nvif_rd32(device, NV04_PFB_CFG1);
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	sim_data.pclk_khz = VClk;
 	sim_data.mclk_khz = MClk;
 	sim_data.nvclk_khz = NVClk;
 	sim_data.bpp = bpp;
 	sim_data.two_heads = nv_two_heads(dev);
-	if ((pdev->device & 0xffff) == 0x01a0 /*CHIPSET_NFORCE*/ ||
-	    (pdev->device & 0xffff) == 0x01f0 /*CHIPSET_NFORCE2*/) {
+	if ((device->impl->pci.device_id & 0xffff) == 0x01a0 /*CHIPSET_NFORCE*/ ||
+	    (device->impl->pci.device_id & 0xffff) == 0x01f0 /*CHIPSET_NFORCE2*/) {
 		uint32_t type;
-		int domain = pci_domain_nr(pdev->bus);
 
-		pci_read_config_dword(pci_get_domain_bus_and_slot(domain, 0, 1),
+		pci_read_config_dword(pci_get_domain_bus_and_slot(device->impl->pci.domain, 0, 1),
 				      0x7c, &type);
 
 		sim_data.memory_type = (type >> 12) & 1;
@@ -251,12 +249,11 @@ void
 nouveau_calc_arb(struct drm_device *dev, int vclk, int bpp, int *burst, int *lwm)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	if (drm->device.impl->family < NVIF_DEVICE_KELVIN)
 		nv04_update_arb(dev, vclk, bpp, burst, lwm);
-	else if ((pdev->device & 0xfff0) == 0x0240 /*CHIPSET_C51*/ ||
-		 (pdev->device & 0xfff0) == 0x03d0 /*CHIPSET_C512*/) {
+	else if ((drm->device.impl->pci.device_id & 0xfff0) == 0x0240 /*CHIPSET_C51*/ ||
+		 (drm->device.impl->pci.device_id & 0xfff0) == 0x03d0 /*CHIPSET_C512*/) {
 		*burst = 128;
 		*lwm = 0x0480;
 	} else

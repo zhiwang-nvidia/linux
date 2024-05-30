@@ -512,6 +512,19 @@ struct nvif_device_impl {
 		NVIF_DEVICE_SOC,
 	} platform;
 
+	struct {
+		bool pcie;
+		int domain;
+		u16 vendor_id;
+		u16 device_id;
+		u16 subvendor_id;
+		u16 subdevice_id;
+	} pci;
+
+	struct {
+		u64 addr;		// pci_resource_start(pdev, 1)
+	} bar1;
+
 	u16 chipset; /* from NV_PMC_BOOT_0 */
 	u8 revision; /* from NV_PMC_BOOT_0 */
 
