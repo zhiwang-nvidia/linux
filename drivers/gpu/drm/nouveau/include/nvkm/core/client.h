@@ -14,10 +14,9 @@ struct nvkm_client {
 	spinlock_t obj_lock;
 
 	void *data;
-	int (*event)(u64 token, void *argv, u32 argc);
 };
 
-int nvkm_client_new(const char *name, struct nvkm_device *, int (*event)(u64, void *, u32),
+int nvkm_client_new(const char *name, struct nvkm_device *,
 		    const struct nvif_client_impl **, struct nvif_client_priv **);
 int nvkm_client_event(struct nvkm_client *client, u64 token, void *repv, u32 repc);
 

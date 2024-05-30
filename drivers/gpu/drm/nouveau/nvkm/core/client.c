@@ -23,6 +23,7 @@
  */
 #include <core/client.h>
 #include <core/device.h>
+#include <core/event.h>
 #include <core/option.h>
 #include <device/user.h>
 
@@ -34,7 +35,12 @@
 int
 nvkm_client_event(struct nvkm_client *client, u64 token, void *repv, u32 repc)
 {
-	return client->event(token, repv, repc);
+	enum nvif_event_stat stat = client->device->driver->event(token, repv, repc);
+
+	if (stat == NVIF_EVENT_KEEP)
+		return NVKM_EVENT_KEEP;
+
+	return NVKM_EVENT_DROP;
 }
 
 static int
@@ -59,7 +65,7 @@ nvkm_client_new_client(struct nvif_client_priv *parent,
 	struct nvkm_client *client;
 	int ret;
 
-	ret = nvkm_client_new("client", parent->device, parent->event, pimpl, &client);
+	ret = nvkm_client_new("client", parent->device, pimpl, &client);
 	if (ret)
 		return ret;
 
@@ -96,7 +102,7 @@ nvkm_client = {
 };
 
 int
-nvkm_client_new(const char *name, struct nvkm_device *device, int (*event)(u64, void *, u32),
+nvkm_client_new(const char *name, struct nvkm_device *device,
 		const struct nvif_client_impl **pimpl, struct nvif_client_priv **ppriv)
 {
 	struct nvkm_oclass oclass = {};
@@ -112,7 +118,6 @@ nvkm_client_new(const char *name, struct nvkm_device *device, int (*event)(u64, 
 	client->device = device;
 	client->debug = NV_DBG_ERROR;
 	spin_lock_init(&client->obj_lock);
-	client->event = event;
 
 	*pimpl = &nvkm_client_impl;
 	*ppriv = client;

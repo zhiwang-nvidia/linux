@@ -71,6 +71,8 @@ struct nvkm_device {
 		bool armed;
 		bool legacy_done;
 	} intr;
+
+	const struct nvif_driver_func *driver;
 };
 
 struct nvkm_subdev *nvkm_device_subdev(struct nvkm_device *, int type, int inst);

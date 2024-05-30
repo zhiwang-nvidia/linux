@@ -5,6 +5,8 @@
 #include <nvif/driverif.h>
 struct nvif_event;
 
+enum nvif_event_stat nvif_event(u64 token, void *repv, u32 repc);
+
 typedef enum nvif_event_stat (*nvif_event_func)(struct nvif_event *, void *repv, u32 repc);
 
 struct nvif_event {

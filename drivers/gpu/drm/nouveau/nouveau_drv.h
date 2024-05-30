@@ -203,6 +203,7 @@ u_memcpya(uint64_t user, unsigned int nmemb, unsigned int size)
 struct nouveau_drm {
 	struct nvkm_device *nvkm;
 	struct nvif_parent parent;
+	struct nvif_driver_func driver;
 	struct nvif_client client;
 	struct nvif_device device;
 	struct nvif_mmu mmu;

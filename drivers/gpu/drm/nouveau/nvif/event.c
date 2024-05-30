@@ -23,6 +23,15 @@
 #include <nvif/driverif.h>
 #include <nvif/printf.h>
 
+enum nvif_event_stat
+nvif_event(u64 token, void *repv, u32 repc)
+{
+	struct nvif_object *object = (void *)(unsigned long)token;
+	struct nvif_event *event = container_of(object, typeof(*event), object);
+
+	return event->func(event, repv, repc);
+}
+
 int
 nvif_event_block(struct nvif_event *event)
 {

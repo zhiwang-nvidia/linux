@@ -479,6 +479,11 @@ nouveau_parent = {
 	.errorf = nouveau_drm_errorf,
 };
 
+static const struct nvif_driver_func
+nouveau_driver = {
+	.event = nvif_event,
+};
+
 static int
 nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 {
@@ -493,8 +498,10 @@ nouveau_drm_device_init(struct drm_device *dev, struct nvkm_device *nvkm)
 	dev->dev_private = drm;
 	drm->dev = dev;
 	drm->nvkm = nvkm;
+	drm->nvkm->driver = &drm->driver;
 
 	nvif_parent_ctor(&nouveau_parent, &drm->parent);
+	drm->driver = nouveau_driver;
 	drm->client.object.parent = &drm->parent;
 
 	ret = nvkm_driver_ctor(drm->nvkm, &driver, &impl, &priv);

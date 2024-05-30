@@ -34,6 +34,10 @@ struct nvif_event_impl {
 	int (*block)(struct nvif_event_priv *);
 };
 
+struct nvif_driver_func {
+	enum nvif_event_stat (*event)(u64 token, void *repv, u32 repc);
+};
+
 struct nvif_driver {
 	const char *name;
 	int (*suspend)(struct nvif_client_priv *);

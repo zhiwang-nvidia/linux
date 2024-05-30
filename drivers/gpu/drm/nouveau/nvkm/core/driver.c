@@ -56,18 +56,6 @@ nvkm_driver_suspend(struct nvif_client_priv *client)
 	return nvkm_object_fini(&client->object, true);
 }
 
-static int
-nvkm_driver_event(u64 token, void *repv, u32 repc)
-{
-	struct nvif_object *object = (void *)(unsigned long)token;
-	struct nvif_event *event = container_of(object, typeof(*event), object);
-
-	if (event->func(event, repv, repc) == NVIF_EVENT_KEEP)
-		return NVKM_EVENT_KEEP;
-
-	return NVKM_EVENT_DROP;
-}
-
 static const struct nvif_driver
 nvkm_driver = {
 	.name = "nvkm",
@@ -83,7 +71,7 @@ nvkm_driver_ctor(struct nvkm_device *device, const struct nvif_driver **pdrv,
 {
 	int ret;
 
-	ret = nvkm_client_new("driver", device, nvkm_driver_event, pimpl, ppriv);
+	ret = nvkm_client_new("driver", device, pimpl, ppriv);
 	if (ret)
 		return ret;
 
