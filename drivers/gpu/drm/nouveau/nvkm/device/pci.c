@@ -1626,9 +1626,19 @@ nvkm_device_pci_func = {
 	.cpu_coherent = !IS_ENABLED(CONFIG_ARM),
 };
 
-int
-nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
-		    struct nvkm_device **pdevice)
+#include "nouveau_drv.h"
+
+static void
+nvkm_device_pci_remove(struct pci_dev *dev)
+{
+	struct drm_device *drm_dev = pci_get_drvdata(dev);
+	struct nvkm_device *device = nouveau_drm(drm_dev)->nvkm;
+
+	nvkm_device_del(&device);
+}
+
+static int
+nvkm_device_pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 {
 	const struct nvkm_device_quirk *quirk = NULL;
 	const struct nvkm_device_pci_device *pcid;
@@ -1705,7 +1715,7 @@ done:
 		return ret;
 	}
 
-	*pdevice = &pdev->device;
+	pci_set_drvdata(pci_dev, &pdev->device);
 
 	if (nvkm_runpm) {
 		if (!nouveau_dsm_priv.optimus_detected) {
@@ -1718,3 +1728,9 @@ done:
 
 	return 0;
 }
+
+struct pci_driver
+nvkm_device_pci_driver = {
+	.probe = nvkm_device_pci_probe,
+	.remove = nvkm_device_pci_remove,
+};

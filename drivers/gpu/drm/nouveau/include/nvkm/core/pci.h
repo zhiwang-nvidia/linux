@@ -11,6 +11,5 @@ struct nvkm_device_pci {
 	struct dev_pm_domain vga_pm_domain;
 };
 
-int nvkm_device_pci_new(struct pci_dev *, const char *cfg, const char *dbg,
-			struct nvkm_device **);
+extern struct pci_driver nvkm_device_pci_driver;
 #endif

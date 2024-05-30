@@ -233,12 +233,21 @@ nvkm_device_tegra_func = {
 	.cpu_coherent = false,
 };
 
-int
-nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
-		      struct platform_device *pdev,
-		      const char *cfg, const char *dbg,
-		      struct nvkm_device **pdevice)
+#include "nouveau_drv.h"
+
+static void
+nvkm_device_tegra_remove(struct pci_dev *dev)
 {
+	struct drm_device *drm_dev = platform_get_drvdata(dev);
+	struct nvkm_device *device = nouveau_drm(drm_dev)->nvkm;
+
+	nvkm_device_del(&device);
+}
+
+static int
+nvkm_device_tegra_probe(struct platform_device *pdev)
+{
+	const struct nvkm_device_tegra_func *func = of_device_get_match_data(&pdev->dev);
 	struct nvkm_device_tegra *tdev;
 	struct nvkm_device *device;
 	unsigned long rate;
@@ -318,7 +327,7 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 		return ret;
 	}
 
-	*pdevice = &tdev->device;
+	platform_set_drvdata(pdev, &tdev->device);
 	return 0;
 
 remove:
@@ -327,13 +336,14 @@ free:
 	kfree(tdev);
 	return ret;
 }
+
+struct platform_driver
+nvkm_device_tegra = {
+	.probe = nvkm_device_tegra_probe,
+	.remove = nvkm_device_tegra_remove,
+};
 #else
-int
-nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
-		      struct platform_device *pdev,
-		      const char *cfg, const char *dbg,
-		      struct nvkm_device **pdevice)
-{
-	return -ENOSYS;
-}
+struct platform_driver
+nvkm_device_tegra = {
+};
 #endif

@@ -48,8 +48,5 @@ struct nvkm_device_tegra_func {
 	bool require_vdd;
 };
 
-int nvkm_device_tegra_new(const struct nvkm_device_tegra_func *,
-			  struct platform_device *,
-			  const char *cfg, const char *dbg,
-			  struct nvkm_device **);
+extern struct platform_driver nvkm_device_tegra;
 #endif
