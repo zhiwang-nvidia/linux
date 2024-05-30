@@ -191,13 +191,10 @@ static int nouveau_dsm_set_discrete_state(acpi_handle handle, enum vga_switchero
 	return 0;
 }
 
-#include "nouveau_drv.h"
-#include "nouveau_acpi.h"
-
 static void
 nvkm_acpi_switcheroo_reprobe(struct pci_dev *pdev)
 {
-	struct nvkm_device *device = nouveau_drm(pci_get_drvdata(pdev))->nvkm;
+	struct nvkm_device *device = pci_get_drvdata(pdev);
 
 	device->driver->switcheroo.reprobe(device->driver);
 }
@@ -206,7 +203,7 @@ static void
 nvkm_acpi_switcheroo_set_state(struct pci_dev *pdev,
 			     enum vga_switcheroo_state state)
 {
-	struct nvkm_device *device = nouveau_drm(pci_get_drvdata(pdev))->nvkm;
+	struct nvkm_device *device = pci_get_drvdata(pdev);
 
 	if (state == VGA_SWITCHEROO_OFF) {
 		if (nouveau_dsm_priv.dsm_detected || nouveau_dsm_priv.optimus_detected)
@@ -221,7 +218,7 @@ nvkm_acpi_switcheroo_set_state(struct pci_dev *pdev,
 static bool
 nvkm_acpi_switcheroo_can_switch(struct pci_dev *pdev)
 {
-	struct nvkm_device *device = nouveau_drm(pci_get_drvdata(pdev))->nvkm;
+	struct nvkm_device *device = pci_get_drvdata(pdev);
 
 	return device->driver->switcheroo.can_switch(device->driver);
 }

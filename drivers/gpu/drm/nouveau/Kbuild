@@ -23,7 +23,6 @@ nouveau-y += nouveau_drm.o
 nouveau-y += nouveau_hwmon.o
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o
 nouveau-$(CONFIG_LEDS_CLASS) += nouveau_led.o
-nouveau-$(CONFIG_NOUVEAU_PLATFORM_DRIVER) += nouveau_platform.o
 nouveau-y += nouveau_vga.o
 
 # DRM - memory management

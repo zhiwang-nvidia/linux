@@ -233,13 +233,10 @@ nvkm_device_tegra_func = {
 	.cpu_coherent = false,
 };
 
-#include "nouveau_drv.h"
-
 static void
 nvkm_device_tegra_remove(struct pci_dev *dev)
 {
-	struct drm_device *drm_dev = platform_get_drvdata(dev);
-	struct nvkm_device *device = nouveau_drm(drm_dev)->nvkm;
+	struct nvkm_device *device = platform_get_drvdata(dev);
 
 	nvkm_device_del(&device);
 }
@@ -337,11 +334,50 @@ free:
 	return ret;
 }
 
+static const struct nvkm_device_tegra_func gk20a_platform_data = {
+	.iommu_bit = 34,
+	.require_vdd = true,
+};
+
+static const struct nvkm_device_tegra_func gm20b_platform_data = {
+	.iommu_bit = 34,
+	.require_vdd = true,
+	.require_ref_clk = true,
+};
+
+static const struct nvkm_device_tegra_func gp10b_platform_data = {
+	.iommu_bit = 36,
+	/* power provided by generic PM domains */
+	.require_vdd = false,
+};
+
+static const struct of_device_id nouveau_platform_match[] = {
+	{
+		.compatible = "nvidia,gk20a",
+		.data = &gk20a_platform_data,
+	},
+	{
+		.compatible = "nvidia,gm20b",
+		.data = &gm20b_platform_data,
+	},
+	{
+		.compatible = "nvidia,gp10b",
+		.data = &gp10b_platform_data,
+	},
+	{ }
+};
+
 struct platform_driver
 nvkm_device_tegra = {
+	.driver = {
+		.name = "nvkm",
+		.of_match_table = of_match_ptr(nouveau_platform_match),
+	},
 	.probe = nvkm_device_tegra_probe,
 	.remove = nvkm_device_tegra_remove,
 };
+
+MODULE_DEVICE_TABLE(of, nouveau_platform_match);
 #else
 struct platform_driver
 nvkm_device_tegra = {

@@ -24,7 +24,7 @@ nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
 		return NULL;
 	}
 
-	acpidev = ACPI_COMPANION(dev->dev);
+	acpidev = ACPI_COMPANION(dev->dev->parent);
 	if (!acpidev)
 		return NULL;
 

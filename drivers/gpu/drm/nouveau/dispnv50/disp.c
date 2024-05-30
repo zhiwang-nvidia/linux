@@ -353,8 +353,9 @@ static int
 nv50_audio_component_get_eld(struct device *kdev, int port, int dev_id,
 			     bool *enabled, unsigned char *buf, int max_bytes)
 {
-	struct drm_device *drm_dev = dev_get_drvdata(kdev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct nvkm_device *device = dev_get_drvdata(kdev);
+	struct nouveau_drm *drm = container_of(device->driver, typeof(*drm), driver);
+	struct drm_device *drm_dev = &drm->dev;
 	struct drm_encoder *encoder;
 	struct nouveau_encoder *nv_encoder;
 	struct nouveau_crtc *nv_crtc;
@@ -399,8 +400,9 @@ static int
 nv50_audio_component_bind(struct device *kdev, struct device *hda_kdev,
 			  void *data)
 {
-	struct drm_device *drm_dev = dev_get_drvdata(kdev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct nvkm_device *device = dev_get_drvdata(kdev);
+	struct nouveau_drm *drm = container_of(device->driver, typeof(*drm), driver);
+	struct drm_device *drm_dev = &drm->dev;
 	struct drm_audio_component *acomp = data;
 
 	if (WARN_ON(!device_link_add(hda_kdev, kdev, DL_FLAG_STATELESS)))
@@ -418,8 +420,9 @@ static void
 nv50_audio_component_unbind(struct device *kdev, struct device *hda_kdev,
 			    void *data)
 {
-	struct drm_device *drm_dev = dev_get_drvdata(kdev);
-	struct nouveau_drm *drm = nouveau_drm(drm_dev);
+	struct nvkm_device *device = dev_get_drvdata(kdev);
+	struct nouveau_drm *drm = container_of(device->driver, typeof(*drm), driver);
+	struct drm_device *drm_dev = &drm->dev;
 	struct drm_audio_component *acomp = data;
 
 	drm_modeset_lock_all(drm_dev);
@@ -437,7 +440,7 @@ static const struct component_ops nv50_audio_component_bind_ops = {
 static void
 nv50_audio_component_init(struct nouveau_drm *drm)
 {
-	if (component_add(drm->dev.dev, &nv50_audio_component_bind_ops))
+	if (component_add(drm->dev.dev->parent, &nv50_audio_component_bind_ops))
 		return;
 
 	drm->audio.component_registered = true;
@@ -450,7 +453,7 @@ nv50_audio_component_fini(struct nouveau_drm *drm)
 	if (!drm->audio.component_registered)
 		return;
 
-	component_del(drm->dev.dev, &nv50_audio_component_bind_ops);
+	component_del(drm->dev.dev->parent, &nv50_audio_component_bind_ops);
 	drm->audio.component_registered = false;
 	mutex_destroy(&drm->audio.lock);
 }

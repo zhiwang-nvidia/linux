@@ -298,7 +298,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		drm->agp.cma = pci->agp.cma;
 	}
 
-	ret = ttm_device_init(&drm->ttm.bdev, &nouveau_bo_driver, dev->dev,
+	ret = ttm_device_init(&drm->ttm.bdev, &nouveau_bo_driver, dev->dev->parent,
 				  dev->anon_inode->i_mapping,
 				  dev->vma_offset_manager,
 				  drm_need_swiotlb(drm->mmu.impl->dmabits),

@@ -1608,13 +1608,10 @@ nvkm_device_pci_func = {
 	.cpu_coherent = !IS_ENABLED(CONFIG_ARM),
 };
 
-#include "nouveau_drv.h"
-
 static int
 nvkm_device_pci_pm_runtime_resume(struct device *dev)
 {
-	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nvkm_device *device = nouveau_drm(drm_dev)->nvkm;
+	struct nvkm_device *device = dev_get_drvdata(dev);
 	struct pci_dev *pdev = nvkm_device_pci(device)->pdev;
 	int ret;
 
@@ -1635,8 +1632,7 @@ nvkm_device_pci_pm_runtime_resume(struct device *dev)
 static int
 nvkm_device_pci_pm_runtime_suspend(struct device *dev)
 {
-	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nvkm_device *device = nouveau_drm(drm_dev)->nvkm;
+	struct nvkm_device *device = dev_get_drvdata(dev);
 	struct pci_dev *pdev = nvkm_device_pci(device)->pdev;
 
 	nvkm_acpi_switcheroo_set_powerdown();
@@ -1651,8 +1647,7 @@ nvkm_device_pci_pm_runtime_suspend(struct device *dev)
 static int
 nvkm_device_pci_pm_resume(struct device *dev)
 {
-	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nvkm_device *device = nouveau_drm(drm_dev)->nvkm;
+	struct nvkm_device *device = dev_get_drvdata(dev);
 	struct pci_dev *pdev = nvkm_device_pci(device)->pdev;
 	int ret;
 
@@ -1670,8 +1665,7 @@ nvkm_device_pci_pm_resume(struct device *dev)
 static int
 nvkm_device_pci_pm_suspend(struct device *dev)
 {
-	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct nvkm_device *device = nouveau_drm(drm_dev)->nvkm;
+	struct nvkm_device *device = dev_get_drvdata(dev);
 	struct pci_dev *pdev = nvkm_device_pci(device)->pdev;
 
 	pci_save_state(pdev);
@@ -1692,8 +1686,12 @@ nvkm_device_pci_pm = {
 static void
 nvkm_device_pci_remove(struct pci_dev *dev)
 {
-	struct drm_device *drm_dev = pci_get_drvdata(dev);
-	struct nvkm_device *device = nouveau_drm(drm_dev)->nvkm;
+	struct nvkm_device *device = pci_get_drvdata(dev);
+
+	if (device->runpm) {
+		pm_runtime_get_sync(device->dev);
+		pm_runtime_forbid(device->dev);
+	}
 
 	nvkm_device_del(&device);
 }
@@ -1854,12 +1852,36 @@ done:
 		}
 	}
 
+	if (device->runpm) {
+		pm_runtime_allow(device->dev);
+		pm_runtime_put(device->dev);
+	}
+
 	return 0;
 }
 
+static struct pci_device_id
+nvkm_device_pci_id_table[] = {
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID),
+		.class = PCI_BASE_CLASS_DISPLAY << 16,
+		.class_mask  = 0xff << 16,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA_SGS, PCI_ANY_ID),
+		.class = PCI_BASE_CLASS_DISPLAY << 16,
+		.class_mask  = 0xff << 16,
+	},
+	{}
+};
+
 struct pci_driver
 nvkm_device_pci_driver = {
+	.name = "nvkm",
+	.id_table = nvkm_device_pci_id_table,
 	.probe = nvkm_device_pci_probe,
 	.remove = nvkm_device_pci_remove,
 	.driver.pm = &nvkm_device_pci_pm,
 };
+
+MODULE_DEVICE_TABLE(pci, nvkm_device_pci_id_table);

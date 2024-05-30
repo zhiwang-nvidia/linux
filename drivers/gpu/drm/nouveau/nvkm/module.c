@@ -20,6 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include <core/module.h>
+#include <core/pci.h>
+#include <core/tegra.h>
 #include <device/acpi.h>
 
 char *nvkm_cfg;
@@ -29,12 +31,34 @@ int nvkm_runpm = -1;
 void __exit
 nvkm_exit(void)
 {
+#ifdef CONFIG_PCI
 	nvkm_acpi_switcheroo_fini();
+	pci_unregister_driver(&nvkm_device_pci_driver);
+#endif
+
+#ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
+	platform_driver_unregister(&nvkm_device_tegra);
+#endif
 }
 
 int __init
 nvkm_init(void)
 {
+	int ret;
+
+#ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
+	ret = platform_driver_register(&nvkm_device_tegra);
+	if (ret)
+		return ret;
+#endif
+
+#ifdef CONFIG_PCI
 	nvkm_acpi_switcheroo_init();
+
+	ret = pci_register_driver(&nvkm_device_pci_driver);
+	if (ret)
+		return ret;
+#endif
+
 	return 0;
 }

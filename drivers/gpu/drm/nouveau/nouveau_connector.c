@@ -410,7 +410,7 @@ static struct nouveau_encoder *
 nouveau_connector_ddc_detect(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev->parent);
 	struct nouveau_connector *conn = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = NULL, *found = NULL;
 	struct drm_encoder *encoder;
@@ -476,7 +476,7 @@ nouveau_connector_of_detect(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct pci_dev *pdev = to_pci_dev(dev->dev->parent);
 	struct device_node *cn, *dn = pci_device_to_OF_node(pdev);
 
 	if (!dn ||

@@ -64,12 +64,10 @@ nvkm_pci_mask(struct nvkm_pci *pci, u16 addr, u32 mask, u32 value)
 	return data;
 }
 
-#include "nouveau_drv.h"
-
 static unsigned int
 nvkm_pci_vga_set_decode(struct pci_dev *pdev, bool state)
 {
-	struct nvkm_device *device = nouveau_drm(pci_get_drvdata(pdev))->nvkm;
+	struct nvkm_device *device = pci_get_drvdata(pdev);
 
 	if (device->card_type == NV_40 &&
 	    device->chipset >= 0x4c)

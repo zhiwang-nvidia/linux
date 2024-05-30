@@ -2090,7 +2090,7 @@ nouveau_bios_init(struct drm_device *dev)
 	int ret;
 
 	/* only relevant for PCI devices */
-	if (!dev_is_pci(dev->dev) ||
+	if (drm->device.impl->platform == NVIF_DEVICE_SOC ||
 	    nvkm_gsp_rm(nvxx_device(drm)->gsp))
 		return 0;
 
