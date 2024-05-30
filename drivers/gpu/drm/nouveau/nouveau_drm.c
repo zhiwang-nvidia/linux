@@ -39,6 +39,7 @@
 
 #include <core/driver.h>
 #include <core/gpuobj.h>
+#include <core/module.h>
 #include <core/option.h>
 #include <core/pci.h>
 #include <core/tegra.h>
@@ -1356,6 +1357,8 @@ err_free:
 static int __init
 nouveau_drm_init(void)
 {
+	int ret;
+
 	driver_pci = driver_stub;
 	driver_platform = driver_stub;
 
@@ -1368,6 +1371,10 @@ nouveau_drm_init(void)
 
 	if (!nouveau_modeset)
 		return 0;
+
+	ret = nvkm_init();
+	if (ret)
+		return ret;
 
 #ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
 	platform_driver_register(&nouveau_platform_driver);
@@ -1400,6 +1407,8 @@ nouveau_drm_exit(void)
 #endif
 	if (IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM))
 		mmu_notifier_synchronize();
+
+	nvkm_exit();
 }
 
 module_init(nouveau_drm_init);

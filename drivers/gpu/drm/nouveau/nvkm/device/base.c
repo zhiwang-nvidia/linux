@@ -24,6 +24,7 @@
 #include "priv.h"
 #include "acpi.h"
 
+#include <core/module.h>
 #include <core/option.h>
 
 #include <subdev/bios.h>
@@ -3012,7 +3013,7 @@ int
 nvkm_device_ctor(const struct nvkm_device_func *func,
 		 const struct nvkm_device_quirk *quirk,
 		 struct device *dev, enum nvkm_device_type type, u64 handle,
-		 const char *name, const char *cfg, const char *dbg,
+		 const char *name,
 		 struct nvkm_device *device)
 {
 	struct nvkm_subdev *subdev;
@@ -3026,8 +3027,8 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	device->dev = dev;
 	device->type = type;
 	device->handle = handle;
-	device->cfgopt = cfg;
-	device->dbgopt = dbg;
+	device->cfgopt = nvkm_cfg;
+	device->dbgopt = nvkm_dbg;
 	device->name = name;
 	device->debug = nvkm_dbgopt(device->dbgopt, "device");
 	INIT_LIST_HEAD(&device->subdev);

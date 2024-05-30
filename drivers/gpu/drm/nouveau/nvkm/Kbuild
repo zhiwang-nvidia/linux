@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: MIT
+
+nvkm-y := nvkm/module.o
+
 include $(src)/nvkm/core/Kbuild
 include $(src)/nvkm/nvfw/Kbuild
 include $(src)/nvkm/device/Kbuild
