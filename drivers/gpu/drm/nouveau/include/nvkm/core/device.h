@@ -55,6 +55,12 @@ struct nvkm_device {
 		struct notifier_block nb;
 	} acpi;
 
+	enum {
+		NVKM_DEVICE_RUNPM_NONE = 0,
+		NVKM_DEVICE_RUNPM_V1,
+		NVKM_DEVICE_RUNPM_OPTIMUS,
+	} runpm;
+
 #define NVKM_LAYOUT_ONCE(type,data,ptr) data *ptr;
 #define NVKM_LAYOUT_INST(type,data,ptr,cnt) data *ptr[cnt];
 #include <core/layout.h>

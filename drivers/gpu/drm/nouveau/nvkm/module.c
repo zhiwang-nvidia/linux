@@ -24,6 +24,7 @@
 
 char *nvkm_cfg;
 char *nvkm_dbg;
+int nvkm_runpm = -1;
 
 void __exit
 nvkm_exit(void)

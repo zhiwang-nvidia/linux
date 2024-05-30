@@ -551,6 +551,8 @@ struct nvif_device_impl {
 	u64 ram_size;
 	u64 ram_user;
 
+	bool runpm;
+
 	u64 (*time)(struct nvif_device_priv *);
 
 	struct {

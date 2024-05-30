@@ -406,6 +406,8 @@ nvkm_udevice_new(struct nvkm_device *device,
 	if (device->imem && udev->impl.ram_size > 0)
 		udev->impl.ram_user = udev->impl.ram_user - device->imem->reserved;
 
+	udev->impl.runpm = (device->runpm != NVKM_DEVICE_RUNPM_NONE);
+
 	if (device->vfn) {
 		udev->impl.usermode.oclass = device->vfn->user.base.oclass;
 		udev->impl.usermode.new = nvkm_udevice_usermode_new;

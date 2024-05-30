@@ -61,7 +61,7 @@ void
 nouveau_vga_init(struct nouveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
-	bool runtime = nouveau_pmops_runtime();
+	bool runtime = nouveau_pmops_runtime(dev->dev);
 	struct pci_dev *pdev;
 
 	/* only relevant for PCI devices */
@@ -83,7 +83,7 @@ void
 nouveau_vga_fini(struct nouveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
-	bool runtime = nouveau_pmops_runtime();
+	bool runtime = nouveau_pmops_runtime(dev->dev);
 	struct pci_dev *pdev;
 
 	/* only relevant for PCI devices */

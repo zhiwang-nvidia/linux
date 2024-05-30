@@ -22,6 +22,8 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include <core/pci.h>
+#include <core/module.h>
+#include "acpi.h"
 #include "priv.h"
 
 struct nvkm_device_pci_device {
@@ -1704,5 +1706,15 @@ done:
 	}
 
 	*pdevice = &pdev->device;
+
+	if (nvkm_runpm) {
+		if (!nouveau_dsm_priv.optimus_detected) {
+			if (nouveau_dsm_priv.dsm_detected)
+				device->runpm = NVKM_DEVICE_RUNPM_V1;
+		} else {
+			device->runpm = NVKM_DEVICE_RUNPM_OPTIMUS;
+		}
+	}
+
 	return 0;
 }

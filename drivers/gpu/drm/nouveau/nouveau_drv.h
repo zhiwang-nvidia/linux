@@ -324,7 +324,7 @@ nouveau_drm_use_coherent_gpu_mapping(struct nouveau_drm *drm)
 
 int nouveau_pmops_suspend(struct device *);
 int nouveau_pmops_resume(struct device *);
-bool nouveau_pmops_runtime(void);
+bool nouveau_pmops_runtime(struct device *);
 
 #include <nvkm/core/tegra.h>
 
