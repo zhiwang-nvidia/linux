@@ -126,6 +126,7 @@ nvkm_iccsense_read_all(struct nvkm_iccsense *iccsense)
 	}
 	return result;
 }
+EXPORT_SYMBOL(nvkm_iccsense_read_all);
 
 static void *
 nvkm_iccsense_dtor(struct nvkm_subdev *subdev)

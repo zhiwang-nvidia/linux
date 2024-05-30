@@ -438,3 +438,4 @@ nvbios_pll_parse(struct nvkm_bios *bios, u32 type, struct nvbios_pll *info)
 
 	return 0;
 }
+EXPORT_SYMBOL(nvbios_pll_parse);

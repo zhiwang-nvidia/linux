@@ -75,6 +75,7 @@ nvkm_gpio_find(struct nvkm_gpio *gpio, int idx, u8 tag, u8 line,
 
 	return -ENOENT;
 }
+EXPORT_SYMBOL(nvkm_gpio_find);
 
 int
 nvkm_gpio_set(struct nvkm_gpio *gpio, int idx, u8 tag, u8 line, int state)
@@ -91,6 +92,7 @@ nvkm_gpio_set(struct nvkm_gpio *gpio, int idx, u8 tag, u8 line, int state)
 
 	return ret;
 }
+EXPORT_SYMBOL(nvkm_gpio_set);
 
 int
 nvkm_gpio_get(struct nvkm_gpio *gpio, int idx, u8 tag, u8 line)
@@ -107,6 +109,7 @@ nvkm_gpio_get(struct nvkm_gpio *gpio, int idx, u8 tag, u8 line)
 
 	return ret;
 }
+EXPORT_SYMBOL(nvkm_gpio_get);
 
 static void
 nvkm_gpio_intr_fini(struct nvkm_event *event, int type, int index)

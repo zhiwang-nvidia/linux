@@ -71,6 +71,7 @@ nvkm_i2c_bus_find(struct nvkm_i2c *i2c, int id)
 
 	return NULL;
 }
+EXPORT_SYMBOL(nvkm_i2c_bus_find);
 
 struct nvkm_i2c_aux *
 nvkm_i2c_aux_find(struct nvkm_i2c *i2c, int id)
@@ -84,6 +85,7 @@ nvkm_i2c_aux_find(struct nvkm_i2c *i2c, int id)
 
 	return NULL;
 }
+EXPORT_SYMBOL(nvkm_i2c_aux_find);
 
 static void
 nvkm_i2c_intr_fini(struct nvkm_event *event, int type, int id)

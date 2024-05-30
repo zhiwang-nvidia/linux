@@ -33,6 +33,7 @@ nvkm_therm_temp_get(struct nvkm_therm *therm)
 		return therm->func->temp_get(therm);
 	return -ENODEV;
 }
+EXPORT_SYMBOL(nvkm_therm_temp_get);
 
 static int
 nvkm_therm_update_trip(struct nvkm_therm *therm)

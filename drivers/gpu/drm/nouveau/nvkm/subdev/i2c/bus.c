@@ -189,6 +189,7 @@ nvkm_i2c_bus_probe(struct nvkm_i2c_bus *bus, const char *what,
 	BUS_DBG(bus, "no devices found.");
 	return -ENODEV;
 }
+EXPORT_SYMBOL(nvkm_i2c_bus_probe);
 
 void
 nvkm_i2c_bus_del(struct nvkm_i2c_bus **pbus)

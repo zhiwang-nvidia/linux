@@ -2317,6 +2317,7 @@ nvbios_exec(struct nvbios_init *init)
 	init->nested--;
 	return 0;
 }
+EXPORT_SYMBOL(nvbios_exec);
 
 int
 nvbios_post(struct nvkm_subdev *subdev, bool execute)

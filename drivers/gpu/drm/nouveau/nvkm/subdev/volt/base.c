@@ -46,6 +46,7 @@ nvkm_volt_get(struct nvkm_volt *volt)
 	}
 	return ret;
 }
+EXPORT_SYMBOL(nvkm_volt_get);
 
 static int
 nvkm_volt_set(struct nvkm_volt *volt, u32 uv)

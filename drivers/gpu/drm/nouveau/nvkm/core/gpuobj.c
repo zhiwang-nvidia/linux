@@ -224,6 +224,7 @@ nvkm_gpuobj_del(struct nvkm_gpuobj **pgpuobj)
 		*pgpuobj = NULL;
 	}
 }
+EXPORT_SYMBOL(nvkm_gpuobj_del);
 
 int
 nvkm_gpuobj_new(struct nvkm_device *device, u32 size, int align, bool zero,
@@ -240,6 +241,7 @@ nvkm_gpuobj_new(struct nvkm_device *device, u32 size, int align, bool zero,
 		nvkm_gpuobj_del(pgpuobj);
 	return ret;
 }
+EXPORT_SYMBOL(nvkm_gpuobj_new);
 
 /* the below is basically only here to support sharing the paged dma object
  * for PCI(E)GART on <=nv4x chipsets, and should *not* be expected to work

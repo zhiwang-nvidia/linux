@@ -81,6 +81,7 @@ nvkm_mm_free(struct nvkm_mm *mm, struct nvkm_mm_node **pthis)
 
 	*pthis = NULL;
 }
+EXPORT_SYMBOL(nvkm_mm_free);
 
 static struct nvkm_mm_node *
 region_head(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
@@ -156,6 +157,7 @@ nvkm_mm_head(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 
 	return -ENOSPC;
 }
+EXPORT_SYMBOL(nvkm_mm_head);
 
 static struct nvkm_mm_node *
 region_tail(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
@@ -278,6 +280,7 @@ nvkm_mm_init(struct nvkm_mm *mm, u8 heap, u32 offset, u32 length, u32 block)
 	mm->heap_nodes++;
 	return 0;
 }
+EXPORT_SYMBOL(nvkm_mm_init);
 
 int
 nvkm_mm_fini(struct nvkm_mm *mm)
@@ -305,3 +308,4 @@ nvkm_mm_fini(struct nvkm_mm *mm)
 	mm->heap_nodes = 0;
 	return 0;
 }
+EXPORT_SYMBOL(nvkm_mm_fini);

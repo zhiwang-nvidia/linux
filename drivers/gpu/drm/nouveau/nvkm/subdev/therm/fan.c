@@ -164,6 +164,7 @@ nvkm_therm_fan_sense(struct nvkm_therm *therm)
 	} else
 		return 0;
 }
+EXPORT_SYMBOL(nvkm_therm_fan_sense);
 
 int
 nvkm_therm_fan_user_get(struct nvkm_therm *therm)

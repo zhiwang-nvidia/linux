@@ -78,3 +78,4 @@ nvkm_driver_ctor(struct nvkm_device *device, const struct nvif_driver **pdrv,
 	*pdrv = &nvkm_driver;
 	return 0;
 }
+EXPORT_SYMBOL(nvkm_driver_ctor);

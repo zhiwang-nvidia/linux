@@ -109,6 +109,7 @@ void nvkm_acpi_switcheroo_set_powerdown(void)
 		NOUVEAU_DSM_OPTIMUS_SET_POWERDOWN, &result);
 
 }
+EXPORT_SYMBOL(nvkm_acpi_switcheroo_set_powerdown);
 
 /*
  * On some platforms, _DSM(nouveau_op_dsm_muid, func0) has special

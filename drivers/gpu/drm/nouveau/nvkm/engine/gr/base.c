@@ -76,6 +76,7 @@ nvkm_gr_units(struct nvkm_gr *gr)
 		return gr->func->units(gr);
 	return 0;
 }
+EXPORT_SYMBOL(nvkm_gr_units);
 
 int
 nvkm_gr_tlb_flush(struct nvkm_gr *gr)

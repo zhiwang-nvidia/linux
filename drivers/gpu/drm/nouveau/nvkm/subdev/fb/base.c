@@ -36,6 +36,7 @@ nvkm_fb_tile_fini(struct nvkm_fb *fb, int region, struct nvkm_fb_tile *tile)
 {
 	fb->func->tile.fini(fb, region, tile);
 }
+EXPORT_SYMBOL(nvkm_fb_tile_fini);
 
 void
 nvkm_fb_tile_init(struct nvkm_fb *fb, int region, u32 addr, u32 size,
@@ -43,6 +44,7 @@ nvkm_fb_tile_init(struct nvkm_fb *fb, int region, u32 addr, u32 size,
 {
 	fb->func->tile.init(fb, region, addr, size, pitch, flags, tile);
 }
+EXPORT_SYMBOL(nvkm_fb_tile_init);
 
 void
 nvkm_fb_tile_prog(struct nvkm_fb *fb, int region, struct nvkm_fb_tile *tile)
@@ -56,6 +58,7 @@ nvkm_fb_tile_prog(struct nvkm_fb *fb, int region, struct nvkm_fb_tile *tile)
 			nvkm_engine_tile(device->mpeg, region);
 	}
 }
+EXPORT_SYMBOL(nvkm_fb_tile_prog);
 
 static void
 nvkm_fb_sysmem_flush_page_init(struct nvkm_device *device)
