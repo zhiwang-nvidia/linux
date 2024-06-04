@@ -3,6 +3,7 @@
 #define __NVKM_DEVICE_H__
 #include <core/oclass.h>
 #include <core/intr.h>
+#include <vgpu_mgr/vgpu_mgr.h>
 enum nvkm_subdev_type;
 
 #include <linux/auxiliary_bus.h>
@@ -79,6 +80,8 @@ struct nvkm_device {
 		bool armed;
 		bool legacy_done;
 	} intr;
+
+	struct nvkm_vgpu_mgr vgpu_mgr;
 
 	struct auxiliary_device auxdev;
 	const struct nvif_driver_func *driver;

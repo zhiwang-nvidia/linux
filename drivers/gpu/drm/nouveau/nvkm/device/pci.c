@@ -1688,6 +1688,9 @@ nvkm_device_pci_remove(struct pci_dev *dev)
 {
 	struct nvkm_device *device = pci_get_drvdata(dev);
 
+	if (nvkm_vgpu_mgr_is_enabled(device))
+		nvkm_vgpu_mgr_fini(device);
+
 	if (device->runpm) {
 		pm_runtime_get_sync(device->dev);
 		pm_runtime_forbid(device->dev);
@@ -1835,12 +1838,6 @@ nvkm_device_pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	}
 
 	quirk_broken_nv_runpm(pdev);
-done:
-	if (ret) {
-		nvkm_device_del(&device);
-		return ret;
-	}
-
 	pci_set_drvdata(pci_dev, &pdev->device);
 
 	if (nvkm_runpm) {
@@ -1852,12 +1849,22 @@ done:
 		}
 	}
 
+	if (nvkm_vgpu_mgr_is_supported(device)) {
+		ret = nvkm_vgpu_mgr_init(&pdev->device);
+		if (ret)
+			goto done;
+	}
+
 	if (device->runpm) {
 		pm_runtime_allow(device->dev);
 		pm_runtime_put(device->dev);
 	}
 
 	return 0;
+
+done:
+	nvkm_device_del(&device);
+	return ret;
 }
 
 static struct pci_device_id
