@@ -61,6 +61,7 @@ struct nvkm_gsp {
 			} frts, boot, elf, heap;
 			u64 addr;
 			u64 size;
+			u8 vf_partition_count;
 		} wpr2;
 		struct {
 			u64 addr;

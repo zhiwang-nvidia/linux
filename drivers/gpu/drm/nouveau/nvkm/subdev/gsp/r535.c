@@ -2037,6 +2037,7 @@ r535_gsp_wpr_meta_init(struct nvkm_gsp *gsp)
 	meta->vgaWorkspaceOffset = gsp->fb.bios.vga_workspace.addr;
 	meta->vgaWorkspaceSize = gsp->fb.bios.vga_workspace.size;
 	meta->bootCount = 0;
+	meta->gspFwHeapVfPartitionCount = gsp->fb.wpr2.vf_partition_count;
 	meta->partitionRpcAddr = 0;
 	meta->partitionRpcRequestOffset = 0;
 	meta->partitionRpcReplyOffset = 0;
@@ -2640,6 +2641,7 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 
 	if (nvkm_vgpu_mgr_is_supported(device)) {
 		gsp->fb.wpr2.heap.size = SZ_256M;
+		gsp->fb.wpr2.vf_partition_count = NVIDIA_MAX_VGPUS;
 	} else {
 
 		u32 fb_size_gb = DIV_ROUND_UP_ULL(gsp->fb.size, 1 << 30);
