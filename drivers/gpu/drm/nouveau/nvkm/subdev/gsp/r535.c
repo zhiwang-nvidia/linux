@@ -1500,6 +1500,9 @@ r535_gsp_rpc_set_registry(struct nvkm_gsp *gsp)
 		kfree(p);
 	}
 
+	if (nvkm_vgpu_mgr_is_supported(gsp->subdev.device))
+		add_registry_num(gsp, "RMSetSriovMode", 1);
+
 	rpc = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_SET_REGISTRY, gsp->registry_rpc_size);
 	if (IS_ERR(rpc)) {
 		ret = PTR_ERR(rpc);
