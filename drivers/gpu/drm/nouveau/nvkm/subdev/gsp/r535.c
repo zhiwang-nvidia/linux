@@ -2628,6 +2628,7 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_PERF_BRIDGELESS_INFO_UPDATE, NULL, NULL);
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_UCODE_LIBOS_PRINT, NULL, NULL);
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_GSP_SEND_USER_SHARED_DATA, NULL, NULL);
+	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_GPUACCT_PERFMON_UTIL_SAMPLES, NULL, NULL);
 	ret = r535_gsp_rm_boot_ctor(gsp);
 	if (ret)
 		return ret;
