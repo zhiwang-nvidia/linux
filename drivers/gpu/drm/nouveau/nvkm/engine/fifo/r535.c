@@ -548,6 +548,9 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 	    (ret = nvkm_chid_new(&nvkm_chan_event, subdev, chids, 0, chids, &fifo->chid)))
 		return ret;
 
+	if (nvkm_vgpu_mgr_is_supported(subdev->device))
+		nvkm_chid_reserve(fifo->chid, 512, 1536);
+
 	ctrl = nvkm_gsp_rm_ctrl_rd(&gsp->internal.device.subdevice,
 				   NV2080_CTRL_CMD_FIFO_GET_DEVICE_INFO_TABLE, sizeof(*ctrl));
 	if (WARN_ON(IS_ERR(ctrl)))

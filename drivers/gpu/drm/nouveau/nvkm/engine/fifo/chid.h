@@ -13,6 +13,7 @@ struct nvkm_chid {
 	void **data;
 
 	spinlock_t lock;
+	unsigned long *reserved;
 	unsigned long used[];
 };
 
@@ -22,4 +23,7 @@ struct nvkm_chid *nvkm_chid_ref(struct nvkm_chid *);
 void nvkm_chid_unref(struct nvkm_chid **);
 int nvkm_chid_get(struct nvkm_chid *, void *data);
 void nvkm_chid_put(struct nvkm_chid *, int id, spinlock_t *data_lock);
+int nvkm_chid_reserved_alloc(struct nvkm_chid *chid, int count);
+void nvkm_chid_reserved_free(struct nvkm_chid *chid, int first, int count);
+void nvkm_chid_reserve(struct nvkm_chid *chid, int first, int count);
 #endif

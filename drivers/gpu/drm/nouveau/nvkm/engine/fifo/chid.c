@@ -89,13 +89,14 @@ nvkm_chid_new(const struct nvkm_event_func *func, struct nvkm_subdev *subdev,
 	struct nvkm_chid *chid;
 	int id;
 
-	if (!(chid = *pchid = kzalloc(struct_size(chid, used, nr), GFP_KERNEL)))
+	if (!(chid = *pchid = kzalloc(struct_size(chid, used, 2 * nr), GFP_KERNEL)))
 		return -ENOMEM;
 
 	kref_init(&chid->kref);
 	chid->nr = nr;
 	chid->mask = chid->nr - 1;
 	spin_lock_init(&chid->lock);
+	chid->reserved = chid->used + nr;
 
 	if (!(chid->data = kvzalloc(sizeof(*chid->data) * nr, GFP_KERNEL))) {
 		nvkm_chid_unref(pchid);
@@ -108,4 +109,50 @@ nvkm_chid_new(const struct nvkm_event_func *func, struct nvkm_subdev *subdev,
 		__set_bit(id, chid->used);
 
 	return nvkm_event_init(func, subdev, 1, nr, &chid->event);
+}
+
+void
+nvkm_chid_reserved_free(struct nvkm_chid *chid, int first, int count)
+{
+	int id;
+
+	for (id = first; id < count; id++)
+		__clear_bit(id, chid->reserved);
+}
+
+int
+nvkm_chid_reserved_alloc(struct nvkm_chid *chid, int count)
+{
+	int id, start, end;
+
+	start = end = 0;
+
+	while (start != chid->nr) {
+		start = find_next_zero_bit(chid->reserved, chid->nr, end);
+		end = find_next_bit(chid->reserved, chid->nr, start);
+
+		if (end - start >= count) {
+			for (id = start; id < start + count; id++)
+				__set_bit(id, chid->reserved);
+			return start;
+		}
+	}
+
+	return -1;
+}
+
+void
+nvkm_chid_reserve(struct nvkm_chid *chid, int first, int count)
+{
+	int id;
+
+	if (WARN_ON(first + count - 1 >= chid->nr))
+		return;
+
+	for (id = 0; id < first; id++)
+		__set_bit(id, chid->reserved);
+	for (id = first + count; id < chid->nr; id++)
+		__set_bit(id, chid->reserved);
+	for (id = first; id < count; id++)
+		__set_bit(id, chid->used);
 }
