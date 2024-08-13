@@ -4,6 +4,8 @@
 #include <nvif/driverif.h>
 #include <core/pci.h>
 
+#include <subdev/gsp.h>
+
 #include <nvrm/nvtypes.h>
 #include <nvrm/535.113.01/nvidia/inc/kernel/gpu/gsp/gsp_static_config.h>
 
@@ -86,6 +88,26 @@ fail_device_new:
 	return ret;
 }
 
+static int get_vmmu_segment_size(struct nvkm_vgpu_mgr *mgr)
+{
+	struct nvkm_device *device = mgr->nvkm_dev;
+	struct nvkm_gsp *gsp = device->gsp;
+	NV2080_CTRL_GPU_GET_VMMU_SEGMENT_SIZE_PARAMS *ctrl;
+
+	ctrl = nvkm_gsp_rm_ctrl_rd(&gsp->internal.device.subdevice,
+				    NV2080_CTRL_CMD_GPU_GET_VMMU_SEGMENT_SIZE,
+				    sizeof(*ctrl));
+	if (IS_ERR(ctrl))
+		return PTR_ERR(ctrl);
+
+	nvdev_debug(device, "VMMU segment size: %llx\n", ctrl->vmmuSegmentSize);
+
+	mgr->vmmu_segment_size = ctrl->vmmuSegmentSize;
+
+	nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, ctrl);
+	return 0;
+}
+
 /**
  * nvkm_vgpu_mgr_init - Initialize the vGPU manager support
  * @device: the nvkm_device pointer
@@ -106,11 +128,19 @@ int nvkm_vgpu_mgr_init(struct nvkm_device *device)
 	if (ret)
 		return ret;
 
+	ret = get_vmmu_segment_size(vgpu_mgr);
+	if (ret)
+		goto err_get_vmmu_seg_size;
+
 	vgpu_mgr->enabled = true;
 	pci_info(nvkm_to_pdev(device),
 		 "NVIDIA vGPU mananger support is enabled.\n");
 
 	return 0;
+
+err_get_vmmu_seg_size:
+	detach_nvkm(vgpu_mgr);
+	return ret;
 }
 
 /**

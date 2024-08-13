@@ -15,6 +15,8 @@ struct nvkm_vgpu_mgr {
 
 	const struct nvif_device_impl *dev_impl;
 	struct nvif_device_priv *dev_priv;
+
+	u64 vmmu_segment_size;
 };
 
 bool nvkm_vgpu_mgr_is_supported(struct nvkm_device *device);
