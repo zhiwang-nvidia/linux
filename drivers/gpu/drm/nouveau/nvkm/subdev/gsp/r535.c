@@ -2638,7 +2638,10 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	gsp->fb.wpr2.elf.size = gsp->fw.len;
 	gsp->fb.wpr2.elf.addr = ALIGN_DOWN(gsp->fb.wpr2.boot.addr - gsp->fb.wpr2.elf.size, 0x10000);
 
-	{
+	if (nvkm_vgpu_mgr_is_supported(device)) {
+		gsp->fb.wpr2.heap.size = SZ_256M;
+	} else {
+
 		u32 fb_size_gb = DIV_ROUND_UP_ULL(gsp->fb.size, 1 << 30);
 
 		gsp->fb.wpr2.heap.size =
