@@ -529,13 +529,13 @@ int cxl_pci_accel_setup_regs(struct pci_dev *pdev, struct cxl_dev_state *cxlds)
 	int rc;
 
 	rc = cxl_pci_setup_regs(pdev, CXL_REGLOC_RBI_MEMDEV, &map,
-				cxlds->capabilities);
-	if (rc)
-		return rc;
-
-	rc = cxl_map_device_regs(&map, &cxlds->regs.device_regs);
-	if (rc)
-		return rc;
+			cxlds->capabilities);
+	if (!rc) {
+		rc = cxl_map_device_regs(&map, &cxlds->regs.device_regs);
+		if (rc)
+			dev_dbg(&pdev->dev,
+				"Failed to map device registers.\n");
+	}
 
 	rc = cxl_pci_setup_regs(pdev, CXL_REGLOC_RBI_COMPONENT,
 				&cxlds->reg_map, cxlds->capabilities);
