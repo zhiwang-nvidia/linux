@@ -7,6 +7,11 @@ config VFIO_PCI_CORE
 	select VFIO_VIRQFD
 	select IRQ_BYPASS_MANAGER
 
+config VFIO_CXL_CORE
+	tristate
+	select VFIO_PCI_CORE
+	depends on CXL_BUS
+
 config VFIO_PCI_MMAP
 	def_bool y if !S390
 	depends on VFIO_PCI_CORE
