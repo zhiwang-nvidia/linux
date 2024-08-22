@@ -15,6 +15,8 @@
 #include <linux/types.h>
 #include <linux/uuid.h>
 #include <linux/notifier.h>
+#include <linux/cxl_accel_mem.h>
+#include <linux/cxl_accel_pci.h>
 
 #ifndef VFIO_PCI_CORE_H
 #define VFIO_PCI_CORE_H
@@ -47,6 +49,31 @@ struct vfio_pci_region {
 	void				*data;
 	size_t				size;
 	u32				flags;
+};
+
+struct vfio_cxl_region {
+	u64 size;
+	u64 addr;
+	struct cxl_region *region;
+};
+
+struct vfio_cxl {
+	u8 caps;
+	u64 dpa_size;
+
+	u32 hdm_count;
+	u64 hdm_reg_offset;
+	u64 hdm_reg_size;
+
+	struct cxl_dev_state *cxlds;
+	struct cxl_memdev *cxlmd;
+	struct cxl_root_decoder *cxlrd;
+	struct cxl_port *endpoint;
+	struct cxl_endpoint_decoder *cxled;
+	struct resource dpa_res;
+	struct resource ram_res;
+
+	struct vfio_cxl_region region;
 };
 
 struct vfio_pci_core_device {
@@ -94,6 +121,7 @@ struct vfio_pci_core_device {
 	struct vfio_pci_core_device	*sriov_pf_core_dev;
 	struct notifier_block	nb;
 	struct rw_semaphore	memory_lock;
+	struct vfio_cxl		cxl;
 };
 
 /* Will be exported for vfio pci drivers usage */
@@ -159,4 +187,13 @@ VFIO_IOREAD_DECLARATION(32)
 VFIO_IOREAD_DECLARATION(64)
 #endif
 
+int vfio_cxl_core_enable(struct vfio_pci_core_device *core_dev);
+void vfio_cxl_core_finish_enable(struct vfio_pci_core_device *core_dev);
+void vfio_cxl_core_close_device(struct vfio_device *vdev);
+void vfio_cxl_core_set_resource(struct vfio_pci_core_device *core_dev,
+				struct resource res,
+				enum accel_resource type);
+void vfio_cxl_core_set_region_size(struct vfio_pci_core_device *core_dev,
+				   u64 size);
+void vfio_cxl_core_set_driver_hdm_cap(struct vfio_pci_core_device *core_dev);
 #endif /* VFIO_PCI_CORE_H */
