@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config CXL_ACCEL_VFIO_PCI
+	tristate "VFIO support for the QEMU CXL accel device"
+	select VFIO_CXL_CORE
+	help
+	  If you don't know what to do here, say N.
