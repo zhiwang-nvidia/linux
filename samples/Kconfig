@@ -291,6 +291,11 @@ config SAMPLE_CGROUP
 	help
 	  Build samples that demonstrate the usage of the cgroup API.
 
+config SAMPLE_QEMU_CXL_ACCEL
+	tristate "Build QEMU CXL device sample code"
+	help
+	  Build sample that demostrates the usage of the CXL ACCEL API.
+
 source "samples/rust/Kconfig"
 
 endif # SAMPLES
