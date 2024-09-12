@@ -62,6 +62,11 @@ struct vfio_cxl {
 	u8 caps;
 	u64 dpa_size;
 
+	int comp_reg_bar;
+	u64 comp_reg_offset;
+	u64 comp_reg_size;
+	void *comp_reg_virt;
+
 	u32 hdm_count;
 	u64 hdm_reg_offset;
 	u64 hdm_reg_size;

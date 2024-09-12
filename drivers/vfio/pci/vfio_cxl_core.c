@@ -283,6 +283,90 @@ static const struct vfio_pci_regops vfio_cxl_regops = {
 	.release	= vfio_cxl_region_release,
 };
 
+static int find_bar(struct pci_dev *pdev, u64 *offset, int *bar, u64 size)
+{
+	u64 start, end, flags;
+	int index, i;
+
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
+		index = i + PCI_STD_RESOURCES;
+		flags = pci_resource_flags(pdev, index);
+
+		start = pci_resource_start(pdev, index);
+		end = pci_resource_end(pdev, index);
+
+		if (*offset >= start && *offset + size - 1 <= end)
+			break;
+
+		if (flags & IORESOURCE_MEM_64)
+			i++;
+	}
+
+	if (i == PCI_STD_NUM_BARS)
+		return -ENODEV;
+
+	*offset = *offset - start;
+	*bar = index;
+
+	return 0;
+}
+
+static int find_comp_regs(struct vfio_pci_core_device *core_dev)
+{
+	struct vfio_cxl *cxl = &core_dev->cxl;
+	struct pci_dev *pdev = core_dev->pdev;
+	u64 offset;
+	int ret, bar;
+
+	ret = cxl_find_comp_regblock_offset(pdev, &offset);
+	if (ret)
+		return ret;
+
+	ret = find_bar(pdev, &offset, &bar, SZ_64K);
+	if (ret)
+		return ret;
+
+	cxl->comp_reg_bar = bar;
+	cxl->comp_reg_offset = offset;
+	cxl->comp_reg_size = SZ_64K;
+	return 0;
+}
+
+static void clean_virt_comp_regs(struct vfio_pci_core_device *core_dev)
+{
+	struct vfio_cxl *cxl = &core_dev->cxl;
+
+	kvfree(cxl->comp_reg_virt);
+}
+
+static int setup_virt_comp_regs(struct vfio_pci_core_device *core_dev)
+{
+	struct vfio_cxl *cxl = &core_dev->cxl;
+	struct pci_dev *pdev = core_dev->pdev;
+	u64 offset = cxl->comp_reg_offset;
+	int bar = cxl->comp_reg_bar;
+	u64 size = cxl->comp_reg_size;
+	void *regs;
+	unsigned int i;
+
+	cxl->comp_reg_virt = kvzalloc(size, GFP_KERNEL);
+	if (!cxl->comp_reg_virt)
+		return -ENOMEM;
+
+	regs = ioremap(pci_resource_start(pdev, bar) + offset, size);
+	if (!regs) {
+		kvfree(cxl->comp_reg_virt);
+		return -EFAULT;
+	}
+
+	for (i = 0; i < size; i += 4)
+		*(u32 *)(cxl->comp_reg_virt + i) = readl(regs + i);
+
+	iounmap(regs);
+
+	return 0;
+}
+
 int vfio_cxl_core_enable(struct vfio_pci_core_device *core_dev)
 {
 	struct vfio_cxl *cxl = &core_dev->cxl;
@@ -299,9 +383,17 @@ int vfio_cxl_core_enable(struct vfio_pci_core_device *core_dev)
 	if (!cxl->region.size)
 		return -EINVAL;
 
-	ret = vfio_pci_core_enable(core_dev);
+	ret = find_comp_regs(core_dev);
 	if (ret)
 		return ret;
+
+	ret = setup_virt_comp_regs(core_dev);
+	if (ret)
+		return ret;
+
+	ret = vfio_pci_core_enable(core_dev);
+	if (ret)
+		goto err_pci_core_enable;
 
 	ret = enable_cxl(core_dev, dvsec);
 	if (ret)
@@ -324,6 +416,8 @@ err_register_cxl_region:
 	disable_cxl(core_dev);
 err_enable_cxl_device:
 	vfio_pci_core_disable(core_dev);
+err_pci_core_enable:
+	clean_virt_comp_regs(core_dev);
 	return ret;
 }
 EXPORT_SYMBOL(vfio_cxl_core_enable);
@@ -341,6 +435,7 @@ void vfio_cxl_core_close_device(struct vfio_device *vdev)
 
 	disable_cxl(core_dev);
 	vfio_pci_core_close_device(vdev);
+	clean_virt_comp_regs(core_dev);
 }
 EXPORT_SYMBOL(vfio_cxl_core_close_device);
 
@@ -396,13 +491,102 @@ void vfio_cxl_core_set_driver_hdm_cap(struct vfio_pci_core_device *core_dev)
 }
 EXPORT_SYMBOL(vfio_cxl_core_set_driver_hdm_cap);
 
+static bool is_hdm_regblock(struct vfio_cxl *cxl, u64 offset, size_t count)
+{
+	return offset >= cxl->hdm_reg_offset &&
+	       offset + count < cxl->hdm_reg_offset +
+	       cxl->hdm_reg_size;
+}
+
+static void write_hdm_decoder_global(void *virt, u64 offset, u32 v)
+{
+	if (offset == 0x4)
+		*(u32 *)(virt + offset) = v & GENMASK(1, 0);
+}
+
+static void write_hdm_decoder_n(void *virt, u64 offset, u32 v)
+{
+	u32 cur, index;
+
+	index = (offset - 0x10) / 0x20;
+
+	/* HDM decoder registers are locked? */
+	cur = *(u32 *)(virt + index * 0x20 + 0x20);
+
+	if (cur & CXL_HDM_DECODER0_CTRL_LOCK &&
+	    cur & CXL_HDM_DECODER0_CTRL_COMMITTED)
+		return;
+
+	/* emulate HDM_DECODER_CTRL. */
+	if (offset == CXL_HDM_DECODER0_CTRL_OFFSET(index)) {
+		v &= ~CXL_HDM_DECODER0_CTRL_COMMIT_ERROR;
+
+		/* commit/de-commit */
+		if (v & CXL_HDM_DECODER0_CTRL_COMMIT)
+			v |= CXL_HDM_DECODER0_CTRL_COMMITTED;
+		else
+			v &= ~CXL_HDM_DECODER0_CTRL_COMMITTED;
+	}
+	*(u32 *)(virt + offset) = v;
+}
+
+static ssize_t
+emulate_hdm_regblock(struct vfio_device *vdev, char __user *buf,
+		     size_t count, loff_t *ppos, bool write)
+{
+	struct vfio_pci_core_device *core_dev =
+		container_of(vdev, struct vfio_pci_core_device, vdev);
+	struct vfio_cxl *cxl = &core_dev->cxl;
+	u64 pos = *ppos & VFIO_PCI_OFFSET_MASK;
+	void *hdm_reg_virt;
+	u64 hdm_offset;
+	u32 v;
+
+	hdm_offset = pos - cxl->hdm_reg_offset;
+	hdm_reg_virt = cxl->comp_reg_virt +
+		       (cxl->hdm_reg_offset - cxl->comp_reg_offset);
+
+	if (!write) {
+		v = *(u32 *)(hdm_reg_virt + hdm_offset);
+
+		if (copy_to_user(buf, &v, 4))
+			return -EFAULT;
+	} else {
+		if (copy_from_user(&v, buf, 4))
+			return -EFAULT;
+
+		if (hdm_offset < 0x10)
+			write_hdm_decoder_global(hdm_reg_virt, hdm_offset, v);
+		else
+			write_hdm_decoder_n(hdm_reg_virt, hdm_offset, v);
+	}
+	return count;
+}
+
 ssize_t vfio_cxl_core_read(struct vfio_device *core_vdev, char __user *buf,
 		size_t count, loff_t *ppos)
 {
 	struct vfio_pci_core_device *vdev =
 		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+	struct vfio_cxl *cxl = &vdev->cxl;
+	u64 pos = *ppos & VFIO_PCI_OFFSET_MASK;
+	unsigned int index = VFIO_PCI_OFFSET_TO_INDEX(*ppos);
 
-	return vfio_pci_rw(vdev, buf, count, ppos, false);
+	if (!count)
+		return 0;
+
+	if (index != cxl->comp_reg_bar)
+		return vfio_pci_rw(vdev, buf, count, ppos, false);
+
+	if (WARN_ON_ONCE(!IS_ALIGNED(pos, 4) || count != 4))
+		return -EINVAL;
+
+	if (is_hdm_regblock(cxl, pos, count))
+		return emulate_hdm_regblock(core_vdev, buf, count,
+					    ppos, false);
+	else
+		return vfio_pci_rw(vdev, (char __user *)buf, count,
+				   ppos, false);
 }
 EXPORT_SYMBOL_GPL(vfio_cxl_core_read);
 
@@ -411,8 +595,26 @@ ssize_t vfio_cxl_core_write(struct vfio_device *core_vdev, const char __user *bu
 {
 	struct vfio_pci_core_device *vdev =
 		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+	struct vfio_cxl *cxl = &vdev->cxl;
+	u64 pos = *ppos & VFIO_PCI_OFFSET_MASK;
+	unsigned int index = VFIO_PCI_OFFSET_TO_INDEX(*ppos);
 
-	return vfio_pci_rw(vdev, (char __user *)buf, count, ppos, true);
+	if (!count)
+		return 0;
+
+	if (index != cxl->comp_reg_bar)
+		return vfio_pci_rw(vdev, (char __user *)buf, count, ppos,
+				   true);
+
+	if (WARN_ON_ONCE(!IS_ALIGNED(pos, 4) || count != 4))
+		return -EINVAL;
+
+	if (is_hdm_regblock(cxl, pos, count))
+		return emulate_hdm_regblock(core_vdev, (char __user *)buf,
+					    count, ppos, true);
+	else
+		return vfio_pci_rw(vdev, (char __user *)buf, count, ppos,
+				   true);
 }
 EXPORT_SYMBOL_GPL(vfio_cxl_core_write);
 
