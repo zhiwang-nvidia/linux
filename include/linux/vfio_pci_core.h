@@ -80,6 +80,7 @@ struct vfio_cxl {
 	struct resource ram_res;
 
 	struct vfio_cxl_region region;
+	struct vfio_device_info_cap_cxl cap;
 };
 
 struct vfio_pci_core_device {

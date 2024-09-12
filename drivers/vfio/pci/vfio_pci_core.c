@@ -963,6 +963,15 @@ static int vfio_pci_info_atomic_cap(struct vfio_pci_core_device *vdev,
 	return vfio_info_add_capability(caps, &cap.header, sizeof(cap));
 }
 
+static int vfio_pci_info_cxl_cap(struct vfio_pci_core_device *vdev,
+				 struct vfio_info_cap *caps)
+{
+	struct vfio_cxl *cxl = &vdev->cxl;
+
+	return vfio_info_add_capability(caps, &cxl->cap.header,
+					sizeof(cxl->cap));
+}
+
 static int vfio_pci_ioctl_get_info(struct vfio_pci_core_device *vdev,
 				   struct vfio_device_info __user *arg)
 {
@@ -984,8 +993,16 @@ static int vfio_pci_ioctl_get_info(struct vfio_pci_core_device *vdev,
 	if (vdev->reset_works)
 		info.flags |= VFIO_DEVICE_FLAGS_RESET;
 
-	if (vdev->has_cxl)
+	if (vdev->has_cxl) {
 		info.flags |= VFIO_DEVICE_FLAGS_CXL;
+
+		ret = vfio_pci_info_cxl_cap(vdev, &caps);
+		if (ret) {
+			pci_warn(vdev->pdev,
+				 "Failed to setup CXL capabilities\n");
+			return ret;
+		}
+	}
 
 	info.num_regions = VFIO_PCI_NUM_REGIONS + vdev->num_regions;
 	info.num_irqs = VFIO_PCI_NUM_IRQS;

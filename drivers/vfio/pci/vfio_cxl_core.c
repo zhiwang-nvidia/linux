@@ -367,6 +367,19 @@ static int setup_virt_comp_regs(struct vfio_pci_core_device *core_dev)
 	return 0;
 }
 
+static void init_vfio_cxl_cap(struct vfio_pci_core_device *core_dev)
+{
+	struct vfio_cxl *cxl = &core_dev->cxl;
+
+	cxl->cap.header.id = VFIO_DEVICE_INFO_CAP_CXL;
+	cxl->cap.header.version = 1;
+	cxl->cap.hdm_count = cxl->hdm_count;
+	cxl->cap.hdm_reg_offset = cxl->hdm_reg_offset;
+	cxl->cap.hdm_reg_size = cxl->hdm_reg_size;
+	cxl->cap.hdm_reg_bar_index = cxl->comp_reg_bar;
+	cxl->cap.dpa_size = cxl->dpa_size;
+}
+
 int vfio_cxl_core_enable(struct vfio_pci_core_device *core_dev)
 {
 	struct vfio_cxl *cxl = &core_dev->cxl;
@@ -400,6 +413,8 @@ int vfio_cxl_core_enable(struct vfio_pci_core_device *core_dev)
 	ret = enable_cxl(core_dev, dvsec);
 	if (ret)
 		goto err_enable_cxl_device;
+
+	init_vfio_cxl_cap(core_dev);
 
 	flags = VFIO_REGION_INFO_FLAG_READ |
 		VFIO_REGION_INFO_FLAG_WRITE |
