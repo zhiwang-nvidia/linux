@@ -1902,6 +1902,15 @@ static ssize_t vfio_config_do_rw(struct vfio_pci_core_device *vdev, char __user 
 
 			perm = &ecap_perms[cap_id];
 			cap_start = vfio_find_cap_start(vdev, *ppos);
+
+			if (cap_id == PCI_EXT_CAP_ID_DVSEC) {
+				u32 dword;
+
+				memcpy(&dword, vdev->vconfig + cap_start + PCI_DVSEC_HEADER1, 4);
+
+				if (PCI_DVSEC_HEADER1_VID(dword) == PCI_VENDOR_ID_CXL)
+					perm = &virt_perms;
+			}
 		} else {
 			WARN_ON(cap_id > PCI_CAP_ID_MAX);
 
