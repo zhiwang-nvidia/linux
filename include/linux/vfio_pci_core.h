@@ -199,4 +199,9 @@ void vfio_cxl_core_set_resource(struct vfio_pci_core_device *core_dev,
 void vfio_cxl_core_set_region_size(struct vfio_pci_core_device *core_dev,
 				   u64 size);
 void vfio_cxl_core_set_driver_hdm_cap(struct vfio_pci_core_device *core_dev);
+ssize_t vfio_cxl_core_read(struct vfio_device *core_vdev, char __user *buf,
+			   size_t count, loff_t *ppos);
+ssize_t vfio_cxl_core_write(struct vfio_device *core_vdev, const char __user *buf,
+			    size_t count, loff_t *ppos);
+
 #endif /* VFIO_PCI_CORE_H */
