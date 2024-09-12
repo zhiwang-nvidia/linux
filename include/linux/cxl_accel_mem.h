@@ -57,4 +57,5 @@ int cxl_accel_get_region_params(struct cxl_region *region,
 				resource_size_t *start, resource_size_t *end);
 int cxl_get_hdm_info(struct cxl_dev_state *cxlds, u32 *hdm_count,
 		     u64 *hdm_reg_offset, u64 *hdm_reg_size);
+int cxl_find_comp_regblock_offset(struct pci_dev *pdev, u64 *offset);
 #endif
