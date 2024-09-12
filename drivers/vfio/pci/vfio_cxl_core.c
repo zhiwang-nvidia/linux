@@ -20,6 +20,7 @@
 #include <linux/uaccess.h>
 
 #include "vfio_pci_priv.h"
+#include "vfio_cxl_core_priv.h"
 
 #define DRIVER_AUTHOR "Zhi Wang <zhiw@nvidia.com>"
 #define DRIVER_DESC "core driver for VFIO based CXL devices"
@@ -135,6 +136,119 @@ static void discover_precommitted_region(struct vfio_cxl_core_device *cxl)
 	cxl->region.precommitted = true;
 }
 
+static int find_bar(struct pci_dev *pdev, u64 *offset, int *bar, u64 size)
+{
+	u64 start, end, flags;
+	int index, i;
+
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
+		index = i + PCI_STD_RESOURCES;
+		flags = pci_resource_flags(pdev, index);
+
+		start = pci_resource_start(pdev, index);
+		end = pci_resource_end(pdev, index);
+
+		if (*offset >= start && *offset + size - 1 <= end)
+			break;
+
+		if (flags & IORESOURCE_MEM_64)
+			i++;
+	}
+
+	if (i == PCI_STD_NUM_BARS)
+		return -ENODEV;
+
+	*offset = *offset - start;
+	*bar = index;
+
+	return 0;
+}
+
+static int find_comp_regs(struct vfio_cxl_core_device *cxl)
+{
+	struct vfio_pci_core_device *pci = &cxl->pci_core;
+	struct pci_dev *pdev = pci->pdev;
+	u64 offset;
+	int ret, bar;
+
+	ret = cxl_find_comp_regblock_offset(pdev, &offset);
+	if (ret)
+		return ret;
+
+	ret = find_bar(pdev, &offset, &bar, SZ_64K);
+	if (ret)
+		return ret;
+
+	cxl->comp_reg_bar = bar;
+	cxl->comp_reg_offset = offset;
+	cxl->comp_reg_size = SZ_64K;
+	return 0;
+}
+
+static void clean_virt_regs(struct vfio_cxl_core_device *cxl)
+{
+	kvfree(cxl->comp_reg_virt);
+	kvfree(cxl->config_virt);
+}
+
+static void reset_virt_regs(struct vfio_cxl_core_device *cxl)
+{
+	memcpy(cxl->config_virt, cxl->initial_config_virt, cxl->config_size);
+	memcpy(cxl->comp_reg_virt, cxl->initial_comp_reg_virt, cxl->comp_reg_size);
+}
+
+static int setup_virt_regs(struct vfio_cxl_core_device *cxl)
+{
+	struct vfio_pci_core_device *pci = &cxl->pci_core;
+	struct pci_dev *pdev = pci->pdev;
+	u64 offset = cxl->comp_reg_offset;
+	int bar = cxl->comp_reg_bar;
+	u64 size = cxl->comp_reg_size;
+	void *regs;
+	unsigned int i;
+
+	regs = kvzalloc(size * 2, GFP_KERNEL);
+	if (!regs)
+		return -ENOMEM;
+
+	cxl->comp_reg_virt = regs;
+	cxl->initial_comp_reg_virt = regs + size;
+
+	regs = ioremap(pci_resource_start(pdev, bar) + offset, size);
+	if (!regs) {
+		kvfree(cxl->comp_reg_virt);
+		return -EFAULT;
+	}
+
+	for (i = 0; i < size; i += 4)
+		*(u32 *)(cxl->initial_comp_reg_virt + i) =
+			cpu_to_le32(readl(regs + i));
+
+	iounmap(regs);
+
+	regs = kvzalloc(pdev->cfg_size * 2, GFP_KERNEL);
+	if (!regs) {
+		kvfree(cxl->comp_reg_virt);
+		return -ENOMEM;
+	}
+
+	cxl->config_virt = regs;
+	cxl->initial_config_virt = regs + pdev->cfg_size;
+	cxl->config_size = pdev->cfg_size;
+
+	regs = cxl->initial_config_virt + cxl->dvsec;
+
+	for (i = 0; i < 0x40; i += 4) {
+		u32 val;
+
+		pci_read_config_dword(pdev, cxl->dvsec + i, &val);
+		*(u32 *)(regs + i) = cpu_to_le32(val);
+	}
+
+	reset_virt_regs(cxl);
+	return 0;
+}
+
 int vfio_cxl_core_enable(struct vfio_cxl_core_device *cxl,
 			 struct vfio_cxl_dev_info *info)
 {
@@ -148,19 +262,37 @@ int vfio_cxl_core_enable(struct vfio_cxl_core_device *cxl,
 	if (!dvsec)
 		return -ENODEV;
 
-	ret = vfio_pci_core_enable(pci);
+	cxl->dvsec = dvsec;
+
+	ret = find_comp_regs(cxl);
 	if (ret)
 		return ret;
 
+	ret = setup_virt_regs(cxl);
+	if (ret)
+		return ret;
+
+	ret = vfio_pci_core_enable(pci);
+	if (ret)
+		goto err_pci_core_enable;
+
 	ret = enable_cxl(cxl, dvsec, info);
 	if (ret)
-		goto err;
+		goto err_enable_cxl;
+
+	ret = vfio_cxl_core_setup_register_emulation(cxl);
+	if (ret)
+		goto err_register_emulation;
 
 	discover_precommitted_region(cxl);
 
 	return 0;
 
-err:
+err_register_emulation:
+	disable_cxl(cxl);
+err_pci_core_enable:
+	clean_virt_regs(cxl);
+err_enable_cxl:
 	vfio_pci_core_disable(pci);
 	return ret;
 }
@@ -176,7 +308,9 @@ EXPORT_SYMBOL_GPL(vfio_cxl_core_finish_enable);
 
 static void disable_device(struct vfio_cxl_core_device *cxl)
 {
+	vfio_cxl_core_clean_register_emulation(cxl);
 	disable_cxl(cxl);
+	clean_virt_regs(cxl);
 }
 
 void vfio_cxl_core_disable(struct vfio_cxl_core_device *cxl)
@@ -371,6 +505,20 @@ ssize_t vfio_cxl_core_read(struct vfio_device *core_vdev, char __user *buf,
 {
 	struct vfio_pci_core_device *vdev =
 		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+	struct vfio_cxl_core_device *cxl =
+		container_of(vdev, struct vfio_cxl_core_device, pci_core);
+	unsigned int index = VFIO_PCI_OFFSET_TO_INDEX(*ppos);
+
+	if (!count)
+		return 0;
+
+	if (index == VFIO_PCI_CONFIG_REGION_INDEX)
+		return vfio_cxl_core_config_rw(core_vdev, buf, count, ppos,
+					       false);
+
+	if (index == cxl->comp_reg_bar)
+		return vfio_cxl_core_mmio_bar_rw(core_vdev, buf, count, ppos,
+						 false);
 
 	return vfio_pci_rw(vdev, buf, count, ppos, false);
 }
@@ -381,10 +529,132 @@ ssize_t vfio_cxl_core_write(struct vfio_device *core_vdev, const char __user *bu
 {
 	struct vfio_pci_core_device *vdev =
 		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+	struct vfio_cxl_core_device *cxl =
+		container_of(vdev, struct vfio_cxl_core_device, pci_core);
+	unsigned int index = VFIO_PCI_OFFSET_TO_INDEX(*ppos);
+
+	if (!count)
+		return 0;
+
+	if (index == VFIO_PCI_CONFIG_REGION_INDEX)
+		return vfio_cxl_core_config_rw(core_vdev, (char __user *)buf,
+					       count, ppos, true);
+
+	if (index == cxl->comp_reg_bar)
+		return vfio_cxl_core_mmio_bar_rw(core_vdev, (char __user *)buf,
+						 count, ppos, true);
 
 	return vfio_pci_rw(vdev, (char __user *)buf, count, ppos, true);
 }
 EXPORT_SYMBOL_GPL(vfio_cxl_core_write);
+
+static int comp_reg_bar_get_region_info(struct vfio_pci_core_device *pci,
+					void __user *uarg)
+{
+	struct vfio_cxl_core_device *cxl =
+		container_of(pci, struct vfio_cxl_core_device, pci_core);
+	struct pci_dev *pdev = pci->pdev;
+	unsigned long minsz = offsetofend(struct vfio_region_info, offset);
+	struct vfio_info_cap caps = { .buf = NULL, .size = 0 };
+	struct vfio_region_info_cap_sparse_mmap *sparse;
+	struct vfio_region_info info;
+	u64 start, end, len;
+	u32 size;
+	int ret;
+
+	if (copy_from_user(&info, uarg, minsz))
+		return -EFAULT;
+
+	if (info.argsz < minsz)
+		return -EINVAL;
+
+	start = pci_resource_start(pdev, cxl->comp_reg_bar);
+	end = pci_resource_end(pdev, cxl->comp_reg_bar);
+	len = pci_resource_len(pdev, cxl->comp_reg_bar);
+
+	if (cxl->comp_reg_offset == start ||
+	    cxl->comp_reg_offset + cxl->comp_reg_size == end) {
+		size = struct_size(sparse, areas, 1);
+
+		sparse = kzalloc(size, GFP_KERNEL);
+		if (!sparse)
+			return -ENOMEM;
+
+		sparse->areas[0].offset = cxl->comp_reg_offset - start;
+		sparse->areas[0].size = cxl->comp_reg_size;
+	} else {
+		size = struct_size(sparse, areas, 2);
+
+		sparse = kzalloc(size, GFP_KERNEL);
+		if (!sparse)
+			return -ENOMEM;
+
+		sparse->areas[0].offset = 0;
+		sparse->areas[0].size = cxl->comp_reg_offset - start;
+
+		sparse->areas[1].offset = sparse->areas[0].size + cxl->comp_reg_size;
+		sparse->areas[1].size = len - sparse->areas[0].size -
+					cxl->comp_reg_size;
+	}
+
+	sparse->header.id = VFIO_REGION_INFO_CAP_SPARSE_MMAP;
+	sparse->header.version = 1;
+
+	ret = vfio_info_add_capability(&caps, &sparse->header, size);
+	kfree(sparse);
+	if (ret)
+		return ret;
+
+	info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
+	info.size = len;
+	info.flags = VFIO_REGION_INFO_FLAG_READ |
+		     VFIO_REGION_INFO_FLAG_WRITE |
+		     VFIO_REGION_INFO_FLAG_MMAP;
+
+	if (caps.size) {
+		info.flags |= VFIO_REGION_INFO_FLAG_CAPS;
+		if (info.argsz < sizeof(info) + caps.size) {
+			info.argsz = sizeof(info) + caps.size;
+			info.cap_offset = 0;
+		} else {
+			vfio_info_cap_shift(&caps, sizeof(info));
+			if (copy_to_user(uarg + sizeof(info), caps.buf,
+					 caps.size)) {
+				kfree(caps.buf);
+				return -EFAULT;
+			}
+			info.cap_offset = sizeof(info);
+		}
+		kfree(caps.buf);
+	}
+	return copy_to_user(uarg, &info, minsz) ? -EFAULT : 0;
+}
+
+long vfio_cxl_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
+			 unsigned long arg)
+{
+	struct vfio_pci_core_device *pci =
+		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+	struct vfio_cxl_core_device *cxl =
+		container_of(pci, struct vfio_cxl_core_device, pci_core);
+	void __user *uarg = (void __user *)arg;
+
+	if (cmd == VFIO_DEVICE_GET_REGION_INFO) {
+		struct vfio_region_info info;
+		unsigned long minsz = offsetofend(struct vfio_region_info, offset);
+
+		if (copy_from_user(&info, (void *)arg, minsz))
+			return -EFAULT;
+
+		if (info.argsz < minsz)
+			return -EINVAL;
+
+		if (info.index == cxl->comp_reg_bar)
+			return comp_reg_bar_get_region_info(pci, uarg);
+	}
+	return vfio_pci_core_ioctl(core_vdev, cmd, arg);
+}
+EXPORT_SYMBOL_GPL(vfio_cxl_core_ioctl);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);

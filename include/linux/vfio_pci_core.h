@@ -107,12 +107,39 @@ struct vfio_cxl_region {
 	bool precommitted;
 };
 
+struct vfio_cxl_core_device;
+
+struct vfio_emulated_regblock {
+	struct range range;
+	ssize_t (*read)(struct vfio_cxl_core_device *cxl, void *buf,
+			u64 offset, u64 size);
+	ssize_t (*write)(struct vfio_cxl_core_device *cxl, void *buf,
+			 u64 offset, u64 size);
+	struct list_head list;
+};
+
 struct vfio_cxl_core_device {
 	struct vfio_pci_core_device pci_core;
+
+	struct list_head config_regblocks_head;
+	struct list_head mmio_regblocks_head;
+
+	void *initial_comp_reg_virt;
+	void *comp_reg_virt;
+	u64 comp_reg_size;
+
+	void *initial_config_virt;
+	void *config_virt;
+	u64 config_size;
+
+	u16 dvsec;
 
 	u32 hdm_count;
 	u64 hdm_reg_offset;
 	u64 hdm_reg_size;
+
+	int comp_reg_bar;
+	u64 comp_reg_offset;
 
 	struct cxl_dev_state *cxlds;
 	struct cxl_memdev *cxlmd;
@@ -217,5 +244,7 @@ ssize_t vfio_cxl_core_read(struct vfio_device *core_vdev, char __user *buf,
 			   size_t count, loff_t *ppos);
 ssize_t vfio_cxl_core_write(struct vfio_device *core_vdev, const char __user *buf,
 			    size_t count, loff_t *ppos);
+long vfio_cxl_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
+			 unsigned long arg);
 
 #endif /* VFIO_PCI_CORE_H */

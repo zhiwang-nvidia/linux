@@ -8,7 +8,7 @@ vfio-pci-y := vfio_pci.o
 vfio-pci-$(CONFIG_VFIO_PCI_IGD) += vfio_pci_igd.o
 obj-$(CONFIG_VFIO_PCI) += vfio-pci.o
 
-vfio-cxl-core-y := vfio_cxl_core.o
+vfio-cxl-core-y := vfio_cxl_core.o vfio_cxl_core_emu.o
 obj-$(CONFIG_VFIO_CXL_CORE) += vfio-cxl-core.o
 
 obj-$(CONFIG_MLX5_VFIO_PCI)           += mlx5/
