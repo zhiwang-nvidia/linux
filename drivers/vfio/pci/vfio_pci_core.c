@@ -633,7 +633,8 @@ void vfio_pci_core_disable(struct vfio_pci_core_device *vdev)
 		if (!vdev->barmap[bar])
 			continue;
 		pci_iounmap(pdev, vdev->barmap[bar]);
-		pci_release_selected_regions(pdev, 1 << bar);
+		if (!vdev->has_cxl)
+			pci_release_selected_regions(pdev, 1 << bar);
 		vdev->barmap[bar] = NULL;
 	}
 
@@ -1775,13 +1776,15 @@ int vfio_pci_core_mmap(struct vfio_device *core_vdev, struct vm_area_struct *vma
 	 * we need to request the region and the barmap tracks that.
 	 */
 	if (!vdev->barmap[index]) {
-		ret = pci_request_selected_regions(pdev,
-						   1 << index, "vfio-pci");
-		if (ret)
-			return ret;
+		if (!vdev->has_cxl) {
+			ret = pci_request_selected_regions(pdev,
+					1 << index, "vfio-pci");
+			if (ret)
+				return ret;
+		}
 
 		vdev->barmap[index] = pci_iomap(pdev, index, 0);
-		if (!vdev->barmap[index]) {
+		if (!vdev->barmap[index] && !vdev->has_cxl) {
 			pci_release_selected_regions(pdev, 1 << index);
 			return -ENOMEM;
 		}

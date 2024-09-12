@@ -214,9 +214,11 @@ int vfio_pci_core_setup_barmap(struct vfio_pci_core_device *vdev, int bar)
 	if (vdev->barmap[bar])
 		return 0;
 
-	ret = pci_request_selected_regions(pdev, 1 << bar, "vfio");
-	if (ret)
-		return ret;
+	if (!vdev->has_cxl) {
+		ret = pci_request_selected_regions(pdev, 1 << bar, "vfio");
+		if (ret)
+			return ret;
+	}
 
 	io = pci_iomap(pdev, bar, 0);
 	if (!io) {
