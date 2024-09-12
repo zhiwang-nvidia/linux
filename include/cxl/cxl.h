@@ -67,4 +67,8 @@ struct cxl_region *cxl_create_region(struct cxl_root_decoder *cxlrd,
 
 int cxl_accel_region_detach(struct cxl_endpoint_decoder *cxled);
 int cxl_get_region_range(struct cxl_region *region, struct range *range);
+
+int cxl_get_hdm_reg_info(struct cxl_dev_state *cxlds, u64 *count, u64 *offset,
+			 u64 *size);
+
 #endif
