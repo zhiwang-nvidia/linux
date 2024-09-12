@@ -366,6 +366,26 @@ void vfio_cxl_core_unregister_cxl_region(struct vfio_cxl_core_device *cxl)
 }
 EXPORT_SYMBOL_GPL(vfio_cxl_core_unregister_cxl_region);
 
+ssize_t vfio_cxl_core_read(struct vfio_device *core_vdev, char __user *buf,
+			   size_t count, loff_t *ppos)
+{
+	struct vfio_pci_core_device *vdev =
+		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+
+	return vfio_pci_rw(vdev, buf, count, ppos, false);
+}
+EXPORT_SYMBOL_GPL(vfio_cxl_core_read);
+
+ssize_t vfio_cxl_core_write(struct vfio_device *core_vdev, const char __user *buf,
+			    size_t count, loff_t *ppos)
+{
+	struct vfio_pci_core_device *vdev =
+		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+
+	return vfio_pci_rw(vdev, (char __user *)buf, count, ppos, true);
+}
+EXPORT_SYMBOL_GPL(vfio_cxl_core_write);
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
