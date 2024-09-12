@@ -1533,8 +1533,8 @@ int vfio_pci_core_ioctl_feature(struct vfio_device *device, u32 flags,
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_ioctl_feature);
 
-static ssize_t vfio_pci_rw(struct vfio_pci_core_device *vdev, char __user *buf,
-			   size_t count, loff_t *ppos, bool iswrite)
+ssize_t vfio_pci_rw(struct vfio_pci_core_device *vdev, char __user *buf,
+		    size_t count, loff_t *ppos, bool iswrite)
 {
 	unsigned int index = VFIO_PCI_OFFSET_TO_INDEX(*ppos);
 	int ret;
@@ -1579,6 +1579,7 @@ static ssize_t vfio_pci_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 	pm_runtime_put(&vdev->pdev->dev);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(vfio_pci_rw);
 
 ssize_t vfio_pci_core_read(struct vfio_device *core_vdev, char __user *buf,
 		size_t count, loff_t *ppos)

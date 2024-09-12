@@ -150,6 +150,8 @@ long vfio_pci_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
 		unsigned long arg);
 int vfio_pci_core_ioctl_feature(struct vfio_device *device, u32 flags,
 				void __user *arg, size_t argsz);
+ssize_t vfio_pci_rw(struct vfio_pci_core_device *vdev, char __user *buf,
+		    size_t count, loff_t *ppos, bool iswrite);
 ssize_t vfio_pci_core_read(struct vfio_device *core_vdev, char __user *buf,
 		size_t count, loff_t *ppos);
 ssize_t vfio_pci_core_write(struct vfio_device *core_vdev, const char __user *buf,
@@ -211,5 +213,9 @@ int vfio_cxl_core_create_cxl_region(struct vfio_cxl_core_device *cxl, u64 size);
 void vfio_cxl_core_destroy_cxl_region(struct vfio_cxl_core_device *cxl);
 int vfio_cxl_core_register_cxl_region(struct vfio_cxl_core_device *cxl);
 void vfio_cxl_core_unregister_cxl_region(struct vfio_cxl_core_device *cxl);
+ssize_t vfio_cxl_core_read(struct vfio_device *core_vdev, char __user *buf,
+			   size_t count, loff_t *ppos);
+ssize_t vfio_cxl_core_write(struct vfio_device *core_vdev, const char __user *buf,
+			    size_t count, loff_t *ppos);
 
 #endif /* VFIO_PCI_CORE_H */
