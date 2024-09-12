@@ -70,5 +70,6 @@ int cxl_get_region_range(struct cxl_region *region, struct range *range);
 
 int cxl_get_hdm_reg_info(struct cxl_dev_state *cxlds, u64 *count, u64 *offset,
 			 u64 *size);
+int cxl_find_comp_regblock_offset(struct pci_dev *pdev, u64 *offset);
 
 #endif

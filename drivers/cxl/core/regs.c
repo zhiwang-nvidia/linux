@@ -374,6 +374,29 @@ int cxl_find_regblock(struct pci_dev *pdev, enum cxl_regloc_type type,
 EXPORT_SYMBOL_NS_GPL(cxl_find_regblock, "CXL");
 
 /**
+ * cxl_find_comp_regblock_offset() - Locate the offset of component
+ * register blocks
+ * @pdev: The CXL PCI device to enumerate.
+ * @offset: Enumeration output, clobbered on error
+ *
+ * Return: 0 if register block enumerated, negative error code otherwise
+ */
+int cxl_find_comp_regblock_offset(struct pci_dev *pdev, u64 *offset)
+{
+	struct cxl_register_map map;
+	int ret;
+
+	ret = cxl_find_regblock(pdev, CXL_REGLOC_RBI_COMPONENT, &map);
+	if (ret)
+		return ret;
+
+	*offset = map.resource;
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_find_comp_regblock_offset, "CXL");
+
+
+/**
  * cxl_count_regblock() - Count instances of a given regblock type.
  * @pdev: The CXL PCI device to enumerate.
  * @type: Register Block Indicator id
