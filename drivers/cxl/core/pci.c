@@ -502,6 +502,34 @@ int cxl_hdm_decode_init(struct cxl_dev_state *cxlds, struct cxl_hdm *cxlhdm,
 }
 EXPORT_SYMBOL_NS_GPL(cxl_hdm_decode_init, CXL);
 
+int cxl_get_hdm_info(struct cxl_dev_state *cxlds, u32 *hdm_count,
+		     u64 *hdm_reg_offset, u64 *hdm_reg_size)
+{
+	struct pci_dev *pdev = to_pci_dev(cxlds->dev);
+	int d = cxlds->cxl_dvsec;
+	u16 cap;
+	int rc;
+
+	if (!cxlds->reg_map.component_map.hdm_decoder.valid) {
+		*hdm_reg_offset = *hdm_reg_size = 0;
+	} else {
+		struct cxl_component_reg_map *map =
+			&cxlds->reg_map.component_map;
+
+		*hdm_reg_offset = map->hdm_decoder.offset;
+		*hdm_reg_size = map->hdm_decoder.size;
+	}
+
+	rc = pci_read_config_word(pdev,
+				  d + CXL_DVSEC_CAP_OFFSET, &cap);
+	if (rc)
+		return rc;
+
+	*hdm_count = FIELD_GET(CXL_DVSEC_HDM_COUNT_MASK, cap);
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_get_hdm_info, CXL);
+
 #define CXL_DOE_TABLE_ACCESS_REQ_CODE		0x000000ff
 #define   CXL_DOE_TABLE_ACCESS_REQ_CODE_READ	0
 #define CXL_DOE_TABLE_ACCESS_TABLE_TYPE		0x0000ff00
