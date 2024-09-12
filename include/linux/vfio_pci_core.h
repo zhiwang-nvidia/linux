@@ -113,6 +113,7 @@ struct vfio_pci_core_device {
 	bool			needs_pm_restore:1;
 	bool			pm_intx_masked:1;
 	bool			pm_runtime_engaged:1;
+	bool			has_cxl:1;
 	struct pci_saved_state	*pci_saved_state;
 	struct pci_saved_state	*pm_save;
 	int			ioeventfds_nr;
@@ -208,5 +209,6 @@ ssize_t vfio_cxl_core_read(struct vfio_device *core_vdev, char __user *buf,
 			   size_t count, loff_t *ppos);
 ssize_t vfio_cxl_core_write(struct vfio_device *core_vdev, const char __user *buf,
 			    size_t count, loff_t *ppos);
+void vfio_pci_core_enable_cxl(struct vfio_pci_core_device *core_dev);
 
 #endif /* VFIO_PCI_CORE_H */

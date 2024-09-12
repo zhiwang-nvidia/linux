@@ -126,6 +126,9 @@ static void vfio_pci_probe_mmaps(struct vfio_pci_core_device *vdev)
 		if (!(res->flags & IORESOURCE_MEM))
 			goto no_mmap;
 
+		if (vdev->has_cxl && bar == vdev->cxl.comp_reg_bar)
+			goto no_mmap;
+
 		/*
 		 * The PCI core shouldn't set up a resource with a
 		 * type but zero size. But there may be bugs that
@@ -487,10 +490,15 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 	if (ret)
 		goto out_power;
 
-	/* If reset fails because of the device lock, fail this path entirely */
-	ret = pci_try_reset_function(pdev);
-	if (ret == -EAGAIN)
-		goto out_disable_device;
+	if (!vdev->has_cxl) {
+		/* If reset fails because of the device lock, fail this path entirely */
+		ret = pci_try_reset_function(pdev);
+		if (ret == -EAGAIN)
+			goto out_disable_device;
+	} else {
+		/* CXL Reset is missing in CXL core. FLR only resets CXL.io path. */
+		ret = -ENODEV;
+	}
 
 	vdev->reset_works = !ret;
 	pci_save_state(pdev);
@@ -498,14 +506,17 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 	if (!vdev->pci_saved_state)
 		pci_dbg(pdev, "%s: Couldn't store saved state\n", __func__);
 
-	if (likely(!nointxmask)) {
-		if (vfio_pci_nointx(pdev)) {
-			pci_info(pdev, "Masking broken INTx support\n");
-			vdev->nointx = true;
-			pci_intx(pdev, 0);
-		} else
-			vdev->pci_2_3 = pci_intx_mask_supported(pdev);
-	}
+	if (!vdev->has_cxl) {
+		if (likely(!nointxmask)) {
+			if (vfio_pci_nointx(pdev)) {
+				pci_info(pdev, "Masking broken INTx support\n");
+				vdev->nointx = true;
+				pci_intx(pdev, 0);
+			} else
+				vdev->pci_2_3 = pci_intx_mask_supported(pdev);
+		}
+	} else
+		vdev->nointx = true; /* CXL device doesn't have INTX. */
 
 	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
 	if (vdev->pci_2_3 && (cmd & PCI_COMMAND_INTX_DISABLE)) {
@@ -540,7 +551,6 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 
 	if (!vfio_vga_disabled() && vfio_pci_is_vga(pdev))
 		vdev->has_vga = true;
-
 
 	return 0;
 
@@ -657,7 +667,8 @@ void vfio_pci_core_disable(struct vfio_pci_core_device *vdev)
 	 * Disable INTx and MSI, presumably to avoid spurious interrupts
 	 * during reset.  Stolen from pci_reset_function()
 	 */
-	pci_write_config_word(pdev, PCI_COMMAND, PCI_COMMAND_INTX_DISABLE);
+	if (!vdev->nointx)
+		pci_write_config_word(pdev, PCI_COMMAND, PCI_COMMAND_INTX_DISABLE);
 
 	/*
 	 * Try to get the locks ourselves to prevent a deadlock. The
@@ -972,6 +983,9 @@ static int vfio_pci_ioctl_get_info(struct vfio_pci_core_device *vdev,
 
 	if (vdev->reset_works)
 		info.flags |= VFIO_DEVICE_FLAGS_RESET;
+
+	if (vdev->has_cxl)
+		info.flags |= VFIO_DEVICE_FLAGS_CXL;
 
 	info.num_regions = VFIO_PCI_NUM_REGIONS + vdev->num_regions;
 	info.num_irqs = VFIO_PCI_NUM_IRQS;

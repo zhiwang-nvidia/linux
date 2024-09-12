@@ -391,6 +391,8 @@ int vfio_cxl_core_enable(struct vfio_pci_core_device *core_dev)
 	if (ret)
 		return ret;
 
+	vfio_pci_core_enable_cxl(core_dev);
+
 	ret = vfio_pci_core_enable(core_dev);
 	if (ret)
 		goto err_pci_core_enable;
@@ -617,6 +619,12 @@ ssize_t vfio_cxl_core_write(struct vfio_device *core_vdev, const char __user *bu
 				   true);
 }
 EXPORT_SYMBOL_GPL(vfio_cxl_core_write);
+
+void vfio_pci_core_enable_cxl(struct vfio_pci_core_device *core_dev)
+{
+	core_dev->has_cxl = true;
+}
+EXPORT_SYMBOL(vfio_pci_core_enable_cxl);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);
