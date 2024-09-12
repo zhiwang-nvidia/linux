@@ -272,6 +272,9 @@ int vfio_cxl_core_enable(struct vfio_cxl_core_device *cxl,
 	if (ret)
 		return ret;
 
+	pci->is_cxl = true;
+	pci->comp_reg_bar = cxl->comp_reg_bar;
+
 	ret = vfio_pci_core_enable(pci);
 	if (ret)
 		goto err_pci_core_enable;

@@ -484,7 +484,12 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 		goto out_power;
 
 	/* If reset fails because of the device lock, fail this path entirely */
-	ret = pci_try_reset_function(pdev);
+	if (!vdev->is_cxl)
+		ret = pci_try_reset_function(pdev);
+	else
+		/* TODO: CXL reset support is on-going. */
+		ret = -ENODEV;
+
 	if (ret == -EAGAIN)
 		goto out_disable_device;
 
@@ -536,7 +541,6 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 
 	if (!vfio_vga_disabled() && vfio_pci_is_vga(pdev))
 		vdev->has_vga = true;
-
 
 	return 0;
 
@@ -619,8 +623,12 @@ void vfio_pci_core_disable(struct vfio_pci_core_device *vdev)
 		if (!vdev->barmap[bar])
 			continue;
 		pci_iounmap(pdev, vdev->barmap[bar]);
-		pci_release_selected_regions(pdev, 1 << bar);
 		vdev->barmap[bar] = NULL;
+
+		if (vdev->is_cxl && i == vdev->comp_reg_bar)
+			continue;
+
+		pci_release_selected_regions(pdev, 1 << bar);
 	}
 
 	list_for_each_entry_safe(dummy_res, tmp,
@@ -968,6 +976,9 @@ static int vfio_pci_ioctl_get_info(struct vfio_pci_core_device *vdev,
 
 	if (vdev->reset_works)
 		info.flags |= VFIO_DEVICE_FLAGS_RESET;
+
+	if (vdev->is_cxl)
+		info.flags |= VFIO_DEVICE_FLAGS_CXL;
 
 	info.num_regions = VFIO_PCI_NUM_REGIONS + vdev->num_regions;
 	info.num_irqs = VFIO_PCI_NUM_IRQS;
@@ -1766,14 +1777,21 @@ int vfio_pci_core_mmap(struct vfio_device *core_vdev, struct vm_area_struct *vma
 	 * we need to request the region and the barmap tracks that.
 	 */
 	if (!vdev->barmap[index]) {
+		int bars;
+
+		if (vdev->is_cxl && vdev->comp_reg_bar == index)
+			bars = 0;
+		else
+			bars = 1 << index;
+
 		ret = pci_request_selected_regions(pdev,
-						   1 << index, "vfio-pci");
+						   bars, "vfio-pci");
 		if (ret)
 			return ret;
 
 		vdev->barmap[index] = pci_iomap(pdev, index, 0);
 		if (!vdev->barmap[index]) {
-			pci_release_selected_regions(pdev, 1 << index);
+			pci_release_selected_regions(pdev, bars);
 			return -ENOMEM;
 		}
 	}
