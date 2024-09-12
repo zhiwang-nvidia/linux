@@ -54,6 +54,7 @@ struct vfio_pci_region {
 struct vfio_cxl_region {
 	u64 size;
 	u64 addr;
+	void *vaddr;
 	struct cxl_region *region;
 };
 

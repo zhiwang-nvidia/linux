@@ -102,6 +102,13 @@ static int create_cxl_region(struct vfio_pci_core_device *core_dev)
 	cxl_accel_get_region_params(cxl->region.region, &start, &end);
 
 	cxl->region.addr = start;
+	cxl->region.vaddr = ioremap(start, end - start);
+	if (!cxl->region.addr) {
+		pci_err(pdev, "Fail to map CXL region\n");
+		cxl_region_detach(cxl->cxled);
+		cxl_dpa_free(cxl->cxled);
+		goto out;
+	}
 out:
 	cxl_release_endpoint(cxl->cxlmd, cxl->endpoint);
 	return ret;
@@ -152,17 +159,135 @@ static void disable_cxl(struct vfio_pci_core_device *core_dev)
 {
 	struct vfio_cxl *cxl = &core_dev->cxl;
 
-	if (cxl->region.region)
+	if (cxl->region.region) {
+		iounmap(cxl->region.vaddr);
 		cxl_region_detach(cxl->cxled);
+	}
 
 	if (cxl->cxled)
 		cxl_dpa_free(cxl->cxled);
 }
 
+static unsigned long vma_to_pfn(struct vm_area_struct *vma)
+{
+	struct vfio_pci_core_device *vdev = vma->vm_private_data;
+	struct vfio_cxl *cxl = &vdev->cxl;
+	u64 pgoff;
+
+	pgoff = vma->vm_pgoff &
+		((1U << (VFIO_PCI_OFFSET_SHIFT - PAGE_SHIFT)) - 1);
+
+	return (cxl->region.addr >> PAGE_SHIFT) + pgoff;
+}
+
+static vm_fault_t vfio_cxl_mmap_fault(struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
+	struct vfio_pci_core_device *vdev = vma->vm_private_data;
+	unsigned long pfn, pgoff = vmf->pgoff - vma->vm_pgoff;
+	unsigned long addr = vma->vm_start;
+	vm_fault_t ret = VM_FAULT_SIGBUS;
+
+	pfn = vma_to_pfn(vma);
+
+	down_read(&vdev->memory_lock);
+
+	if (vdev->pm_runtime_engaged || !__vfio_pci_memory_enabled(vdev))
+		goto out_unlock;
+
+	ret = vmf_insert_pfn(vma, vmf->address, pfn + pgoff);
+	if (ret & VM_FAULT_ERROR)
+		goto out_unlock;
+
+	for (; addr < vma->vm_end; addr += PAGE_SIZE, pfn++) {
+		if (addr == vmf->address)
+			continue;
+
+		if (vmf_insert_pfn(vma, addr, pfn) & VM_FAULT_ERROR)
+			break;
+	}
+
+out_unlock:
+	up_read(&vdev->memory_lock);
+
+	return ret;
+}
+
+static const struct vm_operations_struct vfio_cxl_mmap_ops = {
+	.fault = vfio_cxl_mmap_fault,
+};
+
+static int vfio_cxl_region_mmap(struct vfio_pci_core_device *core_dev,
+				struct vfio_pci_region *region,
+				struct vm_area_struct *vma)
+{
+	struct vfio_cxl *cxl = &core_dev->cxl;
+	u64 phys_len, req_len, pgoff, req_start;
+
+	if (!(region->flags & VFIO_REGION_INFO_FLAG_MMAP))
+		return -EINVAL;
+
+	if (!(region->flags & VFIO_REGION_INFO_FLAG_READ) &&
+	    (vma->vm_flags & VM_READ))
+		return -EPERM;
+
+	if (!(region->flags & VFIO_REGION_INFO_FLAG_WRITE) &&
+	    (vma->vm_flags & VM_WRITE))
+		return -EPERM;
+
+	phys_len = cxl->region.size;
+	req_len = vma->vm_end - vma->vm_start;
+	pgoff = vma->vm_pgoff &
+		((1U << (VFIO_PCI_OFFSET_SHIFT - PAGE_SHIFT)) - 1);
+	req_start = pgoff << PAGE_SHIFT;
+
+	if (req_start + req_len > phys_len)
+		return -EINVAL;
+
+	vma->vm_private_data = core_dev;
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
+	vm_flags_set(vma, VM_ALLOW_ANY_UNCACHED | VM_IO | VM_PFNMAP |
+			VM_DONTEXPAND | VM_DONTDUMP);
+	vma->vm_ops = &vfio_cxl_mmap_ops;
+
+	return 0;
+}
+
+static ssize_t vfio_cxl_region_rw(struct vfio_pci_core_device *core_dev,
+				  char __user *buf, size_t count, loff_t *ppos,
+				  bool iswrite)
+{
+	unsigned int i = VFIO_PCI_OFFSET_TO_INDEX(*ppos) - VFIO_PCI_NUM_REGIONS;
+	struct vfio_cxl_region *cxl_region = core_dev->region[i].data;
+	loff_t pos = *ppos & VFIO_PCI_OFFSET_MASK;
+
+	if (!count)
+		return 0;
+
+	return vfio_pci_core_do_io_rw(core_dev, false,
+				      cxl_region->vaddr,
+				      (char __user *)buf, pos, count,
+				      0, 0, iswrite);
+}
+
+static void vfio_cxl_region_release(struct vfio_pci_core_device *vdev,
+				    struct vfio_pci_region *region)
+{
+}
+
+static const struct vfio_pci_regops vfio_cxl_regops = {
+	.rw		= vfio_cxl_region_rw,
+	.mmap		= vfio_cxl_region_mmap,
+	.release	= vfio_cxl_region_release,
+};
+
 int vfio_cxl_core_enable(struct vfio_pci_core_device *core_dev)
 {
 	struct vfio_cxl *cxl = &core_dev->cxl;
 	struct pci_dev *pdev = core_dev->pdev;
+	u32 flags;
 	u16 dvsec;
 	int ret;
 
@@ -182,8 +307,21 @@ int vfio_cxl_core_enable(struct vfio_pci_core_device *core_dev)
 	if (ret)
 		goto err_enable_cxl_device;
 
+	flags = VFIO_REGION_INFO_FLAG_READ |
+		VFIO_REGION_INFO_FLAG_WRITE |
+		VFIO_REGION_INFO_FLAG_MMAP;
+
+	ret = vfio_pci_core_register_dev_region(core_dev,
+		PCI_VENDOR_ID_CXL | VFIO_REGION_TYPE_PCI_VENDOR_TYPE,
+		VFIO_REGION_SUBTYPE_CXL, &vfio_cxl_regops,
+		cxl->region.size, flags, &cxl->region);
+	if (ret)
+		goto err_register_cxl_region;
+
 	return 0;
 
+err_register_cxl_region:
+	disable_cxl(core_dev);
 err_enable_cxl_device:
 	vfio_pci_core_disable(core_dev);
 	return ret;
