@@ -3,6 +3,10 @@
 #include <core/driver.h>
 #include <nvif/driverif.h>
 #include <core/pci.h>
+
+#include <nvrm/nvtypes.h>
+#include <nvrm/535.113.01/nvidia/inc/kernel/gpu/gsp/gsp_static_config.h>
+
 #include <vgpu_mgr/vgpu_mgr.h>
 
 static bool support_vgpu_mgr = false;
@@ -119,4 +123,50 @@ void nvkm_vgpu_mgr_fini(struct nvkm_device *device)
 
 	detach_nvkm(vgpu_mgr);
 	vgpu_mgr->enabled = false;
+}
+
+/**
+ * nvkm_vgpu_mgr_populate_vf_info - populate GSP_VF_INFO when vGPU
+ * is enabled
+ * @device: the nvkm_device pointer
+ * @info: GSP_VF_INFO data structure
+ */
+void nvkm_vgpu_mgr_populate_gsp_vf_info(struct nvkm_device *device,
+					void *info)
+{
+	struct pci_dev *pdev = nvkm_to_pdev(device);
+	GspSystemInfo *gsp_info = info;
+	GSP_VF_INFO *vf_info = &gsp_info->gspVFInfo;
+	u32 lo, hi;
+	u16 v;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
+
+	pci_read_config_word(pdev, pos + PCI_SRIOV_TOTAL_VF, &v);
+	vf_info->totalVFs = v;
+
+	pci_read_config_word(pdev, pos + PCI_SRIOV_VF_OFFSET, &v);
+	vf_info->firstVFOffset = v;
+
+	pci_read_config_dword(pdev, pos + PCI_SRIOV_BAR, &lo);
+	vf_info->FirstVFBar0Address = lo & 0xFFFFFFF0;
+
+	pci_read_config_dword(pdev, pos + PCI_SRIOV_BAR + 4, &lo);
+	pci_read_config_dword(pdev, pos + PCI_SRIOV_BAR + 8, &hi);
+
+	vf_info->FirstVFBar1Address = (((u64)hi) << 32) + (lo & 0xFFFFFFF0);
+
+	pci_read_config_dword(pdev, pos + PCI_SRIOV_BAR + 12, &lo);
+	pci_read_config_dword(pdev, pos + PCI_SRIOV_BAR + 16, &hi);
+
+	vf_info->FirstVFBar2Address = (((u64)hi) << 32) + (lo & 0xFFFFFFF0);
+
+#define IS_BAR_64(i) (((i) & 0x00000006) == 0x00000004)
+
+	v = nvkm_rd32(device, 0x88000 + 0xbf4);
+	vf_info->b64bitBar1 = IS_BAR_64(v);
+
+	v = nvkm_rd32(device, 0x88000 + 0xbfc);
+	vf_info->b64bitBar2 = IS_BAR_64(v);
 }

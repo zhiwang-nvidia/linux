@@ -1717,6 +1717,9 @@ r535_gsp_rpc_set_system_info(struct nvkm_gsp *gsp)
 	info->pciConfigMirrorSize = 0x001000;
 	r535_gsp_acpi_info(gsp, &info->acpiMethodData);
 
+	if (nvkm_vgpu_mgr_is_supported(device))
+		nvkm_vgpu_mgr_populate_gsp_vf_info(device, info);
+
 	return nvkm_gsp_rpc_wr(gsp, info, false);
 }
 
