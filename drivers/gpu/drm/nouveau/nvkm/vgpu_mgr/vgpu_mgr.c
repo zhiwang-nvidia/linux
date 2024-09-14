@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: MIT */
+/*
+ * Copyright © 2024 NVIDIA Corporation
+ */
 #include <core/device.h>
 #include <core/driver.h>
 #include <nvif/driverif.h>
@@ -131,6 +134,8 @@ int nvkm_vgpu_mgr_init(struct nvkm_device *device)
 	ret = get_vmmu_segment_size(vgpu_mgr);
 	if (ret)
 		goto err_get_vmmu_seg_size;
+
+	nvkm_vgpu_mgr_init_vfio_ops(vgpu_mgr);
 
 	vgpu_mgr->enabled = true;
 	pci_info(nvkm_to_pdev(device),
