@@ -17,3 +17,5 @@ obj-$(CONFIG_PDS_VFIO_PCI) += pds/
 obj-$(CONFIG_VIRTIO_VFIO_PCI) += virtio/
 
 obj-$(CONFIG_NVGRACE_GPU_VFIO_PCI) += nvgrace-gpu/
+
+obj-$(CONFIG_NVIDIA_VGPU_VFIO_PCI) += nvidia-vgpu/
