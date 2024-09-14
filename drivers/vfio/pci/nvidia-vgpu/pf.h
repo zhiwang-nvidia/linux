@@ -62,4 +62,15 @@ static inline int nvidia_vgpu_mgr_init_handle(struct pci_dev *pdev,
 	__m->handle.ops->get_total_fbmem_size(__m->handle.pf_drvdata); \
 })
 
+#define nvidia_vgpu_mgr_alloc_gsp_client(m, c) ({ \
+	typeof(m) __m = (m); \
+	__m->handle.ops->alloc_gsp_client(__m->handle.pf_drvdata, c); \
+})
+
+#define nvidia_vgpu_mgr_free_gsp_client(m, c) \
+	((m)->handle.ops->free_gsp_client(c))
+
+#define nvidia_vgpu_mgr_get_gsp_client_handle(m, c) \
+	((m)->handle.ops->get_gsp_client_handle(c))
+
 #endif

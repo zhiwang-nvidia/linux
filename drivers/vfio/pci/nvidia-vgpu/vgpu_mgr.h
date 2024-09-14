@@ -51,6 +51,7 @@ struct nvidia_vgpu {
  * @vgpu_list_lock: lock to protect vGPU list
  * @vgpu_list_head: list head of vGPU list
  * @num_vgpus: number of vGPUs in the vGPU list
+ * @gsp_client: the GSP client
  */
 struct nvidia_vgpu_mgr {
 	struct kref refcount;
@@ -64,6 +65,8 @@ struct nvidia_vgpu_mgr {
 	struct mutex vgpu_list_lock;
 	struct list_head vgpu_list_head;
 	atomic_t num_vgpus;
+
+	struct nvidia_vgpu_gsp_client gsp_client;
 };
 
 #define nvidia_vgpu_mgr_for_each_vgpu(vgpu, vgpu_mgr) \
