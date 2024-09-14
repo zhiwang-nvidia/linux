@@ -12,6 +12,7 @@ static void vgpu_mgr_release(struct kref *kref)
 	struct nvidia_vgpu_mgr *vgpu_mgr =
 		container_of(kref, struct nvidia_vgpu_mgr, refcount);
 
+	nvidia_vgpu_mgr_free_gsp_client(vgpu_mgr, &vgpu_mgr->gsp_client);
 	nvidia_vgpu_mgr_detach_handle(&vgpu_mgr->handle);
 	kvfree(vgpu_mgr);
 }
@@ -82,9 +83,16 @@ struct nvidia_vgpu_mgr *nvidia_vgpu_mgr_get(struct pci_dev *dev)
 	kref_init(&vgpu_mgr->refcount);
 	mutex_init(&vgpu_mgr->vgpu_id_lock);
 
+	ret = nvidia_vgpu_mgr_alloc_gsp_client(vgpu_mgr,
+					       &vgpu_mgr->gsp_client);
+	if (ret)
+		goto fail_alloc_gsp_client;
+
 	mutex_unlock(&vgpu_mgr_attach_lock);
 	return vgpu_mgr;
 
+fail_alloc_gsp_client:
+	nvidia_vgpu_mgr_detach_handle(&vgpu_mgr->handle);
 fail_attach_handle:
 	kvfree(vgpu_mgr);
 fail_alloc_vgpu_mgr:

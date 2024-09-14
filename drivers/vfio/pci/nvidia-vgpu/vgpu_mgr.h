@@ -32,6 +32,8 @@ struct nvidia_vgpu_mgr {
 	struct mutex vgpu_id_lock;
 	struct nvidia_vgpu *vgpus[NVIDIA_MAX_VGPUS];
 	atomic_t num_vgpus;
+
+	struct nvidia_vgpu_gsp_client gsp_client;
 };
 
 struct nvidia_vgpu_mgr *nvidia_vgpu_mgr_get(struct pci_dev *dev);

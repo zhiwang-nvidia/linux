@@ -43,4 +43,13 @@ static inline int nvidia_vgpu_mgr_get_handle(struct pci_dev *pdev,
 #define nvidia_vgpu_mgr_detach_handle(h) \
 	(h)->ops->detach_handle((h)->pf_drvdata)
 
+#define nvidia_vgpu_mgr_alloc_gsp_client(m, c) \
+	m->handle.ops->alloc_gsp_client(m->handle.pf_drvdata, c)
+
+#define nvidia_vgpu_mgr_free_gsp_client(m, c) \
+	m->handle.ops->free_gsp_client(c)
+
+#define nvidia_vgpu_mgr_get_gsp_client_handle(m, c) \
+	m->handle.ops->get_gsp_client_handle(c)
+
 #endif
