@@ -3,6 +3,7 @@
 #include <core/device.h>
 #include <engine/chid.h>
 #include <engine/fifo.h>
+#include <engine/fifo/runl.h>
 #include <subdev/bar.h>
 #include <subdev/fb.h>
 #include <subdev/gsp.h>
@@ -248,6 +249,19 @@ static int bar1_map_mem(struct nvidia_vgpu_mem *base)
 	return 0;
 }
 
+static void get_engine_bitmap(void *handle, unsigned long *bitmap)
+{
+	struct nvkm_device *nvkm_dev = handle;
+	struct nvkm_runl *runl;
+	struct nvkm_engn *engn;
+
+	nvkm_runl_foreach(runl, nvkm_dev->fifo) {
+		nvkm_runl_foreach_engn(engn, runl) {
+			__set_bit(engn->id, bitmap);
+		}
+	}
+}
+
 struct nvkm_vgpu_mgr_vfio_ops nvkm_vgpu_mgr_vfio_ops = {
 	.vgpu_mgr_is_enabled = vgpu_mgr_is_enabled,
 	.get_handle = get_handle,
@@ -266,6 +280,7 @@ struct nvkm_vgpu_mgr_vfio_ops nvkm_vgpu_mgr_vfio_ops = {
 	.free_fbmem = free_fbmem,
 	.bar1_map_mem = bar1_map_mem,
 	.bar1_unmap_mem = bar1_unmap_mem,
+	.get_engine_bitmap = get_engine_bitmap,
 };
 
 /**

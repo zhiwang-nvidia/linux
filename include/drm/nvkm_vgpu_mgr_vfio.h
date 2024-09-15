@@ -48,6 +48,7 @@ struct nvkm_vgpu_mgr_vfio_ops {
 	void (*free_fbmem)(struct nvidia_vgpu_mem *mem);
 	int (*bar1_map_mem)(struct nvidia_vgpu_mem *mem);
 	void (*bar1_unmap_mem)(struct nvidia_vgpu_mem *mem);
+	void (*get_engine_bitmap)(void *handle, unsigned long *bitmap);
 };
 
 struct nvkm_vgpu_mgr_vfio_ops *nvkm_vgpu_mgr_get_vfio_ops(void *handle);
