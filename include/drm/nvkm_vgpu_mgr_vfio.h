@@ -35,6 +35,8 @@ struct nvkm_vgpu_mgr_vfio_ops {
 			    u32 size);
 	void (*rm_ctrl_done)(struct nvidia_vgpu_gsp_client *client,
 			     void *ctrl);
+	int (*alloc_chids)(void *handle, int count);
+	void (*free_chids)(void *handle, int offset, int count);
 };
 
 struct nvkm_vgpu_mgr_vfio_ops *nvkm_vgpu_mgr_get_vfio_ops(void *handle);

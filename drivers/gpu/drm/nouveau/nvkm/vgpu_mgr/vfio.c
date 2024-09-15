@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: MIT */
 
 #include <core/device.h>
+#include <engine/chid.h>
+#include <engine/fifo.h>
+#include <subdev/fb.h>
 #include <subdev/gsp.h>
 
 #include <vgpu_mgr/vgpu_mgr.h>
@@ -128,6 +131,29 @@ static void rm_ctrl_done(struct nvidia_vgpu_gsp_client *client, void *ctrl)
 	nvkm_gsp_rm_ctrl_done(&device->subdevice, ctrl);
 }
 
+static void free_chids(void *handle, int offset, int count)
+{
+	struct nvkm_device *device = handle;
+	struct nvkm_vgpu_mgr *vgpu_mgr = &device->vgpu_mgr;
+
+	mutex_lock(&vgpu_mgr->chid_alloc_lock);
+	nvkm_chid_reserved_free(device->fifo->chid, offset, count);
+	mutex_unlock(&vgpu_mgr->chid_alloc_lock);
+}
+
+static int alloc_chids(void *handle, int count)
+{
+	struct nvkm_device *device = handle;
+	struct nvkm_vgpu_mgr *vgpu_mgr = &device->vgpu_mgr;
+	int ret;
+
+	mutex_lock(&vgpu_mgr->chid_alloc_lock);
+	ret = nvkm_chid_reserved_alloc(device->fifo->chid, count);
+	mutex_unlock(&vgpu_mgr->chid_alloc_lock);
+
+	return ret;
+}
+
 struct nvkm_vgpu_mgr_vfio_ops nvkm_vgpu_mgr_vfio_ops = {
 	.vgpu_mgr_is_enabled = vgpu_mgr_is_enabled,
 	.get_handle = get_handle,
@@ -140,6 +166,8 @@ struct nvkm_vgpu_mgr_vfio_ops nvkm_vgpu_mgr_vfio_ops = {
 	.rm_ctrl_wr = rm_ctrl_wr,
 	.rm_ctrl_rd = rm_ctrl_rd,
 	.rm_ctrl_done = rm_ctrl_done,
+	.alloc_chids = alloc_chids,
+	.free_chids = free_chids,
 };
 
 /**

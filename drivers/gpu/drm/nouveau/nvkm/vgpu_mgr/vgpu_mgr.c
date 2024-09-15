@@ -127,6 +127,8 @@ int nvkm_vgpu_mgr_init(struct nvkm_device *device)
 
 	vgpu_mgr->nvkm_dev = device;
 
+	mutex_init(&vgpu_mgr->chid_alloc_lock);
+
 	ret = attach_nvkm(vgpu_mgr);
 	if (ret)
 		return ret;

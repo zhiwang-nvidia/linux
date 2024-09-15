@@ -22,6 +22,8 @@ struct nvkm_vgpu_mgr {
 
 	void *vfio_ops;
 	struct nvidia_vgpu_vfio_handle_data vfio_handle_data;
+
+	struct mutex chid_alloc_lock;
 };
 
 bool nvkm_vgpu_mgr_is_supported(struct nvkm_device *device);
