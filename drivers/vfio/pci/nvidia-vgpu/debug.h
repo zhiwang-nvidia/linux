@@ -17,4 +17,9 @@
 	pci_dbg(__v->pdev, "nvidia-vgpu %d: "f, __v->info.id, ##a); \
 })
 
+#define vgpu_error(v, f, a...) ({ \
+	typeof(v) __v = (v); \
+	pci_err(__v->pdev, "nvidia-vgpu %d: "f, __v->info.id, ##a); \
+})
+
 #endif

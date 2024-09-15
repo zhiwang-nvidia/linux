@@ -59,6 +59,7 @@ struct nvidia_vgpu_chid {
  * @info: vGPU info
  * @vgpu_mgr: pointer to vGPU manager
  * @chid: vGPU channel IDs
+ * @fbmem_heap: allocated FB memory for the vGPU
  */
 struct nvidia_vgpu {
 	/* Per-vGPU lock */
@@ -71,6 +72,7 @@ struct nvidia_vgpu {
 	struct nvidia_vgpu_mgr *vgpu_mgr;
 
 	struct nvidia_vgpu_chid chid;
+	struct nvidia_vgpu_mem *fbmem_heap;
 };
 
 /**
@@ -80,6 +82,8 @@ struct nvidia_vgpu {
  * @handle: the driver handle
  * @total_avail_chids: total available channel IDs
  * @total_fbmem_size: total FB memory size
+ * @vmmu_segment_size: VMMU segment size
+ * @ecc_enabled: ECC is enabled in the GPU
  * @vgpu_major: vGPU major version
  * @vgpu_minor: vGPU minor version
  * @vgpu_list_lock: lock to protect vGPU list
@@ -98,6 +102,10 @@ struct nvidia_vgpu_mgr {
 	/* core driver configurations */
 	u32 total_avail_chids;
 	u64 total_fbmem_size;
+
+	/* GSP RM configurations */
+	u64 vmmu_segment_size;
+	bool ecc_enabled;
 
 	u64 vgpu_major;
 	u64 vgpu_minor;

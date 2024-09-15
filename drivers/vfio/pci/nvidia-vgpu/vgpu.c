@@ -105,7 +105,70 @@ static int setup_chids(struct nvidia_vgpu *vgpu)
 
 	vgpu_debug(vgpu, "alloc guest channel offset %u size %u\n", chid->chid_offset,
 		   chid->num_chid);
+	return 0;
+}
 
+static void clean_fbmem_heap(struct nvidia_vgpu *vgpu)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+
+	vgpu_debug(vgpu, "free guest FB memory, offset 0x%llx size 0x%llx\n",
+		   vgpu->fbmem_heap->addr, vgpu->fbmem_heap->size);
+
+	nvidia_vgpu_mgr_free_fbmem(vgpu_mgr, vgpu->fbmem_heap);
+	vgpu->fbmem_heap = NULL;
+}
+
+static int get_alloc_fbmem_size(struct nvidia_vgpu *vgpu, u64 *size)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+	struct nvidia_vgpu_info *info = &vgpu->info;
+	struct nvidia_vgpu_type *type = info->vgpu_type;
+	u64 fb_length;
+
+	if (!vgpu_mgr->ecc_enabled) {
+		*size = type->fb_length;
+		return 0;
+	}
+
+	if (!info->vgpu_type->ecc_supported) {
+		vgpu_error(vgpu, "ECC is enabled. vGPU type %s doesn't support ECC!\n",
+			   type->vgpu_type_name);
+		return -ENODEV;
+	}
+
+	/* Re-calculate the FB memory length when ECC is enabled. */
+	fb_length = ALIGN(vgpu_mgr->total_fbmem_size, vgpu_mgr->vmmu_segment_size);
+	fb_length = fb_length / type->max_instance - type->fb_reservation - type->gsp_heap_size;
+	fb_length = min(type->fb_length, fb_length);
+	fb_length = ALIGN_DOWN(fb_length, vgpu_mgr->vmmu_segment_size);
+
+	*size = fb_length;
+	return 0;
+}
+
+static int setup_fbmem_heap(struct nvidia_vgpu *vgpu)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+	struct nvidia_vgpu_alloc_fbmem_info info = {0};
+	struct nvidia_vgpu_mem *mem;
+	int ret;
+
+	ret = get_alloc_fbmem_size(vgpu, &info.size);
+	if (ret)
+		return ret;
+
+	info.align = vgpu_mgr->vmmu_segment_size;
+
+	vgpu_debug(vgpu, "alloc guest FB memory, size 0x%llx\n", info.size);
+
+	mem = nvidia_vgpu_mgr_alloc_fbmem(vgpu_mgr, &info);
+	if (IS_ERR(mem))
+		return PTR_ERR(mem);
+
+	vgpu_debug(vgpu, "guest FB memory offset 0x%llx size 0x%llx\n", mem->addr, mem->size);
+
+	vgpu->fbmem_heap = mem;
 	return 0;
 }
 
@@ -120,6 +183,7 @@ int nvidia_vgpu_mgr_destroy_vgpu(struct nvidia_vgpu *vgpu)
 	if (!atomic_cmpxchg(&vgpu->status, 1, 0))
 		return -ENODEV;
 
+	clean_fbmem_heap(vgpu);
 	clean_chids(vgpu);
 	unregister_vgpu(vgpu);
 
@@ -164,12 +228,18 @@ int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu)
 	if (ret)
 		goto err_setup_chids;
 
+	ret = setup_fbmem_heap(vgpu);
+	if (ret)
+		goto err_setup_fbmem_heap;
+
 	atomic_set(&vgpu->status, 1);
 
 	vgpu_debug(vgpu, "created\n");
 
 	return 0;
 
+err_setup_fbmem_heap:
+	clean_chids(vgpu);
 err_setup_chids:
 	unregister_vgpu(vgpu);
 

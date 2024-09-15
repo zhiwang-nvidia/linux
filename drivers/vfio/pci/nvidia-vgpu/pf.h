@@ -95,4 +95,12 @@ static inline int nvidia_vgpu_mgr_init_handle(struct pci_dev *pdev,
 	__m->handle.ops->free_chids(__m->handle.pf_drvdata, o, s); \
 })
 
+#define nvidia_vgpu_mgr_alloc_fbmem(m, info) ({\
+	typeof(m) __m = (m); \
+	__m->handle.ops->alloc_fbmem(__m->handle.pf_drvdata, info); \
+})
+
+#define nvidia_vgpu_mgr_free_fbmem(m, h) \
+	((m)->handle.ops->free_fbmem(h))
+
 #endif

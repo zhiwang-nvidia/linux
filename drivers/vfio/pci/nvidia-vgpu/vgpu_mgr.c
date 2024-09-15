@@ -6,6 +6,9 @@
 #include "debug.h"
 #include "vgpu_mgr.h"
 
+#include <nvrm/vmmu.h>
+#include <nvrm/ecc.h>
+
 static void clean_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr)
 {
 	if (vgpu_mgr->use_chid_alloc_bitmap) {
@@ -104,6 +107,39 @@ static void attach_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr,
 	handle_data->vfio.pf_detach_handle_fn = pf_detach_handle_fn;
 }
 
+static int get_vmmu_segment_size(struct nvidia_vgpu_mgr *vgpu_mgr)
+{
+	NV2080_CTRL_GPU_GET_VMMU_SEGMENT_SIZE_PARAMS *ctrl;
+
+	ctrl = nvidia_vgpu_mgr_rm_ctrl_rd(vgpu_mgr, &vgpu_mgr->gsp_client,
+					  NV2080_CTRL_CMD_GPU_GET_VMMU_SEGMENT_SIZE,
+					  sizeof(*ctrl));
+	if (IS_ERR(ctrl))
+		return PTR_ERR(ctrl);
+
+	vgpu_mgr->vmmu_segment_size = ctrl->vmmuSegmentSize;
+
+	nvidia_vgpu_mgr_rm_ctrl_done(vgpu_mgr, &vgpu_mgr->gsp_client, ctrl);
+
+	return 0;
+}
+
+static int get_ecc_status(struct nvidia_vgpu_mgr *vgpu_mgr)
+{
+	NV2080_CTRL_GPU_QUERY_ECC_STATUS_PARAMS *ctrl;
+
+	ctrl = nvidia_vgpu_mgr_rm_ctrl_rd(vgpu_mgr, &vgpu_mgr->gsp_client,
+					  NV2080_CTRL_CMD_GPU_QUERY_ECC_STATUS,
+					  sizeof(*ctrl));
+	if (IS_ERR(ctrl))
+		return PTR_ERR(ctrl);
+
+	vgpu_mgr->ecc_enabled = ctrl->units[0].enabled;
+
+	nvidia_vgpu_mgr_rm_ctrl_done(vgpu_mgr, &vgpu_mgr->gsp_client, ctrl);
+	return 0;
+}
+
 static int setup_chid_alloc_bitmap(struct nvidia_vgpu_mgr *vgpu_mgr)
 {
 	if (WARN_ON(!vgpu_mgr->use_chid_alloc_bitmap))
@@ -120,11 +156,27 @@ static int setup_chid_alloc_bitmap(struct nvidia_vgpu_mgr *vgpu_mgr)
 
 static int init_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr)
 {
+	int ret;
+
+	ret = get_vmmu_segment_size(vgpu_mgr);
+	if (ret)
+		return ret;
+
+	ret = get_ecc_status(vgpu_mgr);
+	if (ret)
+		return ret;
+
+	vgpu_mgr_debug(vgpu_mgr, "[GSP RM] VMMU segment size: 0x%llx\n",
+		       vgpu_mgr->vmmu_segment_size);
+	vgpu_mgr_debug(vgpu_mgr, "[GSP RM] ECC enabled: %d\n", vgpu_mgr->ecc_enabled);
+
 	vgpu_mgr->total_avail_chids = nvidia_vgpu_mgr_get_avail_chids(vgpu_mgr);
 	vgpu_mgr->total_fbmem_size = nvidia_vgpu_mgr_get_total_fbmem_size(vgpu_mgr);
 
-	vgpu_mgr_debug(vgpu_mgr, "total avail chids %u\n", vgpu_mgr->total_avail_chids);
-	vgpu_mgr_debug(vgpu_mgr, "total fbmem size 0x%llx\n", vgpu_mgr->total_fbmem_size);
+	vgpu_mgr_debug(vgpu_mgr, "[core driver] total avail chids %u\n",
+		       vgpu_mgr->total_avail_chids);
+	vgpu_mgr_debug(vgpu_mgr, "[core driver] total fbmem size 0x%llx\n",
+		       vgpu_mgr->total_fbmem_size);
 
 	return vgpu_mgr->use_chid_alloc_bitmap ? setup_chid_alloc_bitmap(vgpu_mgr) : 0;
 }
