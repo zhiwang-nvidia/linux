@@ -21,6 +21,11 @@ struct nvidia_vgpu_chid {
 	int num_plugin_channels;
 };
 
+struct nvidia_vgpu_mgmt {
+	struct nvidia_vgpu_mem *heap_mem;
+	/* more to come */
+};
+
 struct nvidia_vgpu {
 	struct mutex lock;
 	atomic_t status;
@@ -32,6 +37,7 @@ struct nvidia_vgpu {
 
 	struct nvidia_vgpu_mem *fbmem_heap;
 	struct nvidia_vgpu_chid chid;
+	struct nvidia_vgpu_mgmt mgmt;
 };
 
 struct nvidia_vgpu_mgr {
