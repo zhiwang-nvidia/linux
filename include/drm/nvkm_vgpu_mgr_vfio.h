@@ -19,6 +19,7 @@ struct nvidia_vgpu_gsp_client {
 struct nvidia_vgpu_mem {
 	u64 addr;
 	u64 size;
+	void * __iomem bar1_vaddr;
 };
 
 struct nvkm_vgpu_mgr_vfio_ops {
@@ -45,6 +46,8 @@ struct nvkm_vgpu_mgr_vfio_ops {
 	struct nvidia_vgpu_mem *(*alloc_fbmem)(void *handle, u64 size,
 					       bool vmmu_aligned);
 	void (*free_fbmem)(struct nvidia_vgpu_mem *mem);
+	int (*bar1_map_mem)(struct nvidia_vgpu_mem *mem);
+	void (*bar1_unmap_mem)(struct nvidia_vgpu_mem *mem);
 };
 
 struct nvkm_vgpu_mgr_vfio_ops *nvkm_vgpu_mgr_get_vfio_ops(void *handle);

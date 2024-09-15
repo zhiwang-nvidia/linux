@@ -6,6 +6,7 @@
 #include <subdev/bar.h>
 #include <subdev/fb.h>
 #include <subdev/gsp.h>
+#include <subdev/mmu.h>
 
 #include <vgpu_mgr/vgpu_mgr.h>
 #include <drm/nvkm_vgpu_mgr_vfio.h>
@@ -203,6 +204,50 @@ static struct nvidia_vgpu_mem *alloc_fbmem(void *handle, u64 size,
 	return base;
 }
 
+static void bar1_unmap_mem(struct nvidia_vgpu_mem *base)
+{
+	struct nvkm_vgpu_mem *mem =
+		container_of(base, struct nvkm_vgpu_mem, base);
+	struct nvkm_vgpu_mgr *vgpu_mgr = mem->vgpu_mgr;
+	struct nvkm_device *device = vgpu_mgr->nvkm_dev;
+	struct nvkm_vmm *vmm = nvkm_bar_bar1_vmm(device);
+
+	iounmap(base->bar1_vaddr);
+	base->bar1_vaddr = NULL;
+	nvkm_vmm_put(vmm, &mem->bar1_vma);
+	mem->bar1_vma = NULL;
+}
+
+static int bar1_map_mem(struct nvidia_vgpu_mem *base)
+{
+	struct nvkm_vgpu_mem *mem =
+		container_of(base, struct nvkm_vgpu_mem, base);
+	struct nvkm_vgpu_mgr *vgpu_mgr = mem->vgpu_mgr;
+	struct nvkm_device *device = vgpu_mgr->nvkm_dev;
+	struct nvkm_vmm *vmm = nvkm_bar_bar1_vmm(device);
+	unsigned long paddr;
+	int ret;
+
+	if (WARN_ON(base->bar1_vaddr || mem->bar1_vma))
+		return -EEXIST;
+
+	ret = nvkm_vmm_get(vmm, 12, base->size, &mem->bar1_vma);
+	if (ret)
+		return ret;
+
+	ret = nvkm_memory_map(mem->mem, 0, vmm, mem->bar1_vma, NULL, 0);
+	if (ret) {
+		nvkm_vmm_put(vmm, &mem->bar1_vma);
+		return ret;
+	}
+
+	paddr = device->func->resource_addr(device, 1) +
+		mem->bar1_vma->addr;
+
+	base->bar1_vaddr = ioremap(paddr, base->size);
+	return 0;
+}
+
 struct nvkm_vgpu_mgr_vfio_ops nvkm_vgpu_mgr_vfio_ops = {
 	.vgpu_mgr_is_enabled = vgpu_mgr_is_enabled,
 	.get_handle = get_handle,
@@ -219,6 +264,8 @@ struct nvkm_vgpu_mgr_vfio_ops nvkm_vgpu_mgr_vfio_ops = {
 	.free_chids = free_chids,
 	.alloc_fbmem = alloc_fbmem,
 	.free_fbmem = free_fbmem,
+	.bar1_map_mem = bar1_map_mem,
+	.bar1_unmap_mem = bar1_unmap_mem,
 };
 
 /**
