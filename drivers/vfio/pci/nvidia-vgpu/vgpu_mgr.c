@@ -88,9 +88,15 @@ struct nvidia_vgpu_mgr *nvidia_vgpu_mgr_get(struct pci_dev *dev)
 	if (ret)
 		goto fail_alloc_gsp_client;
 
+	ret = nvidia_vgpu_mgr_init_vgpu_types(vgpu_mgr);
+	if (ret)
+		goto fail_init_vgpu_types;
+
 	mutex_unlock(&vgpu_mgr_attach_lock);
 	return vgpu_mgr;
 
+fail_init_vgpu_types:
+	nvidia_vgpu_mgr_free_gsp_client(vgpu_mgr, &vgpu_mgr->gsp_client);
 fail_alloc_gsp_client:
 	nvidia_vgpu_mgr_detach_handle(&vgpu_mgr->handle);
 fail_attach_handle:
