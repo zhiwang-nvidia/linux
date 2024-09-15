@@ -172,6 +172,41 @@ static int setup_fbmem_heap(struct nvidia_vgpu *vgpu)
 	return 0;
 }
 
+static void clean_mgmt_heap(struct nvidia_vgpu *vgpu)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+	struct nvidia_vgpu_mgmt *mgmt = &vgpu->mgmt;
+
+	vgpu_debug(vgpu, "free mgmt heap, offset 0x%llx size 0x%llx\n", mgmt->heap_mem->addr,
+		   mgmt->heap_mem->size);
+
+	nvidia_vgpu_mgr_free_fbmem(vgpu_mgr, mgmt->heap_mem);
+	mgmt->heap_mem = NULL;
+}
+
+static int setup_mgmt_heap(struct nvidia_vgpu *vgpu)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+	struct nvidia_vgpu_mgmt *mgmt = &vgpu->mgmt;
+	struct nvidia_vgpu_info *info = &vgpu->info;
+	struct nvidia_vgpu_type *vgpu_type = info->vgpu_type;
+	struct nvidia_vgpu_alloc_fbmem_info alloc_info = {0};
+	struct nvidia_vgpu_mem *mem;
+
+	alloc_info.size = vgpu_type->gsp_heap_size;
+
+	vgpu_debug(vgpu, "alloc mgmt heap, size 0x%llx\n", alloc_info.size);
+
+	mem = nvidia_vgpu_mgr_alloc_fbmem(vgpu_mgr, &alloc_info);
+	if (IS_ERR(mem))
+		return PTR_ERR(mem);
+
+	vgpu_debug(vgpu, "mgmt heap offset 0x%llx size 0x%llx\n", mem->addr, mem->size);
+
+	mgmt->heap_mem = mem;
+	return 0;
+}
+
 /**
  * nvidia_vgpu_mgr_destroy_vgpu - destroy a vGPU instance
  * @vgpu: the vGPU instance going to be destroyed.
@@ -183,6 +218,7 @@ int nvidia_vgpu_mgr_destroy_vgpu(struct nvidia_vgpu *vgpu)
 	if (!atomic_cmpxchg(&vgpu->status, 1, 0))
 		return -ENODEV;
 
+	clean_mgmt_heap(vgpu);
 	clean_fbmem_heap(vgpu);
 	clean_chids(vgpu);
 	unregister_vgpu(vgpu);
@@ -232,12 +268,18 @@ int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu)
 	if (ret)
 		goto err_setup_fbmem_heap;
 
+	ret = setup_mgmt_heap(vgpu);
+	if (ret)
+		goto err_setup_mgmt_heap;
+
 	atomic_set(&vgpu->status, 1);
 
 	vgpu_debug(vgpu, "created\n");
 
 	return 0;
 
+err_setup_mgmt_heap:
+	clean_fbmem_heap(vgpu);
 err_setup_fbmem_heap:
 	clean_chids(vgpu);
 err_setup_chids:

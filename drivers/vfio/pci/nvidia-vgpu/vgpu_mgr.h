@@ -49,6 +49,11 @@ struct nvidia_vgpu_chid {
 	u32 num_plugin_channels;
 };
 
+struct nvidia_vgpu_mgmt {
+	struct nvidia_vgpu_mem *heap_mem;
+	/* more to come */
+};
+
 /**
  * struct nvidia_vgpu - per-vGPU state
  *
@@ -60,6 +65,7 @@ struct nvidia_vgpu_chid {
  * @vgpu_mgr: pointer to vGPU manager
  * @chid: vGPU channel IDs
  * @fbmem_heap: allocated FB memory for the vGPU
+ * @mgmt: vGPU mgmt heap
  */
 struct nvidia_vgpu {
 	/* Per-vGPU lock */
@@ -73,6 +79,7 @@ struct nvidia_vgpu {
 
 	struct nvidia_vgpu_chid chid;
 	struct nvidia_vgpu_mem *fbmem_heap;
+	struct nvidia_vgpu_mgmt mgmt;
 };
 
 /**
