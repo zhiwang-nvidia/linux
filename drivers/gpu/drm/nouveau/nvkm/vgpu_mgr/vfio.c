@@ -98,6 +98,36 @@ static u32 get_gsp_client_handle(struct nvidia_vgpu_gsp_client *client)
 	return c->object.handle;
 }
 
+static void *rm_ctrl_get(struct nvidia_vgpu_gsp_client *client, u32 cmd,
+			 u32 size)
+{
+	struct nvkm_gsp_device *device = client->gsp_device;
+
+	return nvkm_gsp_rm_ctrl_get(&device->subdevice, cmd, size);
+}
+
+static int rm_ctrl_wr(struct nvidia_vgpu_gsp_client *client, void *ctrl)
+{
+	struct nvkm_gsp_device *device = client->gsp_device;
+
+	return nvkm_gsp_rm_ctrl_wr(&device->subdevice, ctrl);
+}
+
+static void *rm_ctrl_rd(struct nvidia_vgpu_gsp_client *client, u32 cmd,
+			u32 size)
+{
+	struct nvkm_gsp_device *device = client->gsp_device;
+
+	return nvkm_gsp_rm_ctrl_rd(&device->subdevice, cmd, size);
+}
+
+static void rm_ctrl_done(struct nvidia_vgpu_gsp_client *client, void *ctrl)
+{
+	struct nvkm_gsp_device *device = client->gsp_device;
+
+	nvkm_gsp_rm_ctrl_done(&device->subdevice, ctrl);
+}
+
 struct nvkm_vgpu_mgr_vfio_ops nvkm_vgpu_mgr_vfio_ops = {
 	.vgpu_mgr_is_enabled = vgpu_mgr_is_enabled,
 	.get_handle = get_handle,
@@ -106,6 +136,10 @@ struct nvkm_vgpu_mgr_vfio_ops nvkm_vgpu_mgr_vfio_ops = {
 	.alloc_gsp_client = alloc_gsp_client,
 	.free_gsp_client = free_gsp_client,
 	.get_gsp_client_handle = get_gsp_client_handle,
+	.rm_ctrl_get = rm_ctrl_get,
+	.rm_ctrl_wr = rm_ctrl_wr,
+	.rm_ctrl_rd = rm_ctrl_rd,
+	.rm_ctrl_done = rm_ctrl_done,
 };
 
 /**

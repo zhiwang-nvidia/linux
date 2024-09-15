@@ -27,6 +27,14 @@ struct nvkm_vgpu_mgr_vfio_ops {
 				struct nvidia_vgpu_gsp_client *client);
 	void (*free_gsp_client)(struct nvidia_vgpu_gsp_client *client);
 	u32 (*get_gsp_client_handle)(struct nvidia_vgpu_gsp_client *client);
+	void *(*rm_ctrl_get)(struct nvidia_vgpu_gsp_client *client,
+			     u32 cmd, u32 size);
+	int (*rm_ctrl_wr)(struct nvidia_vgpu_gsp_client *client,
+			  void *ctrl);
+	void *(*rm_ctrl_rd)(struct nvidia_vgpu_gsp_client *client, u32 cmd,
+			    u32 size);
+	void (*rm_ctrl_done)(struct nvidia_vgpu_gsp_client *client,
+			     void *ctrl);
 };
 
 struct nvkm_vgpu_mgr_vfio_ops *nvkm_vgpu_mgr_get_vfio_ops(void *handle);
