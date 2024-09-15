@@ -16,6 +16,11 @@ struct nvidia_vgpu_gsp_client {
 	void *gsp_device;
 };
 
+struct nvidia_vgpu_mem {
+	u64 addr;
+	u64 size;
+};
+
 struct nvkm_vgpu_mgr_vfio_ops {
 	bool (*vgpu_mgr_is_enabled)(void *handle);
 	void (*get_handle)(void *handle,
@@ -37,6 +42,9 @@ struct nvkm_vgpu_mgr_vfio_ops {
 			     void *ctrl);
 	int (*alloc_chids)(void *handle, int count);
 	void (*free_chids)(void *handle, int offset, int count);
+	struct nvidia_vgpu_mem *(*alloc_fbmem)(void *handle, u64 size,
+					       bool vmmu_aligned);
+	void (*free_fbmem)(struct nvidia_vgpu_mem *mem);
 };
 
 struct nvkm_vgpu_mgr_vfio_ops *nvkm_vgpu_mgr_get_vfio_ops(void *handle);

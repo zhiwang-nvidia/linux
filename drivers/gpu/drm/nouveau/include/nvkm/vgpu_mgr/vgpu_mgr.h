@@ -6,6 +6,12 @@
 
 #define NVIDIA_MAX_VGPUS 2
 
+struct nvkm_vgpu_mem {
+	struct nvidia_vgpu_mem base;
+	struct nvkm_memory *mem;
+	struct nvkm_vgpu_mgr *vgpu_mgr;
+};
+
 struct nvkm_vgpu_mgr {
 	bool enabled;
 	struct nvkm_device *nvkm_dev;

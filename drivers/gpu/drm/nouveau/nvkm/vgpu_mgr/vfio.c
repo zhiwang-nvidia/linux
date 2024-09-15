@@ -3,6 +3,7 @@
 #include <core/device.h>
 #include <engine/chid.h>
 #include <engine/fifo.h>
+#include <subdev/bar.h>
 #include <subdev/fb.h>
 #include <subdev/gsp.h>
 
@@ -154,6 +155,54 @@ static int alloc_chids(void *handle, int count)
 	return ret;
 }
 
+static void free_fbmem(struct nvidia_vgpu_mem *base)
+{
+	struct nvkm_vgpu_mem *mem =
+		container_of(base, struct nvkm_vgpu_mem, base);
+	struct nvkm_vgpu_mgr *vgpu_mgr = mem->vgpu_mgr;
+	struct nvkm_device *device = vgpu_mgr->nvkm_dev;
+
+	nvdev_debug(device, "free fb mem: addr %llx size %llx\n",
+		    base->addr, base->size);
+
+	nvkm_memory_unref(&mem->mem);
+	kfree(mem);
+}
+
+static struct nvidia_vgpu_mem *alloc_fbmem(void *handle, u64 size,
+					   bool vmmu_aligned)
+{
+	struct nvkm_device *device = handle;
+	struct nvkm_vgpu_mgr *vgpu_mgr = &device->vgpu_mgr;
+	struct nvidia_vgpu_mem *base;
+	struct nvkm_vgpu_mem *mem;
+	u32 shift = vmmu_aligned ? ilog2(vgpu_mgr->vmmu_segment_size) :
+		    NVKM_RAM_MM_SHIFT;
+	int ret;
+
+	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	if (!mem)
+		return ERR_PTR(-ENOMEM);
+
+	base = &mem->base;
+
+	ret = nvkm_ram_get(device, NVKM_RAM_MM_NORMAL, 0x1, shift, size,
+			   true, true, &mem->mem);
+	if (ret) {
+		kfree(mem);
+		return ERR_PTR(ret);
+	}
+
+	mem->vgpu_mgr = vgpu_mgr;
+	base->addr = mem->mem->func->addr(mem->mem);
+	base->size = mem->mem->func->size(mem->mem);
+
+	nvdev_debug(device, "alloc fb mem: addr %llx size %llx\n",
+		    base->addr, base->size);
+
+	return base;
+}
+
 struct nvkm_vgpu_mgr_vfio_ops nvkm_vgpu_mgr_vfio_ops = {
 	.vgpu_mgr_is_enabled = vgpu_mgr_is_enabled,
 	.get_handle = get_handle,
@@ -168,6 +217,8 @@ struct nvkm_vgpu_mgr_vfio_ops nvkm_vgpu_mgr_vfio_ops = {
 	.rm_ctrl_done = rm_ctrl_done,
 	.alloc_chids = alloc_chids,
 	.free_chids = free_chids,
+	.alloc_fbmem = alloc_fbmem,
+	.free_fbmem = free_fbmem,
 };
 
 /**
