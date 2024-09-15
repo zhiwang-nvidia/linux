@@ -6,6 +6,14 @@
 #include "debug.h"
 #include "vgpu_mgr.h"
 
+static void clean_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr)
+{
+	if (vgpu_mgr->use_chid_alloc_bitmap) {
+		bitmap_free(vgpu_mgr->chid_alloc_bitmap);
+		vgpu_mgr->chid_alloc_bitmap = NULL;
+	}
+}
+
 static void vgpu_mgr_release(struct kref *kref)
 {
 	struct nvidia_vgpu_mgr *vgpu_mgr =
@@ -17,6 +25,7 @@ static void vgpu_mgr_release(struct kref *kref)
 		return;
 
 	nvidia_vgpu_mgr_clean_metadata(vgpu_mgr);
+	clean_vgpu_mgr(vgpu_mgr);
 	nvidia_vgpu_mgr_free_gsp_client(vgpu_mgr, &vgpu_mgr->gsp_client);
 	kvfree(vgpu_mgr);
 }
@@ -95,6 +104,20 @@ static void attach_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr,
 	handle_data->vfio.pf_detach_handle_fn = pf_detach_handle_fn;
 }
 
+static int setup_chid_alloc_bitmap(struct nvidia_vgpu_mgr *vgpu_mgr)
+{
+	if (WARN_ON(!vgpu_mgr->use_chid_alloc_bitmap))
+		return 0;
+
+	vgpu_mgr->chid_alloc_bitmap = bitmap_alloc(vgpu_mgr->total_avail_chids, GFP_KERNEL);
+	if (!vgpu_mgr->chid_alloc_bitmap)
+		return -ENOMEM;
+	bitmap_zero(vgpu_mgr->chid_alloc_bitmap, vgpu_mgr->total_avail_chids);
+
+	vgpu_mgr_debug(vgpu_mgr, "using chid allocation bitmap.\n");
+	return 0;
+}
+
 static int init_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr)
 {
 	vgpu_mgr->total_avail_chids = nvidia_vgpu_mgr_get_avail_chids(vgpu_mgr);
@@ -103,12 +126,17 @@ static int init_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr)
 	vgpu_mgr_debug(vgpu_mgr, "total avail chids %u\n", vgpu_mgr->total_avail_chids);
 	vgpu_mgr_debug(vgpu_mgr, "total fbmem size 0x%llx\n", vgpu_mgr->total_fbmem_size);
 
-	return 0;
+	return vgpu_mgr->use_chid_alloc_bitmap ? setup_chid_alloc_bitmap(vgpu_mgr) : 0;
 }
 
 static int setup_pf_driver_caps(struct nvidia_vgpu_mgr *vgpu_mgr, unsigned long *caps)
 {
-	/* more to come */
+#define HAS_CAP(cap) \
+	test_bit(NVIDIA_VGPU_PF_DRIVER_CAP_HAS_##cap, caps)
+
+	vgpu_mgr->use_chid_alloc_bitmap = !HAS_CAP(CHID_ALLOC);
+
+#undef HAS_CAP
 	return 0;
 }
 
@@ -169,6 +197,7 @@ fail_init_fn:
 	detach_vgpu_mgr(handle_data);
 	nvidia_vgpu_mgr_clean_metadata(vgpu_mgr);
 fail_setup_metadata:
+	clean_vgpu_mgr(vgpu_mgr);
 fail_init_vgpu_mgr:
 	nvidia_vgpu_mgr_free_gsp_client(vgpu_mgr, &vgpu_mgr->gsp_client);
 fail_alloc_gsp_client:

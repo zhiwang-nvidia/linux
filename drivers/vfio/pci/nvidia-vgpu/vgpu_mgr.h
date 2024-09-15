@@ -37,6 +37,19 @@ struct nvidia_vgpu_info {
 };
 
 /**
+ * struct nvidia_vgpu_chid - per-vGPU channel IDs
+ *
+ * @chid_offset: beginning offset of channel IDs
+ * @num_chid: number of allocated channel IDs
+ * @num_plugin_channels: number of channels for vGPU manager
+ */
+struct nvidia_vgpu_chid {
+	u32 chid_offset;
+	u32 num_chid;
+	u32 num_plugin_channels;
+};
+
+/**
  * struct nvidia_vgpu - per-vGPU state
  *
  * @lock: per-vGPU lock
@@ -45,6 +58,7 @@ struct nvidia_vgpu_info {
  * @vgpu_list: list node to the vGPU list
  * @info: vGPU info
  * @vgpu_mgr: pointer to vGPU manager
+ * @chid: vGPU channel IDs
  */
 struct nvidia_vgpu {
 	/* Per-vGPU lock */
@@ -55,6 +69,8 @@ struct nvidia_vgpu {
 
 	struct nvidia_vgpu_info info;
 	struct nvidia_vgpu_mgr *vgpu_mgr;
+
+	struct nvidia_vgpu_chid chid;
 };
 
 /**
@@ -72,6 +88,8 @@ struct nvidia_vgpu {
  * @gsp_client: the GSP client
  * @vgpu_types: installed vGPU types
  * @num_vgpu_types: number of installed vGPU types
+ * @use_alloc_bitmap: use chid allocator for the PF driver doesn't support chid allocation
+ * @chid_alloc_bitmap: chid allocator bitmap
  */
 struct nvidia_vgpu_mgr {
 	struct kref refcount;
@@ -92,6 +110,9 @@ struct nvidia_vgpu_mgr {
 	struct nvidia_vgpu_gsp_client gsp_client;
 	struct nvidia_vgpu_type *vgpu_types;
 	unsigned int num_vgpu_types;
+
+	bool use_chid_alloc_bitmap;
+	void *chid_alloc_bitmap;
 };
 
 #define nvidia_vgpu_mgr_for_each_vgpu(vgpu, vgpu_mgr) \

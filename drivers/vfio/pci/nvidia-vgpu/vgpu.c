@@ -3,6 +3,8 @@
  * Copyright © 2025 NVIDIA Corporation
  */
 
+#include <linux/log2.h>
+
 #include "debug.h"
 #include "vgpu_mgr.h"
 
@@ -43,6 +45,70 @@ static int register_vgpu(struct nvidia_vgpu *vgpu)
 	return 0;
 }
 
+static void clean_chids(struct nvidia_vgpu *vgpu)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+	struct nvidia_vgpu_chid *chid = &vgpu->chid;
+
+	vgpu_debug(vgpu, "free guest channel offset %d size %d\n", chid->chid_offset,
+		   chid->num_chid);
+
+	if (vgpu_mgr->use_chid_alloc_bitmap)
+		bitmap_clear(vgpu_mgr->chid_alloc_bitmap, chid->chid_offset, chid->num_chid);
+	else
+		nvidia_vgpu_mgr_free_chids(vgpu_mgr, chid->chid_offset, chid->num_chid);
+}
+
+static inline u32 prev_pow2(const u32 x)
+{
+	return x ? 1U << ilog2(x) : 0;
+}
+
+static void get_alloc_chids_num(struct nvidia_vgpu *vgpu, u32 *size)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+	struct nvidia_vgpu_info *info = &vgpu->info;
+	struct nvidia_vgpu_type *type = info->vgpu_type;
+	u32 v;
+
+	/* Calculate with total reserved CHIDs for vGPUs. */
+	v = (vgpu_mgr->total_avail_chids) / type->max_instance;
+	*size = prev_pow2(v);
+}
+
+static int setup_chids(struct nvidia_vgpu *vgpu)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+	struct nvidia_vgpu_chid *chid = &vgpu->chid;
+	u32 size, offset;
+	int ret;
+
+	get_alloc_chids_num(vgpu, &size);
+
+	if (vgpu_mgr->use_chid_alloc_bitmap) {
+		offset = bitmap_find_next_zero_area(vgpu_mgr->chid_alloc_bitmap,
+						    vgpu_mgr->total_avail_chids, 0, size, 0);
+
+		if (offset + size > vgpu_mgr->total_avail_chids)
+			return -ENOSPC;
+
+		bitmap_set(vgpu_mgr->chid_alloc_bitmap, offset, size);
+	} else {
+		ret = nvidia_vgpu_mgr_alloc_chids(vgpu_mgr, &offset, size);
+		if (ret)
+			return ret;
+	}
+
+	chid->chid_offset = offset;
+	chid->num_chid = size;
+	chid->num_plugin_channels = 1;
+
+	vgpu_debug(vgpu, "alloc guest channel offset %u size %u\n", chid->chid_offset,
+		   chid->num_chid);
+
+	return 0;
+}
+
 /**
  * nvidia_vgpu_mgr_destroy_vgpu - destroy a vGPU instance
  * @vgpu: the vGPU instance going to be destroyed.
@@ -54,6 +120,7 @@ int nvidia_vgpu_mgr_destroy_vgpu(struct nvidia_vgpu *vgpu)
 	if (!atomic_cmpxchg(&vgpu->status, 1, 0))
 		return -ENODEV;
 
+	clean_chids(vgpu);
 	unregister_vgpu(vgpu);
 
 	vgpu_debug(vgpu, "destroyed\n");
@@ -93,10 +160,19 @@ int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu)
 	if (ret)
 		return ret;
 
+	ret = setup_chids(vgpu);
+	if (ret)
+		goto err_setup_chids;
+
 	atomic_set(&vgpu->status, 1);
 
 	vgpu_debug(vgpu, "created\n");
 
 	return 0;
+
+err_setup_chids:
+	unregister_vgpu(vgpu);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nvidia_vgpu_mgr_create_vgpu);

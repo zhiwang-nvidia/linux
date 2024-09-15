@@ -85,4 +85,14 @@ static inline int nvidia_vgpu_mgr_init_handle(struct pci_dev *pdev,
 #define nvidia_vgpu_mgr_rm_ctrl_done(m, g, c) \
 	((m)->handle.ops->rm_ctrl_done(g, c))
 
+#define nvidia_vgpu_mgr_alloc_chids(m, o, s) ({ \
+	typeof(m) __m = (m); \
+	__m->handle.ops->alloc_chids(__m->handle.pf_drvdata, o, s); \
+})
+
+#define nvidia_vgpu_mgr_free_chids(m, o, s) ({ \
+	typeof(m) __m = (m); \
+	__m->handle.ops->free_chids(__m->handle.pf_drvdata, o, s); \
+})
+
 #endif
