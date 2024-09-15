@@ -40,5 +40,6 @@ void nvkm_vgpu_mgr_fini(struct nvkm_device *device);
 void nvkm_vgpu_mgr_populate_gsp_vf_info(struct nvkm_device *device,
 					void *info);
 void nvkm_vgpu_mgr_init_vfio_ops(struct nvkm_vgpu_mgr *vgpu_mgr);
+int nvkm_vgpu_mgr_pci_sriov_configure(struct nvkm_device *device, int num_vfs);
 
 #endif

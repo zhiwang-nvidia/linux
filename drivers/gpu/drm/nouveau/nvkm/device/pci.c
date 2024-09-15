@@ -1766,6 +1766,9 @@ nvkm_device_pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	struct nvkm_device *device;
 	int ret, bits;
 
+	if (pci_dev->is_virtfn)
+		return -EINVAL;
+
 	if (vga_switcheroo_client_probe_defer(pci_dev))
 		return -EPROBE_DEFER;
 
@@ -1867,6 +1870,16 @@ done:
 	return ret;
 }
 
+static int nvkm_device_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
+{
+	struct nvkm_device *device = pci_get_drvdata(dev);
+
+	if (!nvkm_vgpu_mgr_is_enabled(device))
+		return -ENODEV;
+
+	return nvkm_vgpu_mgr_pci_sriov_configure(device, num_vfs);
+}
+
 static struct pci_device_id
 nvkm_device_pci_id_table[] = {
 	{
@@ -1889,6 +1902,7 @@ nvkm_device_pci_driver = {
 	.probe = nvkm_device_pci_probe,
 	.remove = nvkm_device_pci_remove,
 	.driver.pm = &nvkm_device_pci_pm,
+	.sriov_configure = nvkm_device_pci_sriov_configure,
 };
 
 MODULE_DEVICE_TABLE(pci, nvkm_device_pci_id_table);

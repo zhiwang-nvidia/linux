@@ -207,3 +207,28 @@ void nvkm_vgpu_mgr_populate_gsp_vf_info(struct nvkm_device *device,
 	v = nvkm_rd32(device, 0x88000 + 0xbfc);
 	vf_info->b64bitBar2 = IS_BAR_64(v);
 }
+
+/**
+ * nvkm_vgpu_mgr_pci_sriov_configure - Configure SRIOV VFs
+ * @device: the nvkm_device pointer
+ * @num_vfs: Number of VFs
+ *
+ * Returns: 0 on success, negative on failure.
+ */
+int nvkm_vgpu_mgr_pci_sriov_configure(struct nvkm_device *device, int num_vfs)
+{
+	struct nvkm_vgpu_mgr *vgpu_mgr = &device->vgpu_mgr;
+	struct nvidia_vgpu_vfio_handle_data *vfio = &vgpu_mgr->vfio_handle_data;
+	struct pci_dev *pdev = nvkm_to_pdev(device);
+	int ret;
+
+	if (vfio->priv)
+		return -EBUSY;
+
+	if (num_vfs)
+		ret = pci_enable_sriov(pdev, num_vfs);
+	else
+		pci_disable_sriov(pdev);
+
+	return ret ? ret : num_vfs;
+}

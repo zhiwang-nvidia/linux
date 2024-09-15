@@ -6,8 +6,13 @@
 #ifndef __NVKM_VGPU_MGR_VFIO_H__
 #define __NVKM_VGPU_MGR_VFIO_H__
 
+enum {
+	NVIDIA_VGPU_EVENT_PCI_SRIOV_CONFIGURE = 0,
+};
+
 struct nvidia_vgpu_vfio_handle_data {
 	void *priv;
+	struct notifier_block notifier;
 };
 
 /* A combo of handles of RmClient and RmDevice */
