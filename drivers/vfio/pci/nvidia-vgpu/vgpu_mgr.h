@@ -23,6 +23,8 @@ struct nvidia_vgpu {
 	u8 *vgpu_type;
 	struct nvidia_vgpu_info info;
 	struct nvidia_vgpu_mgr *vgpu_mgr;
+
+	struct nvidia_vgpu_mem *fbmem_heap;
 };
 
 struct nvidia_vgpu_mgr {

@@ -64,4 +64,10 @@ static inline int nvidia_vgpu_mgr_get_handle(struct pci_dev *pdev,
 #define nvidia_vgpu_mgr_rm_ctrl_done(m, g, c) \
 	m->handle.ops->rm_ctrl_done(, c)
 
+#define nvidia_vgpu_mgr_alloc_fbmem_heap(m, s) \
+	m->handle.ops->alloc_fbmem(m->handle.pf_drvdata, s, true)
+
+#define nvidia_vgpu_mgr_free_fbmem_heap(m, h) \
+	m->handle.ops->free_fbmem(h)
+
 #endif

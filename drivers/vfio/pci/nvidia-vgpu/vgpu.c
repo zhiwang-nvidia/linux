@@ -3,6 +3,11 @@
  * Copyright © 2024 NVIDIA Corporation
  */
 
+#include <linux/kernel.h>
+
+#include <nvrm/nvtypes.h>
+#include <nvrm/common/sdk/nvidia/inc/ctrl/ctrla081.h>
+
 #include "vgpu_mgr.h"
 
 static void unregister_vgpu(struct nvidia_vgpu *vgpu)
@@ -34,6 +39,29 @@ static int register_vgpu(struct nvidia_vgpu *vgpu)
 	return 0;
 }
 
+static void clean_fbmem_heap(struct nvidia_vgpu *vgpu)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+
+	nvidia_vgpu_mgr_free_fbmem_heap(vgpu_mgr, vgpu->fbmem_heap);
+	vgpu->fbmem_heap = NULL;
+}
+
+static int setup_fbmem_heap(struct nvidia_vgpu *vgpu)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+	NVA081_CTRL_VGPU_INFO *info =
+		(NVA081_CTRL_VGPU_INFO *)vgpu->vgpu_type;
+	struct nvidia_vgpu_mem *mem;
+
+	mem = nvidia_vgpu_mgr_alloc_fbmem_heap(vgpu_mgr, info->fbLength);
+	if (IS_ERR(mem))
+		return PTR_ERR(mem);
+
+	vgpu->fbmem_heap = mem;
+	return 0;
+}
+
 /**
  * nvidia_vgpu_mgr_destroy_vgpu - destroy a vGPU instance
  * @vgpu: the vGPU instance going to be destroyed.
@@ -45,6 +73,7 @@ int nvidia_vgpu_mgr_destroy_vgpu(struct nvidia_vgpu *vgpu)
 	if (!atomic_cmpxchg(&vgpu->status, 1, 0))
 		return -ENODEV;
 
+	clean_fbmem_heap(vgpu);
 	unregister_vgpu(vgpu);
 	return 0;
 }
@@ -76,8 +105,17 @@ int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu, u8 *vgpu_type)
 	if (ret)
 		return ret;
 
+	ret = setup_fbmem_heap(vgpu);
+	if (ret)
+		goto err_setup_fbmem_heap;
+
 	atomic_set(&vgpu->status, 1);
 
 	return 0;
+
+err_setup_fbmem_heap:
+	unregister_vgpu(vgpu);
+
+	return ret;
 }
 EXPORT_SYMBOL(nvidia_vgpu_mgr_create_vgpu);
