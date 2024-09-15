@@ -15,6 +15,12 @@ struct nvidia_vgpu_info {
 	u32 dbdf;
 };
 
+struct nvidia_vgpu_chid {
+	int chid_offset;
+	int num_chid;
+	int num_plugin_channels;
+};
+
 struct nvidia_vgpu {
 	struct mutex lock;
 	atomic_t status;
@@ -25,6 +31,7 @@ struct nvidia_vgpu {
 	struct nvidia_vgpu_mgr *vgpu_mgr;
 
 	struct nvidia_vgpu_mem *fbmem_heap;
+	struct nvidia_vgpu_chid chid;
 };
 
 struct nvidia_vgpu_mgr {

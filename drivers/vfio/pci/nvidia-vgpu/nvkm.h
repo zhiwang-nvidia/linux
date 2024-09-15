@@ -70,4 +70,10 @@ static inline int nvidia_vgpu_mgr_get_handle(struct pci_dev *pdev,
 #define nvidia_vgpu_mgr_free_fbmem_heap(m, h) \
 	m->handle.ops->free_fbmem(h)
 
+#define nvidia_vgpu_mgr_alloc_chids(m, s) \
+	m->handle.ops->alloc_chids(m->handle.pf_drvdata, s)
+
+#define nvidia_vgpu_mgr_free_chids(m, o, s) \
+	m->handle.ops->free_chids(m->handle.pf_drvdata, o, s)
+
 #endif

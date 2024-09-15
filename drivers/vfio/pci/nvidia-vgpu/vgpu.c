@@ -62,6 +62,31 @@ static int setup_fbmem_heap(struct nvidia_vgpu *vgpu)
 	return 0;
 }
 
+static void clean_chids(struct nvidia_vgpu *vgpu)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+	struct nvidia_vgpu_chid *chid = &vgpu->chid;
+
+	nvidia_vgpu_mgr_free_chids(vgpu_mgr, chid->chid_offset, chid->num_chid);
+}
+
+static int setup_chids(struct nvidia_vgpu *vgpu)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+	struct nvidia_vgpu_chid *chid = &vgpu->chid;
+	int ret;
+
+	ret = nvidia_vgpu_mgr_alloc_chids(vgpu_mgr, 512);
+	if (ret < 0)
+		return ret;
+
+	chid->chid_offset = ret;
+	chid->num_chid = 512;
+	chid->num_plugin_channels = 0;
+
+	return 0;
+}
+
 /**
  * nvidia_vgpu_mgr_destroy_vgpu - destroy a vGPU instance
  * @vgpu: the vGPU instance going to be destroyed.
@@ -73,6 +98,7 @@ int nvidia_vgpu_mgr_destroy_vgpu(struct nvidia_vgpu *vgpu)
 	if (!atomic_cmpxchg(&vgpu->status, 1, 0))
 		return -ENODEV;
 
+	clean_chids(vgpu);
 	clean_fbmem_heap(vgpu);
 	unregister_vgpu(vgpu);
 	return 0;
@@ -109,10 +135,16 @@ int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu, u8 *vgpu_type)
 	if (ret)
 		goto err_setup_fbmem_heap;
 
+	ret = setup_chids(vgpu);
+	if (ret)
+		goto err_setup_chids;
+
 	atomic_set(&vgpu->status, 1);
 
 	return 0;
 
+err_setup_chids:
+	clean_fbmem_heap(vgpu);
 err_setup_fbmem_heap:
 	unregister_vgpu(vgpu);
 
