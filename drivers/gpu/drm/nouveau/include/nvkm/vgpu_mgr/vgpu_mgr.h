@@ -7,6 +7,14 @@
 struct nvkm_vgpu_mgr {
 	bool enabled;
 	struct nvkm_device *nvkm_dev;
+
+	const struct nvif_driver *driver;
+
+	const struct nvif_client_impl *cli_impl;
+	struct nvif_client_priv *cli_priv;
+
+	const struct nvif_device_impl *dev_impl;
+	struct nvif_device_priv *dev_priv;
 };
 
 bool nvkm_vgpu_mgr_is_supported(struct nvkm_device *device);
