@@ -87,12 +87,29 @@ static int setup_chids(struct nvidia_vgpu *vgpu)
 	return 0;
 }
 
+static inline u64 init_task_log_buff_offset(void)
+{
+	return (3 * SZ_4K) + SZ_2M + SZ_4K;
+}
+
+static inline u64 init_task_log_buff_size(void)
+{
+	return SZ_128K;
+}
+
+static inline u64 vgpu_task_log_buff_size(void)
+{
+	return SZ_128K;
+}
+
 static void clean_mgmt_heap(struct nvidia_vgpu *vgpu)
 {
 	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
 	struct nvidia_vgpu_mgmt *mgmt = &vgpu->mgmt;
 
+	nvidia_vgpu_mgr_bar1_unmap_mem(vgpu_mgr, mgmt->heap_mem);
 	nvidia_vgpu_mgr_free_fbmem(vgpu_mgr, mgmt->heap_mem);
+	mgmt->init_task_log_vaddr = mgmt->vgpu_task_log_vaddr = NULL;
 	mgmt->heap_mem = NULL;
 }
 
@@ -103,11 +120,23 @@ static int setup_mgmt_heap(struct nvidia_vgpu *vgpu)
 	NVA081_CTRL_VGPU_INFO *info =
 		(NVA081_CTRL_VGPU_INFO *)vgpu->vgpu_type;
 	struct nvidia_vgpu_mem *mem;
+	int ret;
 
 	mem = nvidia_vgpu_mgr_alloc_fbmem(vgpu_mgr, info->gspHeapSize);
 	if (IS_ERR(mem))
 		return PTR_ERR(mem);
 
+	ret = nvidia_vgpu_mgr_bar1_map_mem(vgpu_mgr, mem);
+	if (ret) {
+		nvidia_vgpu_mgr_free_fbmem(vgpu_mgr, mem);
+		return ret;
+	}
+
+	mgmt->ctrl_vaddr = mem->bar1_vaddr;
+	mgmt->init_task_log_vaddr = mgmt->ctrl_vaddr +
+				    init_task_log_buff_offset();
+	mgmt->vgpu_task_log_vaddr = mgmt->init_task_log_vaddr +
+				    init_task_log_buff_size();
 	mgmt->heap_mem = mem;
 	return 0;
 }

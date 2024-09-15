@@ -82,4 +82,10 @@ static inline int nvidia_vgpu_mgr_get_handle(struct pci_dev *pdev,
 #define nvidia_vgpu_mgr_free_fbmem(m, h) \
 	m->handle.ops->free_fbmem(h)
 
+#define nvidia_vgpu_mgr_bar1_map_mem(m, mem) \
+	m->handle.ops->bar1_map_mem(mem)
+
+#define nvidia_vgpu_mgr_bar1_unmap_mem(m, mem) \
+	m->handle.ops->bar1_unmap_mem(mem)
+
 #endif

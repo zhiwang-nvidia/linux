@@ -23,7 +23,9 @@ struct nvidia_vgpu_chid {
 
 struct nvidia_vgpu_mgmt {
 	struct nvidia_vgpu_mem *heap_mem;
-	/* more to come */
+	void __iomem *ctrl_vaddr;
+	void __iomem *init_task_log_vaddr;
+	void __iomem *vgpu_task_log_vaddr;
 };
 
 struct nvidia_vgpu {
