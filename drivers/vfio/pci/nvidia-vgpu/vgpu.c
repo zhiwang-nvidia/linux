@@ -238,9 +238,12 @@ static int setup_mgmt_heap(struct nvidia_vgpu *vgpu)
  */
 int nvidia_vgpu_mgr_destroy_vgpu(struct nvidia_vgpu *vgpu)
 {
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+
 	if (!atomic_cmpxchg(&vgpu->status, 1, 0))
 		return -ENODEV;
 
+	nvidia_vgpu_mgr_free_gsp_client(vgpu_mgr, &vgpu->gsp_client);
 	clean_mgmt_heap(vgpu);
 	clean_fbmem_heap(vgpu);
 	clean_chids(vgpu);
@@ -262,6 +265,7 @@ EXPORT_SYMBOL_GPL(nvidia_vgpu_mgr_destroy_vgpu);
  */
 int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu)
 {
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
 	struct nvidia_vgpu_info *info = &vgpu->info;
 	int ret;
 
@@ -295,12 +299,19 @@ int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu)
 	if (ret)
 		goto err_setup_mgmt_heap;
 
+	ret = nvidia_vgpu_mgr_alloc_gsp_client(vgpu_mgr,
+					       &vgpu->gsp_client);
+	if (ret)
+		goto err_alloc_gsp_client;
+
 	atomic_set(&vgpu->status, 1);
 
 	vgpu_debug(vgpu, "created\n");
 
 	return 0;
 
+err_alloc_gsp_client:
+	clean_mgmt_heap(vgpu);
 err_setup_mgmt_heap:
 	clean_fbmem_heap(vgpu);
 err_setup_fbmem_heap:

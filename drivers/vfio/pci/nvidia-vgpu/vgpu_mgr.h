@@ -66,6 +66,7 @@ struct nvidia_vgpu_mgmt {
  * @vgpu_list: list node to the vGPU list
  * @info: vGPU info
  * @vgpu_mgr: pointer to vGPU manager
+ * @gsp_client: per-vGPU GSP client
  * @chid: vGPU channel IDs
  * @fbmem_heap: allocated FB memory for the vGPU
  * @mgmt: vGPU mgmt heap
@@ -79,6 +80,7 @@ struct nvidia_vgpu {
 
 	struct nvidia_vgpu_info info;
 	struct nvidia_vgpu_mgr *vgpu_mgr;
+	struct nvidia_vgpu_gsp_client gsp_client;
 
 	struct nvidia_vgpu_chid chid;
 	struct nvidia_vgpu_mem *fbmem_heap;
