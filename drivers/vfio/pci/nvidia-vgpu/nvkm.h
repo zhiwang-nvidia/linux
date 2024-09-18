@@ -88,4 +88,7 @@ static inline int nvidia_vgpu_mgr_get_handle(struct pci_dev *pdev,
 #define nvidia_vgpu_mgr_bar1_unmap_mem(m, mem) \
 	m->handle.ops->bar1_unmap_mem(mem)
 
+#define nvidia_vgpu_mgr_get_engine_bitmap(m, b) \
+	m->handle.ops->get_engine_bitmap(m->handle.pf_drvdata, b)
+
 #endif
