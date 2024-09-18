@@ -328,3 +328,25 @@ err_setup_fbmem_heap:
 	return ret;
 }
 EXPORT_SYMBOL(nvidia_vgpu_mgr_create_vgpu);
+
+static int update_bme_state(struct nvidia_vgpu *vgpu)
+{
+	NV_VGPU_CPU_RPC_DATA_UPDATE_BME_STATE params = {0};
+
+	params.enable = true;
+
+	return nvidia_vgpu_rpc_call(vgpu, NV_VGPU_CPU_RPC_MSG_UPDATE_BME_STATE,
+				    &params, sizeof(params));
+}
+
+/**
+ * nvidia_vgpu_enable_bme - handle BME sequence
+ * @vf: the vGPU instance
+ *
+ * Returns: 0 on success, others on failure.
+ */
+int nvidia_vgpu_mgr_enable_bme(struct nvidia_vgpu *vgpu)
+{
+	return update_bme_state(vgpu);
+}
+EXPORT_SYMBOL(nvidia_vgpu_mgr_enable_bme);

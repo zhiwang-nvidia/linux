@@ -84,6 +84,6 @@ int nvidia_vgpu_rpc_call(struct nvidia_vgpu *vgpu, u32 msg_type,
 void nvidia_vgpu_clean_rpc(struct nvidia_vgpu *vgpu);
 int nvidia_vgpu_setup_rpc(struct nvidia_vgpu *vgpu);
 
-int nvidia_vgpu_mgr_reset_vgpu(struct nvidia_vgpu *vgpu);
+int nvidia_vgpu_mgr_enable_bme(struct nvidia_vgpu *vgpu);
 
 #endif
