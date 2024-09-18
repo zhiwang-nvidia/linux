@@ -7,11 +7,35 @@
 
 DEFINE_MUTEX(vgpu_mgr_attach_lock);
 
+static void unmap_pf_mmio(struct nvidia_vgpu_mgr *vgpu_mgr)
+{
+	iounmap(vgpu_mgr->bar0_vaddr);
+}
+
+static int map_pf_mmio(struct nvidia_vgpu_mgr *vgpu_mgr)
+{
+	struct pci_dev *pdev = vgpu_mgr->pdev;
+	resource_size_t start, size;
+	void *vaddr;
+
+	start = pci_resource_start(pdev, 0);
+	size = pci_resource_len(pdev, 0);
+
+	vaddr = ioremap(start, size);
+	if (!vaddr)
+		return -ENOMEM;
+
+	vgpu_mgr->bar0_vaddr = vaddr;
+
+	return 0;
+}
+
 static void vgpu_mgr_release(struct kref *kref)
 {
 	struct nvidia_vgpu_mgr *vgpu_mgr =
 		container_of(kref, struct nvidia_vgpu_mgr, refcount);
 
+	unmap_pf_mmio(vgpu_mgr);
 	nvidia_vgpu_mgr_free_gsp_client(vgpu_mgr, &vgpu_mgr->gsp_client);
 	nvidia_vgpu_mgr_detach_handle(&vgpu_mgr->handle);
 	kvfree(vgpu_mgr);
@@ -83,6 +107,8 @@ struct nvidia_vgpu_mgr *nvidia_vgpu_mgr_get(struct pci_dev *dev)
 	kref_init(&vgpu_mgr->refcount);
 	mutex_init(&vgpu_mgr->vgpu_id_lock);
 
+	vgpu_mgr->pdev = dev->physfn;
+
 	ret = nvidia_vgpu_mgr_alloc_gsp_client(vgpu_mgr,
 					       &vgpu_mgr->gsp_client);
 	if (ret)
@@ -92,9 +118,14 @@ struct nvidia_vgpu_mgr *nvidia_vgpu_mgr_get(struct pci_dev *dev)
 	if (ret)
 		goto fail_init_vgpu_types;
 
+	ret = map_pf_mmio(vgpu_mgr);
+	if (ret)
+		goto fail_map_pf_mmio;
+
 	mutex_unlock(&vgpu_mgr_attach_lock);
 	return vgpu_mgr;
 
+fail_map_pf_mmio:
 fail_init_vgpu_types:
 	nvidia_vgpu_mgr_free_gsp_client(vgpu_mgr, &vgpu_mgr->gsp_client);
 fail_alloc_gsp_client:

@@ -28,6 +28,16 @@ struct nvidia_vgpu_mgmt {
 	void __iomem *vgpu_task_log_vaddr;
 };
 
+struct nvidia_vgpu_rpc {
+	struct mutex lock;
+	u32 msg_seq_num;
+	void __iomem *ctrl_buf;
+	void __iomem *resp_buf;
+	void __iomem *msg_buf;
+	void __iomem *migration_buf;
+	void __iomem *error_buf;
+};
+
 struct nvidia_vgpu {
 	struct mutex lock;
 	atomic_t status;
@@ -41,6 +51,7 @@ struct nvidia_vgpu {
 	struct nvidia_vgpu_mem *fbmem_heap;
 	struct nvidia_vgpu_chid chid;
 	struct nvidia_vgpu_mgmt mgmt;
+	struct nvidia_vgpu_rpc rpc;
 };
 
 struct nvidia_vgpu_mgr {
@@ -55,6 +66,9 @@ struct nvidia_vgpu_mgr {
 	u32 num_vgpu_types;
 
 	struct nvidia_vgpu_gsp_client gsp_client;
+
+	struct pci_dev *pdev;
+	void __iomem *bar0_vaddr;
 };
 
 struct nvidia_vgpu_mgr *nvidia_vgpu_mgr_get(struct pci_dev *dev);
@@ -64,5 +78,12 @@ int nvidia_vgpu_mgr_destroy_vgpu(struct nvidia_vgpu *vgpu);
 int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu, u8 *vgpu_type);
 
 int nvidia_vgpu_mgr_init_vgpu_types(struct nvidia_vgpu_mgr *vgpu_mgr);
+
+int nvidia_vgpu_rpc_call(struct nvidia_vgpu *vgpu, u32 msg_type,
+			 void *data, u64 size);
+void nvidia_vgpu_clean_rpc(struct nvidia_vgpu *vgpu);
+int nvidia_vgpu_setup_rpc(struct nvidia_vgpu *vgpu);
+
+int nvidia_vgpu_mgr_reset_vgpu(struct nvidia_vgpu *vgpu);
 
 #endif
