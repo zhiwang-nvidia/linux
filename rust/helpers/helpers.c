@@ -17,6 +17,7 @@
 #include "cpufreq.c"
 #include "cpumask.c"
 #include "cred.c"
+#include "delay.c"
 #include "device.c"
 #include "dma.c"
 #include "drm.c"
