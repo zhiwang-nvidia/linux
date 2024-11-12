@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <core/pci.h>
 #include <engine/sec2.h>
 #include "priv.h"
 
@@ -58,9 +59,18 @@ ad102_execute_scrubber(struct nvkm_gsp *gsp)
 static int
 ad102_gsp_init_fw_heap(struct nvkm_gsp *gsp)
 {
+	struct nvkm_subdev *subdev = &gsp->subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_device_pci *device_pci = container_of(device,
+			typeof(*device_pci), device);
+	int num_vfs;
 	int ret;
 
-	nvkm_gsp_init_fw_heap(gsp, 0);
+	num_vfs = pci_sriov_get_totalvfs(device_pci->pdev);
+	if (!num_vfs)
+		nvkm_gsp_init_fw_heap(gsp, 0);
+	else
+		nvkm_gsp_init_fw_heap(gsp, 576 * SZ_1M);
 
 	if (gsp->fb.wpr2.heap.size <= SZ_256M)
 		return 0;
