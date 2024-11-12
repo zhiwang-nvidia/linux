@@ -2519,7 +2519,7 @@ r535_gsp_dtor(struct nvkm_gsp *gsp)
 	nvkm_gsp_mem_dtor(gsp, &gsp->logrm);
 }
 
-void nvkm_gsp_init_fw_heap(struct nvkm_gsp *gsp)
+void nvkm_gsp_init_fw_heap(struct nvkm_gsp *gsp, u64 wpr2_heap_size)
 {
 	/* Calculate FB layout. */
 	gsp->fb.wpr2.frts.size = 0x100000;
@@ -2533,7 +2533,7 @@ void nvkm_gsp_init_fw_heap(struct nvkm_gsp *gsp)
 	gsp->fb.wpr2.elf.addr = ALIGN_DOWN(gsp->fb.wpr2.boot.addr - gsp->fb.wpr2.elf.size,
 					   0x10000);
 
-	{
+	if (!wpr2_heap_size) {
 		u32 fb_size_gb = DIV_ROUND_UP_ULL(gsp->fb.size, 1 << 30);
 
 		gsp->fb.wpr2.heap.size =
@@ -2543,7 +2543,8 @@ void nvkm_gsp_init_fw_heap(struct nvkm_gsp *gsp)
 			ALIGN(GSP_FW_HEAP_PARAM_CLIENT_ALLOC_SIZE, 1 << 20);
 
 		gsp->fb.wpr2.heap.size = max(gsp->fb.wpr2.heap.size, gsp->func->wpr_heap.min_size);
-	}
+	} else
+		gsp->fb.wpr2.heap.size = wpr2_heap_size;
 
 	gsp->fb.wpr2.heap.addr = ALIGN_DOWN(gsp->fb.wpr2.elf.addr - gsp->fb.wpr2.heap.size,
 					    0x100000);

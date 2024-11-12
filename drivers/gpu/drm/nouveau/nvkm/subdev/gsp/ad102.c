@@ -60,7 +60,7 @@ ad102_gsp_init_fw_heap(struct nvkm_gsp *gsp)
 {
 	int ret;
 
-	nvkm_gsp_init_fw_heap(gsp);
+	nvkm_gsp_init_fw_heap(gsp, 0);
 
 	if (gsp->fb.wpr2.heap.size <= SZ_256M)
 		return 0;

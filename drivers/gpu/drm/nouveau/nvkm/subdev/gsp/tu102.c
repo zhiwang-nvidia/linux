@@ -79,7 +79,7 @@ done:
 int
 tu102_gsp_init_fw_heap(struct nvkm_gsp *gsp)
 {
-	nvkm_gsp_init_fw_heap(gsp);
+	nvkm_gsp_init_fw_heap(gsp, 0);
 
 	return 0;
 }

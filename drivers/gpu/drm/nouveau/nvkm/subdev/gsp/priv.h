@@ -63,7 +63,7 @@ int ga102_gsp_booter_ctor(struct nvkm_gsp *, const char *, const struct firmware
 int ga102_gsp_reset(struct nvkm_gsp *);
 
 void r535_gsp_dtor(struct nvkm_gsp *);
-void nvkm_gsp_init_fw_heap(struct nvkm_gsp *gsp);
+void nvkm_gsp_init_fw_heap(struct nvkm_gsp *gsp, u64 wpr2_heap_size);
 int r535_gsp_oneinit(struct nvkm_gsp *);
 int r535_gsp_init(struct nvkm_gsp *);
 int r535_gsp_fini(struct nvkm_gsp *, bool suspend);
