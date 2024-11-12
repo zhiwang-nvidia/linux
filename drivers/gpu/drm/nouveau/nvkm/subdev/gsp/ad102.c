@@ -24,6 +24,20 @@
 #include <engine/sec2.h>
 #include "priv.h"
 
+/*
+ * DOC: Pre-scrubbed FB memory on Ada
+ *
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/blob/565.57.01/src/nvidia/src/kernel/gpu/gsp/kernel_gsp.c#L3151
+ *
+ * The size of the pre-scrubbed FB memory on Ada is 256MB. When allocating
+ * a GSP WPR2 heap larger than 256MB, the scrubber ucode image is required
+ * to be exeucted before executing any other ucode images. Or, GSP
+ * firmware hangs when booting.
+ *
+ * The large GSP WPR2 heap is required especially by vGPU when supporting
+ * max vGPU count. The required size on Ada is at least 549MB.
+ */
+
 static bool is_scrubber_completed(struct nvkm_gsp *gsp)
 {
 	return ((nvkm_rd32(gsp->subdev.device, 0x001180fc) >> 29) >= 0x3);
