@@ -76,6 +76,14 @@ done:
 	return ret;
 }
 
+int
+tu102_gsp_init_fw_heap(struct nvkm_gsp *gsp)
+{
+	nvkm_gsp_init_fw_heap(gsp);
+
+	return 0;
+}
+
 static int
 tu102_gsp_fwsec_load_bld(struct nvkm_falcon_fw *fw)
 {
@@ -171,6 +179,7 @@ tu102_gsp_r535_113_01 = {
 
 	.wpr_heap.base_size = 8 << 20,
 	.wpr_heap.min_size = 64 << 20,
+	.wpr_heap.init_fw_heap = tu102_gsp_init_fw_heap,
 
 	.booter.ctor = tu102_gsp_booter_ctor,
 

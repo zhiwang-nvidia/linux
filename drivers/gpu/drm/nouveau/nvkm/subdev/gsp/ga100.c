@@ -47,6 +47,7 @@ ga100_gsp_r535_113_01 = {
 
 	.wpr_heap.base_size = 8 << 20,
 	.wpr_heap.min_size = 64 << 20,
+	.wpr_heap.init_fw_heap = tu102_gsp_init_fw_heap,
 
 	.booter.ctor = tu102_gsp_booter_ctor,
 

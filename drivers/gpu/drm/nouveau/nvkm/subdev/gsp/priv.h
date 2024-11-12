@@ -28,6 +28,7 @@ struct nvkm_gsp_func {
 		u32 os_carveout_size;
 		u32 base_size;
 		u64 min_size;
+		int (*init_fw_heap)(struct nvkm_gsp *gsp);
 	} wpr_heap;
 
 	struct {
@@ -48,6 +49,7 @@ extern const struct nvkm_falcon_func tu102_gsp_flcn;
 extern const struct nvkm_falcon_fw_func tu102_gsp_fwsec;
 int tu102_gsp_booter_ctor(struct nvkm_gsp *, const char *, const struct firmware *,
 			  struct nvkm_falcon *, struct nvkm_falcon_fw *);
+int tu102_gsp_init_fw_heap(struct nvkm_gsp *gsp);
 int tu102_gsp_oneinit(struct nvkm_gsp *);
 int tu102_gsp_reset(struct nvkm_gsp *);
 

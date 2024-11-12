@@ -159,6 +159,7 @@ ga102_gsp_r535_113_01 = {
 	.wpr_heap.os_carveout_size = 20 << 20,
 	.wpr_heap.base_size = 8 << 20,
 	.wpr_heap.min_size = 84 << 20,
+	.wpr_heap.init_fw_heap = tu102_gsp_init_fw_heap,
 
 	.booter.ctor = ga102_gsp_booter_ctor,
 

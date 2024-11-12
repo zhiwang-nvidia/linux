@@ -2619,7 +2619,9 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	/* Release FW images - we've copied them to DMA buffers now. */
 	r535_gsp_dtor_fws(gsp);
 
-	nvkm_gsp_init_fw_heap(gsp);
+	ret = gsp->func->wpr_heap.init_fw_heap(gsp);
+	if (WARN_ON(ret))
+		return ret;
 
 	ret = nvkm_gsp_fwsec_frts(gsp);
 	if (WARN_ON(ret))
