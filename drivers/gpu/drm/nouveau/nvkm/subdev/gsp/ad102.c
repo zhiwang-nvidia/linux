@@ -69,8 +69,10 @@ ad102_gsp_init_fw_heap(struct nvkm_gsp *gsp)
 	num_vfs = pci_sriov_get_totalvfs(device_pci->pdev);
 	if (!num_vfs)
 		nvkm_gsp_init_fw_heap(gsp, 0);
-	else
+	else {
 		nvkm_gsp_init_fw_heap(gsp, 576 * SZ_1M);
+		gsp->fb.wpr2.max_vgpu_count = num_vfs;
+	}
 
 	if (gsp->fb.wpr2.heap.size <= SZ_256M)
 		return 0;

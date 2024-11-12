@@ -1968,6 +1968,7 @@ r535_gsp_wpr_meta_init(struct nvkm_gsp *gsp)
 	meta->partitionRpcAddr = 0;
 	meta->partitionRpcRequestOffset = 0;
 	meta->partitionRpcReplyOffset = 0;
+	meta->gspFwHeapVfPartitionCount = gsp->fb.wpr2.max_vgpu_count;
 	meta->verified = 0;
 	return 0;
 }

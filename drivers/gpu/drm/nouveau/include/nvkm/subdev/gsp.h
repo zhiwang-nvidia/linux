@@ -64,6 +64,7 @@ struct nvkm_gsp {
 			} frts, boot, elf, heap;
 			u64 addr;
 			u64 size;
+			u64 max_vgpu_count;
 		} wpr2;
 		struct {
 			u64 addr;
