@@ -21,6 +21,25 @@
  */
 #include "priv.h"
 
+static int
+ad102_gsp_init_fw_heap(struct nvkm_gsp *gsp)
+{
+	int ret;
+
+	nvkm_gsp_init_fw_heap(gsp);
+
+	if (gsp->fb.wpr2.heap.size <= SZ_256M)
+		return 0;
+
+	/* Load scrubber ucode image */
+	ret = r535_gsp_load_fw(gsp, "scrubber", gsp->fwif->ver,
+			       &gsp->fws.scrubber);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static const struct nvkm_gsp_func
 ad102_gsp_r535_113_01 = {
 	.flcn = &ga102_gsp_flcn,
@@ -31,7 +50,7 @@ ad102_gsp_r535_113_01 = {
 	.wpr_heap.os_carveout_size = 20 << 20,
 	.wpr_heap.base_size = 8 << 20,
 	.wpr_heap.min_size = 84 << 20,
-	.wpr_heap.init_fw_heap = tu102_gsp_init_fw_heap,
+	.wpr_heap.init_fw_heap = ad102_gsp_init_fw_heap,
 
 	.booter.ctor = ga102_gsp_booter_ctor,
 

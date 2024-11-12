@@ -33,7 +33,7 @@ struct nvkm_gsp {
 	struct nvkm_subdev subdev;
 
 	struct nvkm_falcon falcon;
-
+	const struct nvkm_gsp_fwif *fwif;
 	struct {
 		struct {
 			const struct firmware *load;
@@ -41,6 +41,7 @@ struct nvkm_gsp {
 		} booter;
 		const struct firmware *bl;
 		const struct firmware *rm;
+		const struct firmware *scrubber;
 	} fws;
 
 	struct nvkm_firmware fw;

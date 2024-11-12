@@ -16,7 +16,9 @@ struct nvkm_gsp_fwif {
 };
 
 int gv100_gsp_nofw(struct nvkm_gsp *, int, const struct nvkm_gsp_fwif *);
-int  r535_gsp_load(struct nvkm_gsp *, int, const struct nvkm_gsp_fwif *);
+int r535_gsp_load_fw(struct nvkm_gsp *gsp, const char *name,
+		     const char *ver, const struct firmware **pfw);
+int r535_gsp_load(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif);
 
 struct nvkm_gsp_func {
 	const struct nvkm_falcon_func *flcn;

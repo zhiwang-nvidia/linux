@@ -2489,6 +2489,8 @@ r535_gsp_dtor_fws(struct nvkm_gsp *gsp)
 	gsp->fws.booter.load = NULL;
 	nvkm_firmware_put(gsp->fws.rm);
 	gsp->fws.rm = NULL;
+	nvkm_firmware_put(gsp->fws.scrubber);
+	gsp->fws.scrubber = NULL;
 }
 
 void
@@ -2656,7 +2658,7 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	return 0;
 }
 
-static int
+int
 r535_gsp_load_fw(struct nvkm_gsp *gsp, const char *name, const char *ver,
 		 const struct firmware **pfw)
 {
@@ -2686,6 +2688,8 @@ r535_gsp_load(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
 		r535_gsp_dtor_fws(gsp);
 		return ret;
 	}
+
+	gsp->fwif = fwif;
 
 	return 0;
 }
