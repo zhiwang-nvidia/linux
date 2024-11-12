@@ -2618,12 +2618,18 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	if (ret)
 		return ret;
 
-	/* Release FW images - we've copied them to DMA buffers now. */
-	r535_gsp_dtor_fws(gsp);
-
 	ret = gsp->func->wpr_heap.init_fw_heap(gsp);
 	if (WARN_ON(ret))
 		return ret;
+
+	if (gsp->func->wpr_heap.execute_scrubber) {
+		ret = gsp->func->wpr_heap.execute_scrubber(gsp);
+		if (ret)
+			return ret;
+	}
+
+	/* Release FW images - we've copied them to DMA buffers now. */
+	r535_gsp_dtor_fws(gsp);
 
 	ret = nvkm_gsp_fwsec_frts(gsp);
 	if (WARN_ON(ret))

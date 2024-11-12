@@ -31,6 +31,7 @@ struct nvkm_gsp_func {
 		u32 base_size;
 		u64 min_size;
 		int (*init_fw_heap)(struct nvkm_gsp *gsp);
+		int (*execute_scrubber)(struct nvkm_gsp *gsp);
 	} wpr_heap;
 
 	struct {

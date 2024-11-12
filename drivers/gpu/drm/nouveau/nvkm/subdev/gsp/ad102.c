@@ -19,7 +19,41 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+
+#include <engine/sec2.h>
 #include "priv.h"
+
+static bool is_scrubber_completed(struct nvkm_gsp *gsp)
+{
+	return ((nvkm_rd32(gsp->subdev.device, 0x001180fc) >> 29) >= 0x3);
+}
+
+static int
+ad102_execute_scrubber(struct nvkm_gsp *gsp)
+{
+	struct nvkm_falcon_fw fw = {0};
+	struct nvkm_subdev *subdev = &gsp->subdev;
+	struct nvkm_device *device = subdev->device;
+	int ret;
+
+	if (!gsp->fws.scrubber || is_scrubber_completed(gsp))
+		return 0;
+
+	ret = gsp->func->booter.ctor(gsp, "scrubber", gsp->fws.scrubber,
+				     &device->sec2->falcon, &fw);
+	if (ret)
+		return ret;
+
+	ret = nvkm_falcon_fw_boot(&fw, subdev, true, NULL, NULL, 0, 0);
+	nvkm_falcon_fw_dtor(&fw);
+	if (ret)
+		return ret;
+
+	if (WARN_ON(!is_scrubber_completed(gsp)))
+		return -ENOSPC;
+
+	return 0;
+}
 
 static int
 ad102_gsp_init_fw_heap(struct nvkm_gsp *gsp)
@@ -51,6 +85,7 @@ ad102_gsp_r535_113_01 = {
 	.wpr_heap.base_size = 8 << 20,
 	.wpr_heap.min_size = 84 << 20,
 	.wpr_heap.init_fw_heap = ad102_gsp_init_fw_heap,
+	.wpr_heap.execute_scrubber = ad102_execute_scrubber,
 
 	.booter.ctor = ga102_gsp_booter_ctor,
 
