@@ -2702,6 +2702,78 @@ int cxl_get_region_range(struct cxl_region *region, struct range *range)
 }
 EXPORT_SYMBOL_NS_GPL(cxl_get_region_range, "CXL");
 
+struct match_region_info {
+	struct cxl_memdev *cxlmd;
+	struct cxl_region **cxlrs;
+	int nr_regions;
+};
+
+static int match_region_by_device(struct device *match, void *data)
+{
+	struct match_region_info *info = data;
+	struct cxl_endpoint_decoder *cxled;
+	struct cxl_memdev *cxlmd;
+	struct cxl_region_params *p;
+	struct cxl_region *cxlr;
+	int i;
+
+	if (!is_cxl_region(match))
+		return 0;
+
+	lockdep_assert_held(&cxl_region_rwsem);
+	cxlr = to_cxl_region(match);
+	p = &cxlr->params;
+
+	if (p->state != CXL_CONFIG_COMMIT)
+		return 0;
+
+	for (i = 0; i < p->nr_targets; i++) {
+		void *cxlrs;
+
+		cxled = p->targets[i];
+		cxlmd = cxled_to_memdev(cxled);
+
+		if (info->cxlmd != cxlmd)
+			continue;
+
+		cxlrs = krealloc(info->cxlrs, sizeof(cxlr) * (info->nr_regions + 1),
+				      GFP_KERNEL);
+		if (!cxlrs) {
+			kfree(info->cxlrs);
+			return -ENOMEM;
+		}
+		info->cxlrs = cxlrs;
+
+		info->cxlrs[info->nr_regions++] = cxlr;
+	}
+	return 0;
+}
+
+int cxl_get_committed_regions(struct cxl_memdev *cxlmd, struct cxl_region ***cxlrs, int *num)
+{
+	struct match_region_info info = {0};
+	int ret = 0;
+
+	ret = down_write_killable(&cxl_region_rwsem);
+	if (ret)
+		return ret;
+
+	info.cxlmd = cxlmd;
+
+	ret = bus_for_each_dev(&cxl_bus_type, NULL, &info, match_region_by_device);
+	if (ret) {
+		kfree(info.cxlrs);
+	} else {
+		*cxlrs = info.cxlrs;
+		*num = info.nr_regions;
+	}
+
+	up_write(&cxl_region_rwsem);
+
+	return ret;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_get_committed_regions, "CXL");
+
 static ssize_t __create_region_show(struct cxl_root_decoder *cxlrd, char *buf)
 {
 	return sysfs_emit(buf, "region%u\n", atomic_read(&cxlrd->region_id));
