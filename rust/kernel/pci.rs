@@ -43,6 +43,7 @@ unsafe impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
             (*pdrv.get()).probe = Some(Self::probe_callback);
             (*pdrv.get()).remove = Some(Self::remove_callback);
             (*pdrv.get()).id_table = T::ID_TABLE.as_ptr();
+            (*pdrv.get()).sriov_configure = Some(Self::sriov_configure_callback);
         }
 
         // SAFETY: `pdrv` is guaranteed to be a valid `RegType`.
@@ -95,6 +96,18 @@ impl<T: Driver + 'static> Adapter<T> {
         // `probe_callback`, hence it's guaranteed that `ptr` points to a valid and initialized
         // `KBox<T>` pointer created through `KBox::into_foreign`.
         let _ = unsafe { KBox::<T>::from_foreign(ptr) };
+    }
+
+    extern "C" fn sriov_configure_callback(pdev: *mut bindings::pci_dev, num_vfs: i32) -> i32 {
+        // SAFETY: The PCI core only ever calls the probe callback with a valid `pdev`.
+        let dev = unsafe { &*pdev.cast::<Device<device::Core>>() };
+
+        match T::sriov_configure(&dev, num_vfs) {
+            Ok(val) => {
+                val
+            }
+            Err(err) => Error::to_errno(err)
+        }
     }
 }
 
@@ -241,6 +254,9 @@ pub trait Driver: Send {
     /// Called when a new platform device is added or discovered.
     /// Implementers should attempt to initialize the device here.
     fn probe(dev: &Device<device::Core>, id_info: &Self::IdInfo) -> Result<Pin<KBox<Self>>>;
+
+    /// PCI SRIOV configuration callback
+    fn sriov_configure(dev: &Device, num_vfs: i32) -> Result<i32>;
 }
 
 /// The PCI device representation.
@@ -475,6 +491,22 @@ impl Device {
         to_result(unsafe { bindings::pci_read_config_dword(self.as_raw(), where_, &mut val) })?;
 
         Ok(val)
+    }
+
+    /// Enable SRIOV virtual functions for this device
+    pub fn enable_sriov(&self, num_vfs: i32) -> Result<i32> {
+	Ok(unsafe { bindings::pci_enable_sriov(self.as_raw(), num_vfs) })
+    }
+
+    /// Disable SRIOV virtual functions for this device.
+    pub fn disable_sriov(&self) -> Result {
+	Ok(unsafe { bindings::pci_disable_sriov(self.as_raw()) })
+    }
+
+    /// Is this device a virtual function
+    pub fn is_virtfn(&self) -> bool {
+        let pdev = self.as_raw();
+        unsafe { (*pdev).is_virtfn() == 1 }
     }
 }
 
