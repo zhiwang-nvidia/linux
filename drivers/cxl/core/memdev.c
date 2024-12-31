@@ -1174,6 +1174,12 @@ err:
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_memdev, "CXL");
 
+void devm_cxl_del_memdev(struct device *host, struct cxl_memdev *cxlmd)
+{
+	devm_release_action(host, cxl_memdev_unregister, cxlmd);
+}
+EXPORT_SYMBOL_NS_GPL(devm_cxl_del_memdev, "CXL");
+
 static void sanitize_teardown_notifier(void *data)
 {
 	struct cxl_memdev_state *mds = data;

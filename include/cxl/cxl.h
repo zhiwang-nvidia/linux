@@ -52,6 +52,7 @@ int cxl_await_range_active(struct cxl_dev_state *cxlds);
 void cxl_set_media_ready(struct cxl_dev_state *cxlds);
 struct cxl_memdev *devm_cxl_add_memdev(struct device *host,
 				       struct cxl_dev_state *cxlds);
+void devm_cxl_del_memdev(struct device *host, struct cxl_memdev *cxlmd);
 struct cxl_port;
 struct cxl_root_decoder *cxl_get_hpa_freespace(struct cxl_memdev *cxlmd,
 					       unsigned long flags,
