@@ -235,6 +235,114 @@ void vfio_cxl_core_destroy_cxl_region(struct vfio_cxl_core_device *cxl)
 }
 EXPORT_SYMBOL_GPL(vfio_cxl_core_destroy_cxl_region);
 
+static int vfio_cxl_region_mmap(struct vfio_pci_core_device *pci,
+				struct vfio_pci_region *region,
+				struct vm_area_struct *vma)
+{
+	struct vfio_cxl_region *cxl_region = region->data;
+	u64 phys_len, req_len, pgoff, req_start;
+
+	if (!(region->flags & VFIO_REGION_INFO_FLAG_MMAP))
+		return -EINVAL;
+
+	if (!(region->flags & VFIO_REGION_INFO_FLAG_READ) &&
+	    (vma->vm_flags & VM_READ))
+		return -EPERM;
+
+	if (!(region->flags & VFIO_REGION_INFO_FLAG_WRITE) &&
+	    (vma->vm_flags & VM_WRITE))
+		return -EPERM;
+
+	phys_len = cxl_region->size;
+	req_len = vma->vm_end - vma->vm_start;
+	pgoff = vma->vm_pgoff &
+		((1U << (VFIO_PCI_OFFSET_SHIFT - PAGE_SHIFT)) - 1);
+	req_start = pgoff << PAGE_SHIFT;
+
+	if (req_start + req_len > phys_len)
+		return -EINVAL;
+
+	vma->vm_private_data = pci;
+	if (cxl_region->noncached)
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
+	vm_flags_set(vma, VM_ALLOW_ANY_UNCACHED | VM_IO | VM_PFNMAP |
+			VM_DONTEXPAND | VM_DONTDUMP);
+	vma->vm_ops = &vfio_pci_mmap_ops;
+
+	return 0;
+}
+
+static ssize_t vfio_cxl_region_rw(struct vfio_pci_core_device *core_dev,
+				  char __user *buf, size_t count, loff_t *ppos,
+				  bool iswrite)
+{
+	unsigned int i = VFIO_PCI_OFFSET_TO_INDEX(*ppos) - VFIO_PCI_NUM_REGIONS;
+	struct vfio_cxl_region *cxl_region = core_dev->region[i].data;
+	loff_t pos = *ppos & VFIO_PCI_OFFSET_MASK;
+
+	if (!count)
+		return 0;
+
+	return vfio_pci_core_do_io_rw(core_dev, false,
+				      cxl_region->vaddr,
+				      (char __user *)buf, pos, count,
+				      0, 0, iswrite);
+}
+
+static void vfio_cxl_region_release(struct vfio_pci_core_device *vdev,
+				    struct vfio_pci_region *region)
+{
+}
+
+static const struct vfio_pci_regops vfio_cxl_regops = {
+	.rw		= vfio_cxl_region_rw,
+	.mmap		= vfio_cxl_region_mmap,
+	.release	= vfio_cxl_region_release,
+};
+
+int vfio_cxl_core_register_cxl_region(struct vfio_cxl_core_device *cxl)
+{
+	struct vfio_pci_core_device *pci = &cxl->pci_core;
+	u32 flags;
+	int ret;
+
+	if (WARN_ON(!cxl->region.region || cxl->region.vaddr))
+		return -EEXIST;
+
+	cxl->region.vaddr = ioremap(cxl->region.addr, cxl->region.size);
+	if (!cxl->region.addr)
+		return -EFAULT;
+
+	flags = VFIO_REGION_INFO_FLAG_READ |
+		VFIO_REGION_INFO_FLAG_WRITE |
+		VFIO_REGION_INFO_FLAG_MMAP;
+
+	ret = vfio_pci_core_register_dev_region(pci,
+		PCI_VENDOR_ID_CXL | VFIO_REGION_TYPE_PCI_VENDOR_TYPE,
+		VFIO_REGION_SUBTYPE_CXL, &vfio_cxl_regops,
+		cxl->region.size, flags, &cxl->region);
+	if (ret) {
+		iounmap(cxl->region.vaddr);
+		cxl->region.vaddr = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vfio_cxl_core_register_cxl_region);
+
+void vfio_cxl_core_unregister_cxl_region(struct vfio_cxl_core_device *cxl)
+{
+	if (WARN_ON(!cxl->region.region || !cxl->region.vaddr))
+		return;
+
+	iounmap(cxl->region.vaddr);
+	cxl->region.vaddr = NULL;
+}
+EXPORT_SYMBOL_GPL(vfio_cxl_core_unregister_cxl_region);
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

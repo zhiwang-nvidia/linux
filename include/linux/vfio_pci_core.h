@@ -102,6 +102,7 @@ struct vfio_cxl_region {
 	struct cxl_region *region;
 	u64 size;
 	u64 addr;
+	void *vaddr;
 	bool noncached;
 };
 
@@ -198,6 +199,8 @@ vfio_pci_core_to_cxl(struct vfio_pci_core_device *pci)
 	return container_of(pci, struct vfio_cxl_core_device, pci_core);
 }
 
+extern const struct vm_operations_struct vfio_pci_mmap_ops;
+
 int vfio_cxl_core_enable(struct vfio_cxl_core_device *cxl,
 			 struct vfio_cxl_dev_info *info);
 void vfio_cxl_core_finish_enable(struct vfio_cxl_core_device *cxl);
@@ -205,5 +208,7 @@ void vfio_cxl_core_disable(struct vfio_cxl_core_device *cxl);
 void vfio_cxl_core_close_device(struct vfio_device *vdev);
 int vfio_cxl_core_create_cxl_region(struct vfio_cxl_core_device *cxl, u64 size);
 void vfio_cxl_core_destroy_cxl_region(struct vfio_cxl_core_device *cxl);
+int vfio_cxl_core_register_cxl_region(struct vfio_cxl_core_device *cxl);
+void vfio_cxl_core_unregister_cxl_region(struct vfio_cxl_core_device *cxl);
 
 #endif /* VFIO_PCI_CORE_H */

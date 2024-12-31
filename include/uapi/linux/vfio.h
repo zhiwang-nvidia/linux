@@ -372,6 +372,10 @@ struct vfio_region_info_cap_type {
 /* sub-types for VFIO_REGION_TYPE_GFX */
 #define VFIO_REGION_SUBTYPE_GFX_EDID            (1)
 
+/* 1e98 vendor PCI sub-types */
+/* sub-type for VFIO CXL region */
+#define VFIO_REGION_SUBTYPE_CXL                 (1)
+
 /**
  * struct vfio_region_gfx_edid - EDID region layout.
  *
