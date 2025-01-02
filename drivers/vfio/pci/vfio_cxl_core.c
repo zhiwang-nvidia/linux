@@ -107,11 +107,32 @@ static void disable_cxl(struct vfio_cxl_core_device *cxl)
 	struct vfio_pci_core_device *pci = &cxl->pci_core;
 	struct pci_dev *pdev = pci->pdev;
 
+	if (cxl->region.precommitted) {
+		kfree(cxl->region.region);
+		cxl->region.region = NULL;
+	}
+
 	WARN_ON(cxl->region.region);
 
 	devm_cxl_del_memdev(&pdev->dev, cxl->cxlmd);
 	cxl_release_resource(cxl->cxlds, CXL_RES_RAM);
 	kfree(cxl->cxlds);
+}
+
+static void discover_precommitted_region(struct vfio_cxl_core_device *cxl)
+{
+	struct cxl_region **cxlrs = NULL;
+	int num, ret;
+
+	ret = cxl_get_committed_regions(cxl->cxlmd, &cxlrs, &num);
+	if (ret || !cxlrs) {
+		kfree(cxlrs);
+		return;
+	}
+
+	WARN_ON(num > 1);
+	cxl->region.region = cxlrs[0];
+	cxl->region.precommitted = true;
 }
 
 int vfio_cxl_core_enable(struct vfio_cxl_core_device *cxl,
@@ -134,6 +155,8 @@ int vfio_cxl_core_enable(struct vfio_cxl_core_device *cxl,
 	ret = enable_cxl(cxl, dvsec, info);
 	if (ret)
 		goto err;
+
+	discover_precommitted_region(cxl);
 
 	return 0;
 
