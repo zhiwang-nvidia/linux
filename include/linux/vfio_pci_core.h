@@ -104,6 +104,7 @@ struct vfio_cxl_region {
 	u64 addr;
 	void *vaddr;
 	bool noncached;
+	bool precommitted;
 };
 
 struct vfio_cxl_core_device {
