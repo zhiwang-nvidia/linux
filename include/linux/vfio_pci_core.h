@@ -246,5 +246,7 @@ ssize_t vfio_cxl_core_write(struct vfio_device *core_vdev, const char __user *bu
 			    size_t count, loff_t *ppos);
 long vfio_cxl_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
 			 unsigned long arg);
+int vfio_cxl_core_setup_register_emulation(struct vfio_cxl_core_device *cxl);
+void vfio_cxl_core_clean_register_emulation(struct vfio_cxl_core_device *cxl);
 
 #endif /* VFIO_PCI_CORE_H */
