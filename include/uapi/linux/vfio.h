@@ -257,6 +257,15 @@ struct vfio_device_info_cap_pci_atomic_comp {
 	__u32 reserved;
 };
 
+#define VFIO_DEVICE_INFO_CAP_CXL		6
+struct vfio_device_info_cap_cxl {
+	struct vfio_info_cap_header header;
+	__u8 hdm_count;
+	__u8 hdm_reg_bar_index;
+	__u64 hdm_reg_size;
+	__u64 hdm_reg_offset;
+};
+
 /**
  * VFIO_DEVICE_GET_REGION_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 8,
  *				       struct vfio_region_info)
