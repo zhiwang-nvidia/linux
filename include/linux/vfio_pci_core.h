@@ -84,6 +84,7 @@ struct vfio_pci_core_device {
 	bool			pm_runtime_engaged:1;
 	bool			is_cxl:1;
 	int			comp_reg_bar;
+	struct vfio_device_info_cap_cxl cxl_cap;
 	struct pci_saved_state	*pci_saved_state;
 	struct pci_saved_state	*pm_save;
 	int			ioeventfds_nr;

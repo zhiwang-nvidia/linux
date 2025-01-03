@@ -25,6 +25,19 @@
 #define DRIVER_AUTHOR "Zhi Wang <zhiw@nvidia.com>"
 #define DRIVER_DESC "core driver for VFIO based CXL devices"
 
+static void init_cxl_cap(struct vfio_cxl_core_device *cxl)
+{
+	struct vfio_pci_core_device *pci = &cxl->pci_core;
+	struct vfio_device_info_cap_cxl *cap = &pci->cxl_cap;
+
+	cap->header.id = VFIO_DEVICE_INFO_CAP_CXL;
+	cap->header.version = 1;
+	cap->hdm_count = cxl->hdm_count;
+	cap->hdm_reg_offset = cxl->comp_reg_offset + cxl->hdm_reg_offset;
+	cap->hdm_reg_size = cxl->hdm_reg_size;
+	cap->hdm_reg_bar_index = cxl->comp_reg_bar;
+}
+
 /* Standard CXL-type 2 driver initialization sequence */
 static int enable_cxl(struct vfio_cxl_core_device *cxl, u16 dvsec,
 		      struct vfio_cxl_dev_info *info)
@@ -95,6 +108,8 @@ static int enable_cxl(struct vfio_cxl_core_device *cxl, u16 dvsec,
 		ret = PTR_ERR(cxl->cxlmd);
 		goto err;
 	}
+
+	init_cxl_cap(cxl);
 
 	cxl->region.noncached = info->noncached_region;
 	return 0;
