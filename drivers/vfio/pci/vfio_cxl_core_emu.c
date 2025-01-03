@@ -28,6 +28,345 @@ new_reg_block(struct vfio_cxl_core_device *cxl, u64 offset, u64 size,
 	return block;
 }
 
+static int new_config_block(struct vfio_cxl_core_device *cxl, u64 offset,
+			    u64 size, reg_handler_t *read, reg_handler_t *write)
+{
+	struct vfio_emulated_regblock *block;
+
+	block = new_reg_block(cxl, offset, size, read, write);
+	if (IS_ERR(block))
+		return PTR_ERR(block);
+
+	list_add_tail(&block->list, &cxl->config_regblocks_head);
+	return 0;
+}
+
+static ssize_t virt_config_reg_read(struct vfio_cxl_core_device *cxl, void *buf,
+				    u64 offset, u64 size)
+{
+	memcpy(buf, cxl->config_virt + offset, size);
+	return size;
+}
+
+static ssize_t virt_config_reg_write(struct vfio_cxl_core_device *cxl, void *buf,
+				     u64 offset, u64 size)
+{
+	memcpy(cxl->config_virt + offset, buf, size);
+	return size;
+}
+
+static ssize_t hw_config_reg_read(struct vfio_cxl_core_device *cxl, void *buf,
+				  u64 offset, u64 size)
+{
+	int ret;
+
+	if (WARN_ON_ONCE(size != 4))
+		return -EINVAL;
+
+	ret = pci_user_read_config_dword(cxl->pci_core.pdev, offset, buf);
+	if (ret)
+		return ret;
+
+	return size;
+}
+
+static ssize_t hw_config_reg_write(struct vfio_cxl_core_device *cxl, void *buf,
+				   u64 offset, u64 size)
+{
+	u32 val = *(u32 *)buf;
+	int ret;
+
+	if (WARN_ON_ONCE(size != 4))
+		return -EINVAL;
+
+	ret = pci_user_write_config_dword(cxl->pci_core.pdev, offset, val);
+	if (ret)
+		return ret;
+
+	return size;
+}
+
+static ssize_t cxl_control_write(struct vfio_cxl_core_device *cxl, void *buf,
+				 u64 offset, u64 size)
+{
+	u16 lock = *(u16 *)(cxl->config_virt + cxl->dvsec + 0x14);
+	u16 cap3 = *(u16 *)(cxl->config_virt + cxl->dvsec + 0x38);
+	u16 new_val = *(u16 *)buf;
+	u16 rev_mask;
+
+	if (WARN_ON_ONCE(size != 2))
+		return -EINVAL;
+
+	/* register is locked */
+	if (lock & BIT(0))
+		return size;
+
+	/* handle reserved bits in the spec */
+	rev_mask = BIT(13) | BIT(15);
+
+	/* no direct p2p cap */
+	if (!(cap3 & BIT(4)))
+		rev_mask |= BIT(12);
+
+	new_val &= ~rev_mask;
+
+	/* CXL.io is always enabled. */
+	new_val |= BIT(1);
+
+	memcpy(cxl->config_virt + offset, &new_val, size);
+	return size;
+}
+
+static ssize_t cxl_status_write(struct vfio_cxl_core_device *cxl, void *buf,
+				u64 offset, u64 size)
+{
+	u16 cur_val = *(u16 *)(cxl->config_virt + offset);
+	u16 new_val = *(u16 *)buf;
+	u16 rev_mask = GENMASK(13, 0) | BIT(15);
+
+	if (WARN_ON_ONCE(size != 2))
+		return -EINVAL;
+
+	/* handle reserved bits in the spec */
+	new_val &= ~rev_mask;
+
+	/* emulate RW1C bit */
+	if (new_val & BIT(14)) {
+		new_val &= ~BIT(14);
+	} else {
+		new_val &= ~BIT(14);
+		new_val |= cur_val & BIT(14);
+	}
+
+	memcpy(cxl->config_virt + offset, &new_val, size);
+	return size;
+}
+
+static ssize_t cxl_control_2_write(struct vfio_cxl_core_device *cxl, void *buf,
+				   u64 offset, u64 size)
+{
+	struct pci_dev *pdev = cxl->pci_core.pdev;
+	u16 cap2 = *(u16 *)(cxl->config_virt + cxl->dvsec + 0x16);
+	u16 cap3 = *(u16 *)(cxl->config_virt + cxl->dvsec + 0x38);
+	u16 new_val = *(u16 *)buf;
+	u16 rev_mask = GENMASK(15, 6) | BIT(1) | BIT(2);
+	u16 hw_bits = BIT(0) | BIT(1) | BIT(3);
+	bool initiate_cxl_reset = new_val & BIT(2);
+
+	if (WARN_ON_ONCE(size != 2))
+		return -EINVAL;
+
+	/* no desired volatile HDM state after host reset */
+	if (!(cap3 & BIT(2)))
+		rev_mask |= BIT(4);
+
+	/* no modified completion enable */
+	if (!(cap2 & BIT(6)))
+		rev_mask |= BIT(5);
+
+	/* handle reserved bits in the spec */
+	new_val &= ~rev_mask;
+
+	/* update the virt regs */
+	memcpy(cxl->config_virt + offset, &new_val, size);
+
+	/* bits go to the HW */
+	new_val &= hw_bits;
+	if (new_val)
+		pci_write_config_word(pdev, offset, new_val);
+
+	if (initiate_cxl_reset) {
+		/* TODO: call linux CXL reset */
+	}
+	return size;
+}
+
+static ssize_t cxl_status_2_write(struct vfio_cxl_core_device *cxl, void *buf,
+				  u64 offset, u64 size)
+{
+	struct pci_dev *pdev = cxl->pci_core.pdev;
+	u16 cap3 = *(u16 *)(cxl->config_virt + cxl->dvsec + 0x38);
+	u16 new_val = *(u16 *)buf;
+
+	if (WARN_ON_ONCE(size != 2))
+		return -EINVAL;
+
+	/* write RW1CS if supports */
+	if ((cap3 & BIT(2)) && (new_val & BIT(3)))
+		pci_write_config_word(pdev, offset, BIT(3));
+
+	/* No need to update the virt regs, CXL status reads from the HW */
+	return size;
+}
+
+static ssize_t cxl_lock_write(struct vfio_cxl_core_device *cxl, void *buf,
+			      u64 offset, u64 size)
+{
+	u16 cur_val = *(u16 *)(cxl->config_virt + offset);
+	u16 new_val = *(u16 *)buf;
+	u16 rev_mask = GENMASK(15, 1);
+
+	if (WARN_ON_ONCE(size != 2))
+		return -EINVAL;
+
+	/* LOCK is not allowed to be cleared unless convential reset. */
+	if (cur_val & BIT(0))
+		return size;
+
+	/* handle reserved bits in the spec */
+	new_val &= ~rev_mask;
+
+	memcpy(cxl->config_virt + offset, &new_val, size);
+	return size;
+}
+
+static ssize_t cxl_base_lo_write(struct vfio_cxl_core_device *cxl, void *buf,
+				 u64 offset, u64 size)
+{
+	u32 new_val = *(u16 *)buf;
+	u32 rev_mask = GENMASK(27, 0);
+
+	if (WARN_ON_ONCE(size != 4))
+		return -EINVAL;
+
+	/* handle reserved bits in the spec */
+	new_val &= ~rev_mask;
+
+	memcpy(cxl->config_virt + offset, &new_val, size);
+	return size;
+}
+
+static ssize_t virt_config_reg_ro_write(struct vfio_cxl_core_device *cxl, void *buf,
+					u64 offset, u64 size)
+{
+	return size;
+}
+
+static int setup_config_emulation(struct vfio_cxl_core_device *cxl)
+{
+	u16 offset;
+	int ret;
+
+#define ALLOC_BLOCK(offset, size, read, write) do { \
+	ret = new_config_block(cxl, offset, size, read, write); \
+	if (ret) \
+		return ret; \
+	} while (0)
+
+	ALLOC_BLOCK(cxl->dvsec, 4,
+			virt_config_reg_read,
+			virt_config_reg_ro_write);
+
+	ALLOC_BLOCK(cxl->dvsec + 0x4, 4,
+			virt_config_reg_read,
+			virt_config_reg_ro_write);
+
+	ALLOC_BLOCK(cxl->dvsec + 0x8, 2,
+			virt_config_reg_read,
+			virt_config_reg_ro_write);
+
+	/* CXL CAPABILITY */
+	ALLOC_BLOCK(cxl->dvsec + 0xa, 2,
+			virt_config_reg_read,
+			virt_config_reg_ro_write);
+
+	/* CXL CONTROL */
+	ALLOC_BLOCK(cxl->dvsec + 0xc, 2,
+			virt_config_reg_read,
+			cxl_control_write);
+
+	/* CXL STATUS */
+	ALLOC_BLOCK(cxl->dvsec + 0xe, 2,
+			virt_config_reg_read,
+			cxl_status_write);
+
+	/* CXL CONTROL 2 */
+	ALLOC_BLOCK(cxl->dvsec + 0x10, 2,
+			virt_config_reg_read,
+			cxl_control_2_write);
+
+	/* CXL STATUS 2 */
+	ALLOC_BLOCK(cxl->dvsec + 0x12, 2,
+			virt_config_reg_read,
+			cxl_status_2_write);
+
+	/* CXL LOCK */
+	ALLOC_BLOCK(cxl->dvsec + 0x14, 2,
+			virt_config_reg_read,
+			cxl_lock_write);
+
+	/* CXL CAPABILITY 2 */
+	ALLOC_BLOCK(cxl->dvsec + 0x16, 2,
+			virt_config_reg_read,
+			virt_config_reg_ro_write);
+
+	/* CXL RANGE 1 SIZE HIGH & LOW */
+	ALLOC_BLOCK(cxl->dvsec + 0x18, 4,
+			virt_config_reg_read,
+			virt_config_reg_ro_write);
+
+	ALLOC_BLOCK(cxl->dvsec + 0x1c, 4,
+			virt_config_reg_read,
+			virt_config_reg_ro_write);
+
+	/* CXL RANG BASE 1 HIGH */
+	ALLOC_BLOCK(cxl->dvsec + 0x20, 4,
+			virt_config_reg_read,
+			virt_config_reg_write);
+
+	/* CXL RANG BASE 1 LOW */
+	ALLOC_BLOCK(cxl->dvsec + 0x24, 4,
+			virt_config_reg_read,
+			cxl_base_lo_write);
+
+	/* CXL RANGE 2 SIZE HIGH & LOW */
+	ALLOC_BLOCK(cxl->dvsec + 0x28, 4,
+			virt_config_reg_read,
+			virt_config_reg_ro_write);
+
+	ALLOC_BLOCK(cxl->dvsec + 0x2c, 4,
+			virt_config_reg_read,
+			virt_config_reg_ro_write);
+
+	/* CXL RANG BASE 2 HIGH */
+	ALLOC_BLOCK(cxl->dvsec + 0x30, 4,
+			virt_config_reg_read,
+			virt_config_reg_write);
+
+	/* CXL RANG BASE 2 LOW */
+	ALLOC_BLOCK(cxl->dvsec + 0x34, 4,
+			virt_config_reg_read,
+			cxl_base_lo_write);
+
+	/* CXL CAPABILITY 3 */
+	ALLOC_BLOCK(cxl->dvsec + 0x38, 2,
+			virt_config_reg_read,
+			virt_config_reg_ro_write);
+
+        while ((offset = pci_find_next_ext_capability(cxl->pci_core.pdev, offset,
+					PCI_EXT_CAP_ID_DOE))) {
+		ALLOC_BLOCK(offset + PCI_DOE_CTRL, 4,
+				hw_config_reg_read,
+				hw_config_reg_write);
+
+		ALLOC_BLOCK(offset + PCI_DOE_STATUS, 4,
+				hw_config_reg_read,
+				hw_config_reg_write);
+
+		ALLOC_BLOCK(offset + PCI_DOE_WRITE, 4,
+				hw_config_reg_read,
+				hw_config_reg_write);
+
+		ALLOC_BLOCK(offset + PCI_DOE_READ, 4,
+				hw_config_reg_read,
+				hw_config_reg_write);
+	}
+
+#undef ALLOC_BLOCK
+
+	return 0;
+}
+
 static int new_mmio_block(struct vfio_cxl_core_device *cxl, u64 offset, u64 size,
 			  reg_handler_t *read, reg_handler_t *write)
 {
@@ -246,6 +585,10 @@ int vfio_cxl_core_setup_register_emulation(struct vfio_cxl_core_device *cxl)
 
 	INIT_LIST_HEAD(&cxl->config_regblocks_head);
 	INIT_LIST_HEAD(&cxl->mmio_regblocks_head);
+
+	ret = setup_config_emulation(cxl);
+	if (ret)
+		goto err;
 
 	ret = setup_mmio_emulation(cxl);
 	if (ret)
