@@ -5,6 +5,9 @@
 
 #include "vfio_cxl_core_priv.h"
 
+#define D(fmt, args...) \
+	pr_err("%s() - %d: "fmt"\n", __func__, __LINE__, ##args)
+
 typedef ssize_t reg_handler_t(struct vfio_cxl_core_device *cxl, void *buf,
 			      u64 offset, u64 size);
 
@@ -37,6 +40,8 @@ static int new_config_block(struct vfio_cxl_core_device *cxl, u64 offset,
 	if (IS_ERR(block))
 		return PTR_ERR(block);
 
+	D("add new config block offset %llx size %llx\n", offset, size);
+
 	list_add_tail(&block->list, &cxl->config_regblocks_head);
 	return 0;
 }
@@ -63,6 +68,8 @@ static ssize_t hw_config_reg_read(struct vfio_cxl_core_device *cxl, void *buf,
 	if (WARN_ON_ONCE(size != 4))
 		return -EINVAL;
 
+	D("called");
+
 	ret = pci_user_read_config_dword(cxl->pci_core.pdev, offset, buf);
 	if (ret)
 		return ret;
@@ -79,6 +86,8 @@ static ssize_t hw_config_reg_write(struct vfio_cxl_core_device *cxl, void *buf,
 	if (WARN_ON_ONCE(size != 4))
 		return -EINVAL;
 
+	D("called");
+
 	ret = pci_user_write_config_dword(cxl->pci_core.pdev, offset, val);
 	if (ret)
 		return ret;
@@ -93,6 +102,8 @@ static ssize_t cxl_control_write(struct vfio_cxl_core_device *cxl, void *buf,
 	u16 cap3 = *(u16 *)(cxl->config_virt + cxl->dvsec + 0x38);
 	u16 new_val = *(u16 *)buf;
 	u16 rev_mask;
+
+	D("called");
 
 	if (WARN_ON_ONCE(size != 2))
 		return -EINVAL;
@@ -124,6 +135,8 @@ static ssize_t cxl_status_write(struct vfio_cxl_core_device *cxl, void *buf,
 	u16 new_val = *(u16 *)buf;
 	u16 rev_mask = GENMASK(13, 0) | BIT(15);
 
+	D("called");
+
 	if (WARN_ON_ONCE(size != 2))
 		return -EINVAL;
 
@@ -152,6 +165,8 @@ static ssize_t cxl_control_2_write(struct vfio_cxl_core_device *cxl, void *buf,
 	u16 rev_mask = GENMASK(15, 6) | BIT(1) | BIT(2);
 	u16 hw_bits = BIT(0) | BIT(1) | BIT(3);
 	bool initiate_cxl_reset = new_val & BIT(2);
+
+	D("called");
 
 	if (WARN_ON_ONCE(size != 2))
 		return -EINVAL;
@@ -188,6 +203,8 @@ static ssize_t cxl_status_2_write(struct vfio_cxl_core_device *cxl, void *buf,
 	u16 cap3 = *(u16 *)(cxl->config_virt + cxl->dvsec + 0x38);
 	u16 new_val = *(u16 *)buf;
 
+	D("called");
+
 	if (WARN_ON_ONCE(size != 2))
 		return -EINVAL;
 
@@ -205,6 +222,8 @@ static ssize_t cxl_lock_write(struct vfio_cxl_core_device *cxl, void *buf,
 	u16 cur_val = *(u16 *)(cxl->config_virt + offset);
 	u16 new_val = *(u16 *)buf;
 	u16 rev_mask = GENMASK(15, 1);
+
+	D("called");
 
 	if (WARN_ON_ONCE(size != 2))
 		return -EINVAL;
@@ -226,6 +245,8 @@ static ssize_t cxl_base_lo_write(struct vfio_cxl_core_device *cxl, void *buf,
 	u32 new_val = *(u16 *)buf;
 	u32 rev_mask = GENMASK(27, 0);
 
+	D("called");
+
 	if (WARN_ON_ONCE(size != 4))
 		return -EINVAL;
 
@@ -239,6 +260,8 @@ static ssize_t cxl_base_lo_write(struct vfio_cxl_core_device *cxl, void *buf,
 static ssize_t virt_config_reg_ro_write(struct vfio_cxl_core_device *cxl, void *buf,
 					u64 offset, u64 size)
 {
+	D("called");
+
 	return size;
 }
 
@@ -376,6 +399,8 @@ static int new_mmio_block(struct vfio_cxl_core_device *cxl, u64 offset, u64 size
 	if (IS_ERR(block))
 		return PTR_ERR(block);
 
+	D("add new mmio block offset %llx size %llx", offset, size);
+
 	list_add_tail(&block->list, &cxl->mmio_regblocks_head);
 	return 0;
 }
@@ -401,6 +426,8 @@ static ssize_t virt_hdm_reg_read(struct vfio_cxl_core_device *cxl, void *buf,
 	offset = to_hdm_reg_offset(cxl, offset);
 	memcpy(buf, hdm_reg_virt(cxl, offset), size);
 
+	D("called");
+
 	return size;
 }
 
@@ -410,12 +437,16 @@ static ssize_t virt_hdm_reg_write(struct vfio_cxl_core_device *cxl, void *buf,
 	offset = to_hdm_reg_offset(cxl, offset);
 	memcpy(hdm_reg_virt(cxl, offset), buf, size);
 
+	D("called");
+
 	return size;
 }
 
 static ssize_t virt_hdm_rev_reg_write(struct vfio_cxl_core_device *cxl,
 				      void *buf, u64 offset, u64 size)
 {
+	D("called");
+
 	/* Discard writes on reserved registers. */
 	return size;
 }
@@ -424,6 +455,8 @@ static ssize_t hdm_decoder_n_lo_write(struct vfio_cxl_core_device *cxl,
 				      void *buf, u64 offset, u64 size)
 {
 	u32 new_val = *(u32 *)buf;
+
+	D("called");
 
 	if (WARN_ON_ONCE(size != 4))
 		return -EINVAL;
@@ -441,6 +474,8 @@ static ssize_t hdm_decoder_global_ctrl_write(struct vfio_cxl_core_device *cxl,
 {
 	u32 hdm_decoder_global_cap;
 	u32 new_val = *(u32 *)buf;
+
+	D("called");
 
 	if (WARN_ON_ONCE(size != 4))
 		return -EINVAL;
@@ -466,6 +501,8 @@ static ssize_t hdm_decoder_n_ctrl_write(struct vfio_cxl_core_device *cxl,
 	u32 ro_mask, rev_mask;
 	u32 new_val = *(u32 *)buf;
 	u32 cur_val;
+
+	D("called");
 
 	if (WARN_ON_ONCE(size != 4))
 		return -EINVAL;
@@ -628,6 +665,8 @@ static ssize_t emulate_read(struct list_head *head, struct vfio_device *vdev,
 	ssize_t ret;
 	u32 v;
 
+	D("offset %llx count %lx", pos, count);
+
 	block = find_regblock(head, pos, count);
 	if (!block || !block->read)
 		return vfio_pci_rw(pci, buf, count, ppos, false);
@@ -637,6 +676,8 @@ static ssize_t emulate_read(struct list_head *head, struct vfio_device *vdev,
 
 	if (count > range_len(&block->range))
 		count = range_len(&block->range);
+
+	D("call emulation handler");
 
 	ret = block->read(cxl, &v, pos, count);
 	if (ret < 0)
@@ -660,6 +701,8 @@ static ssize_t emulate_write(struct list_head *head, struct vfio_device *vdev,
 	ssize_t ret;
 	u32 v;
 
+	D("offset %llx count %lx", pos, count);
+
 	block = find_regblock(head, pos, count);
 	if (!block || !block->write)
 		return vfio_pci_rw(pci, buf, count, ppos, true);
@@ -672,6 +715,8 @@ static ssize_t emulate_write(struct list_head *head, struct vfio_device *vdev,
 
 	if (copy_from_user(&v, buf, count))
 		return -EFAULT;
+
+	D("call emulation handler");
 
 	ret = block->write(cxl, &v, pos, count);
 	if (ret < 0)
@@ -691,6 +736,8 @@ ssize_t vfio_cxl_core_config_rw(struct vfio_device *vdev, char __user *buf,
 	ssize_t ret = 0;
 	loff_t tmp, pos = *ppos;
 
+	D("begin offset %llx count %lx", pos, count);
+
 	while (count) {
 		tmp = pos;
 
@@ -709,13 +756,21 @@ ssize_t vfio_cxl_core_config_rw(struct vfio_device *vdev, char __user *buf,
 					   vdev, buf, ret, &tmp);
 		if (ret < 0)
 			return ret;
+		{
+			u64 v;
 
+			if (copy_from_user(&v, buf, ret))
+				return -EFAULT;
+
+			D("offset %llx size %lx value %llx", pos, ret, v);
+		}
 		count -= ret;
 		done += ret;
 		buf += ret;
 		pos += ret;
 	}
 
+	D("done %lx", done);
 	*ppos += done;
 	return done;
 }
@@ -730,6 +785,8 @@ ssize_t vfio_cxl_core_mmio_bar_rw(struct vfio_device *vdev, char __user *buf,
 	size_t done = 0;
 	ssize_t ret = 0;
 	loff_t tmp, pos = *ppos;
+
+	D("begin offset %llx count %lx", pos, count);
 
 	while (count) {
 		tmp = pos;
@@ -750,12 +807,21 @@ ssize_t vfio_cxl_core_mmio_bar_rw(struct vfio_device *vdev, char __user *buf,
 		if (ret < 0)
 			return ret;
 
+		{
+			u64 v;
+
+			if (copy_from_user(&v, buf, ret))
+				return -EFAULT;
+
+			D("offset %llx size %lx value %llx", pos, ret, v);
+		}
 		count -= ret;
 		done += ret;
 		buf += ret;
 		pos += ret;
 	}
 
+	D("done %lx", done);
 	*ppos += done;
 	return done;
 }

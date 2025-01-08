@@ -25,6 +25,9 @@
 #define DRIVER_AUTHOR "Zhi Wang <zhiw@nvidia.com>"
 #define DRIVER_DESC "core driver for VFIO based CXL devices"
 
+#define D(fmt, args...) \
+	pr_err("%s() - %d: "fmt"\n", __func__, __LINE__, ##args)
+
 static void init_cxl_cap(struct vfio_cxl_core_device *cxl)
 {
 	struct vfio_pci_core_device *pci = &cxl->pci_core;
@@ -90,6 +93,8 @@ static int enable_cxl(struct vfio_cxl_core_device *cxl, u16 dvsec,
 	cxl->hdm_reg_offset = offset;
 	cxl->hdm_reg_size = size;
 
+	D("hdm reg %llx offset %llx size %llx", count, offset, size);
+
 	ret = cxl_request_resource(cxl->cxlds, CXL_RES_RAM);
 	if (ret)
 		goto err;
@@ -103,6 +108,8 @@ static int enable_cxl(struct vfio_cxl_core_device *cxl, u16 dvsec,
 
 	cxl_set_media_ready(cxl->cxlds);
 
+	D("media is ready");
+
 	cxl->cxlmd = devm_cxl_add_memdev(&pdev->dev, cxl->cxlds);
 	if (IS_ERR(cxl->cxlmd)) {
 		ret = PTR_ERR(cxl->cxlmd);
@@ -110,6 +117,9 @@ static int enable_cxl(struct vfio_cxl_core_device *cxl, u16 dvsec,
 	}
 
 	init_cxl_cap(cxl);
+
+	if (cxl->region.noncached)
+		D("noncached region");
 
 	cxl->region.noncached = info->noncached_region;
 	return 0;
@@ -145,6 +155,8 @@ static void discover_precommitted_region(struct vfio_cxl_core_device *cxl)
 		kfree(cxlrs);
 		return;
 	}
+
+	D("found precommit region");
 
 	WARN_ON(num > 1);
 	cxl->region.region = cxlrs[0];
@@ -197,6 +209,8 @@ static int find_comp_regs(struct vfio_cxl_core_device *cxl)
 	cxl->comp_reg_bar = bar;
 	cxl->comp_reg_offset = offset;
 	cxl->comp_reg_size = SZ_64K;
+
+	D("comp bar %d offset %llx", bar, offset);
 	return 0;
 }
 
@@ -235,9 +249,11 @@ static int setup_virt_regs(struct vfio_cxl_core_device *cxl)
 		return -EFAULT;
 	}
 
-	for (i = 0; i < size; i += 4)
+	for (i = 0; i < size; i += 4) {
 		*(u32 *)(cxl->initial_comp_reg_virt + i) = readl(regs + i);
-
+		D("initial virt comp offset %u value %x", i,
+				*(u32 *)(cxl->initial_comp_reg_virt + i));
+	}
 	iounmap(regs);
 
 	regs = kvzalloc(pdev->cfg_size * 2, GFP_KERNEL);
@@ -252,8 +268,11 @@ static int setup_virt_regs(struct vfio_cxl_core_device *cxl)
 
 	regs = cxl->initial_config_virt + cxl->dvsec;
 
-	for (i = 0; i < 0x40; i += 4)
+	for (i = 0; i < 0x40; i += 4) {
 		pci_read_config_dword(pdev, cxl->dvsec + i, regs + i);
+		D("initial virt conf offset %u value %x", i,
+				*(u32 *)(regs + i));
+	}
 
 	reset_virt_regs(cxl);
 	return 0;
@@ -273,6 +292,8 @@ int vfio_cxl_core_enable(struct vfio_cxl_core_device *cxl,
 		return -ENODEV;
 
 	cxl->dvsec = dvsec;
+
+	D("dvsec %x", dvsec);
 
 	ret = find_comp_regs(cxl);
 	if (ret)
@@ -324,12 +345,16 @@ static void disable_device(struct vfio_cxl_core_device *cxl)
 	vfio_cxl_core_clean_register_emulation(cxl);
 	disable_cxl(cxl);
 	clean_virt_regs(cxl);
+
+	D("called");
 }
 
 void vfio_cxl_core_disable(struct vfio_cxl_core_device *cxl)
 {
 	disable_device(cxl);
 	vfio_pci_core_disable(&cxl->pci_core);
+
+	D("called");
 }
 EXPORT_SYMBOL_GPL(vfio_cxl_core_disable);
 
@@ -338,6 +363,8 @@ void vfio_cxl_core_close_device(struct vfio_device *vdev)
 	struct vfio_pci_core_device *pci =
 		container_of(vdev, struct vfio_pci_core_device, vdev);
 	struct vfio_cxl_core_device *cxl = vfio_pci_core_to_cxl(pci);
+
+	D("called\n");
 
 	disable_device(cxl);
 	vfio_pci_core_close_device(vdev);
@@ -390,6 +417,7 @@ int vfio_cxl_core_create_cxl_region(struct vfio_cxl_core_device *cxl, u64 size)
 	cxl->region.addr = range.start;
 	cxl->region.size = size;
 	cxl->region.region = region;
+	D("create CXL region: start %llx size %llx", range.start, size);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vfio_cxl_core_create_cxl_region);
@@ -398,6 +426,8 @@ void vfio_cxl_core_destroy_cxl_region(struct vfio_cxl_core_device *cxl)
 {
 	if (!cxl->region.region)
 		return;
+
+	D("destroy CXL region");
 
 	cxl_accel_region_detach(cxl->cxled);
 	cxl_dpa_free(cxl->cxled);
@@ -433,8 +463,10 @@ static int vfio_cxl_region_mmap(struct vfio_pci_core_device *pci,
 		return -EINVAL;
 
 	vma->vm_private_data = pci;
-	if (cxl_region->noncached)
+	if (cxl_region->noncached) {
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		D("noncached mmap");
+	}
 	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
 
 	vm_flags_set(vma, VM_ALLOW_ANY_UNCACHED | VM_IO | VM_PFNMAP |
