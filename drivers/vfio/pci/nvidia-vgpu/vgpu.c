@@ -75,7 +75,7 @@ int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu)
 	struct nvidia_vgpu_info *info = &vgpu->info;
 	int ret;
 
-	if (WARN_ON(!info->gfid || !info->dbdf))
+	if (WARN_ON(!info->gfid || !info->dbdf || !info->vgpu_type))
 		return -EINVAL;
 
 	if (WARN_ON(!vgpu->vgpu_mgr || !vgpu->pdev))
@@ -86,7 +86,8 @@ int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu)
 
 	vgpu->info = *info;
 
-	vgpu_debug(vgpu, "create vgpu on vgpu_mgr %px\n", vgpu->vgpu_mgr);
+	vgpu_debug(vgpu, "create vgpu %s on vgpu_mgr %px\n",
+		   info->vgpu_type->vgpu_type_name, vgpu->vgpu_mgr);
 
 	ret = register_vgpu(vgpu);
 	if (ret)

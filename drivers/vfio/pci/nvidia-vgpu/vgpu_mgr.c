@@ -16,6 +16,7 @@ static void vgpu_mgr_release(struct kref *kref)
 	if (WARN_ON(atomic_read(&vgpu_mgr->num_vgpus)))
 		return;
 
+	nvidia_vgpu_mgr_clean_metadata(vgpu_mgr);
 	nvidia_vgpu_mgr_free_gsp_client(vgpu_mgr, &vgpu_mgr->gsp_client);
 	kvfree(vgpu_mgr);
 }
@@ -150,6 +151,10 @@ static int pf_attach_handle_fn(void *handle, struct nvidia_vgpu_vfio_handle_data
 	if (ret)
 		goto fail_init_vgpu_mgr;
 
+	ret = nvidia_vgpu_mgr_setup_metadata(vgpu_mgr);
+	if (ret)
+		goto fail_setup_metadata;
+
 	attach_vgpu_mgr(vgpu_mgr, handle_data);
 
 	ret = attach_data->init_vfio_fn(vgpu_mgr, attach_data->init_vfio_fn_data);
@@ -162,6 +167,8 @@ static int pf_attach_handle_fn(void *handle, struct nvidia_vgpu_vfio_handle_data
 
 fail_init_fn:
 	detach_vgpu_mgr(handle_data);
+	nvidia_vgpu_mgr_clean_metadata(vgpu_mgr);
+fail_setup_metadata:
 fail_init_vgpu_mgr:
 	nvidia_vgpu_mgr_free_gsp_client(vgpu_mgr, &vgpu_mgr->gsp_client);
 fail_alloc_gsp_client:

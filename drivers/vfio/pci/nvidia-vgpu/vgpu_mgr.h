@@ -7,6 +7,21 @@
 
 #include "pf.h"
 
+#define NVIDIA_VGPU_TYPE_NAME_MAX 32
+
+struct nvidia_vgpu_type {
+	u32 vgpu_type;
+	char vgpu_type_name[NVIDIA_VGPU_TYPE_NAME_MAX];
+	u64 vdev_id;
+	u64 pdev_id;
+	u64 fb_length;
+	u64 gsp_heap_size;
+	u64 bar1_length;
+	u32 max_instance;
+	u32 ecc_supported;
+	u64 fb_reservation;
+};
+
 /**
  * struct nvidia_vgpu_info - vGPU information
  *
@@ -18,6 +33,7 @@ struct nvidia_vgpu_info {
 	int id;
 	u32 gfid;
 	u32 dbdf;
+	struct nvidia_vgpu_type *vgpu_type;
 };
 
 /**
@@ -48,10 +64,14 @@ struct nvidia_vgpu {
  * @handle: the driver handle
  * @total_avail_chids: total available channel IDs
  * @total_fbmem_size: total FB memory size
+ * @vgpu_major: vGPU major version
+ * @vgpu_minor: vGPU minor version
  * @vgpu_list_lock: lock to protect vGPU list
  * @vgpu_list_head: list head of vGPU list
  * @num_vgpus: number of vGPUs in the vGPU list
  * @gsp_client: the GSP client
+ * @vgpu_types: installed vGPU types
+ * @num_vgpu_types: number of installed vGPU types
  */
 struct nvidia_vgpu_mgr {
 	struct kref refcount;
@@ -61,12 +81,17 @@ struct nvidia_vgpu_mgr {
 	u32 total_avail_chids;
 	u64 total_fbmem_size;
 
+	u64 vgpu_major;
+	u64 vgpu_minor;
+
 	/* lock for vGPU list */
 	struct mutex vgpu_list_lock;
 	struct list_head vgpu_list_head;
 	atomic_t num_vgpus;
 
 	struct nvidia_vgpu_gsp_client gsp_client;
+	struct nvidia_vgpu_type *vgpu_types;
+	unsigned int num_vgpu_types;
 };
 
 #define nvidia_vgpu_mgr_for_each_vgpu(vgpu, vgpu_mgr) \
@@ -78,5 +103,7 @@ void nvidia_vgpu_mgr_release(struct nvidia_vgpu_mgr *vgpu_mgr);
 
 int nvidia_vgpu_mgr_destroy_vgpu(struct nvidia_vgpu *vgpu);
 int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu);
+int nvidia_vgpu_mgr_setup_metadata(struct nvidia_vgpu_mgr *vgpu_mgr);
+void nvidia_vgpu_mgr_clean_metadata(struct nvidia_vgpu_mgr *vgpu_mgr);
 
 #endif
