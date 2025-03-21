@@ -332,6 +332,7 @@ int nvidia_vgpu_mgr_destroy_vgpu(struct nvidia_vgpu *vgpu)
 	if (!atomic_cmpxchg(&vgpu->status, 1, 0))
 		return -ENODEV;
 
+	nvidia_vgpu_clean_rpc(vgpu);
 	WARN_ON(shutdown_vgpu_plugin_task(vgpu));
 	WARN_ON(cleanup_vgpu_plugin_task(vgpu));
 	nvidia_vgpu_mgr_free_gsp_client(vgpu_mgr, &vgpu->gsp_client);
@@ -399,12 +400,19 @@ int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu)
 	if (ret)
 		goto err_bootload_vgpu_plugin_task;
 
+	ret = nvidia_vgpu_setup_rpc(vgpu);
+	if (ret)
+		goto err_setup_rpc;
+
 	atomic_set(&vgpu->status, 1);
 
 	vgpu_debug(vgpu, "created\n");
 
 	return 0;
 
+err_setup_rpc:
+	shutdown_vgpu_plugin_task(vgpu);
+	cleanup_vgpu_plugin_task(vgpu);
 err_bootload_vgpu_plugin_task:
 	nvidia_vgpu_mgr_free_gsp_client(vgpu_mgr, &vgpu->gsp_client);
 err_alloc_gsp_client:

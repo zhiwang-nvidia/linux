@@ -9,6 +9,29 @@
 #include <nvrm/vmmu.h>
 #include <nvrm/ecc.h>
 
+static void unmap_pf_mmio(struct nvidia_vgpu_mgr *vgpu_mgr)
+{
+	iounmap(vgpu_mgr->bar0_vaddr);
+}
+
+static int map_pf_mmio(struct nvidia_vgpu_mgr *vgpu_mgr)
+{
+	struct pci_dev *pdev = vgpu_mgr->pdev;
+	resource_size_t start, size;
+	void *vaddr;
+
+	start = pci_resource_start(pdev, 0);
+	size = pci_resource_len(pdev, 0);
+
+	vaddr = ioremap(start, size);
+	if (!vaddr)
+		return -ENOMEM;
+
+	vgpu_mgr->bar0_vaddr = vaddr;
+
+	return 0;
+}
+
 static void clean_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr)
 {
 	if (vgpu_mgr->use_chid_alloc_bitmap) {
@@ -30,6 +53,7 @@ static void vgpu_mgr_release(struct kref *kref)
 	if (WARN_ON(atomic_read(&vgpu_mgr->num_vgpus)))
 		return;
 
+	unmap_pf_mmio(vgpu_mgr);
 	nvidia_vgpu_mgr_clean_metadata(vgpu_mgr);
 	clean_vgpu_mgr(vgpu_mgr);
 	nvidia_vgpu_mgr_free_gsp_client(vgpu_mgr, &vgpu_mgr->gsp_client);
@@ -73,6 +97,7 @@ static struct nvidia_vgpu_mgr *alloc_vgpu_mgr(struct nvidia_vgpu_mgr_handle *han
 		return ERR_PTR(-ENOMEM);
 
 	vgpu_mgr->handle = *handle;
+	vgpu_mgr->pdev = handle->pf_pdev;
 
 	kref_init(&vgpu_mgr->refcount);
 	mutex_init(&vgpu_mgr->vgpu_list_lock);
@@ -295,6 +320,10 @@ static int pf_attach_handle_fn(void *handle, struct nvidia_vgpu_vfio_handle_data
 	if (ret)
 		goto fail_setup_metadata;
 
+	ret = map_pf_mmio(vgpu_mgr);
+	if (ret)
+		goto fail_map_pf_mmio;
+
 	attach_vgpu_mgr(vgpu_mgr, handle_data);
 
 	ret = attach_data->init_vfio_fn(vgpu_mgr, attach_data->init_vfio_fn_data);
@@ -307,6 +336,8 @@ static int pf_attach_handle_fn(void *handle, struct nvidia_vgpu_vfio_handle_data
 
 fail_init_fn:
 	detach_vgpu_mgr(handle_data);
+	unmap_pf_mmio(vgpu_mgr);
+fail_map_pf_mmio:
 	nvidia_vgpu_mgr_clean_metadata(vgpu_mgr);
 fail_setup_metadata:
 	clean_vgpu_mgr(vgpu_mgr);

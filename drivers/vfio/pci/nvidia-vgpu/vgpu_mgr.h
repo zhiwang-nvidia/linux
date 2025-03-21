@@ -58,6 +58,17 @@ struct nvidia_vgpu_mgmt {
 	void __iomem *kernel_log_vaddr;
 };
 
+struct nvidia_vgpu_rpc {
+	/* RPC channel lock */
+	struct mutex lock;
+	u32 msg_seq_num;
+	void __iomem *ctrl_buf;
+	void __iomem *resp_buf;
+	void __iomem *msg_buf;
+	void __iomem *migration_buf;
+	void __iomem *error_buf;
+};
+
 /**
  * struct nvidia_vgpu - per-vGPU state
  *
@@ -71,6 +82,7 @@ struct nvidia_vgpu_mgmt {
  * @chid: vGPU channel IDs
  * @fbmem_heap: allocated FB memory for the vGPU
  * @mgmt: vGPU mgmt heap
+ * @rpc: vGPU host RPC
  */
 struct nvidia_vgpu {
 	/* Per-vGPU lock */
@@ -86,6 +98,7 @@ struct nvidia_vgpu {
 	struct nvidia_vgpu_chid chid;
 	struct nvidia_vgpu_mem *fbmem_heap;
 	struct nvidia_vgpu_mgmt mgmt;
+	struct nvidia_vgpu_rpc rpc;
 };
 
 /**
@@ -112,6 +125,8 @@ struct nvidia_vgpu {
  * @num_vgpu_types: number of installed vGPU types
  * @use_alloc_bitmap: use chid allocator for the PF driver doesn't support chid allocation
  * @chid_alloc_bitmap: chid allocator bitmap
+ * @pdev: the PCI device pointer
+ * @bar0_vaddr: the virtual address of BAR0
  */
 struct nvidia_vgpu_mgr {
 	struct kref refcount;
@@ -147,6 +162,9 @@ struct nvidia_vgpu_mgr {
 
 	bool use_chid_alloc_bitmap;
 	void *chid_alloc_bitmap;
+
+	struct pci_dev *pdev;
+	void __iomem *bar0_vaddr;
 };
 
 #define nvidia_vgpu_mgr_for_each_vgpu(vgpu, vgpu_mgr) \
@@ -160,5 +178,9 @@ int nvidia_vgpu_mgr_destroy_vgpu(struct nvidia_vgpu *vgpu);
 int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu);
 int nvidia_vgpu_mgr_setup_metadata(struct nvidia_vgpu_mgr *vgpu_mgr);
 void nvidia_vgpu_mgr_clean_metadata(struct nvidia_vgpu_mgr *vgpu_mgr);
+int nvidia_vgpu_rpc_call(struct nvidia_vgpu *vgpu, u32 msg_type,
+			 void *data, u64 size);
+void nvidia_vgpu_clean_rpc(struct nvidia_vgpu *vgpu);
+int nvidia_vgpu_setup_rpc(struct nvidia_vgpu *vgpu);
 
 #endif
