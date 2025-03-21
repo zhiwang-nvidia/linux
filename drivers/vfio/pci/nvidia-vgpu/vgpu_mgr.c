@@ -15,6 +15,9 @@ static void clean_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr)
 		bitmap_free(vgpu_mgr->chid_alloc_bitmap);
 		vgpu_mgr->chid_alloc_bitmap = NULL;
 	}
+
+	kvfree(vgpu_mgr->engine_bitmap);
+	vgpu_mgr->engine_bitmap = NULL;
 }
 
 static void vgpu_mgr_release(struct kref *kref)
@@ -140,6 +143,25 @@ static int get_ecc_status(struct nvidia_vgpu_mgr *vgpu_mgr)
 	return 0;
 }
 
+static int setup_engine_bitmap(struct nvidia_vgpu_mgr *vgpu_mgr)
+{
+	u64 size;
+
+	size = nvidia_vgpu_mgr_get_engine_bitmap_size(vgpu_mgr);
+
+	if (WARN_ON(!size))
+		return -EINVAL;
+
+	vgpu_mgr->engine_bitmap = kvmalloc(ALIGN(size, 8), GFP_KERNEL);
+	if (!vgpu_mgr->engine_bitmap)
+		return -ENOMEM;
+
+	vgpu_mgr_debug(vgpu_mgr, "[core driver] engine bitmap size: 0x%llx\n", size);
+
+	nvidia_vgpu_mgr_get_engine_bitmap(vgpu_mgr, vgpu_mgr->engine_bitmap);
+	return 0;
+}
+
 static int setup_chid_alloc_bitmap(struct nvidia_vgpu_mgr *vgpu_mgr)
 {
 	if (WARN_ON(!vgpu_mgr->use_chid_alloc_bitmap))
@@ -194,6 +216,10 @@ static int init_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr)
 		       vgpu_mgr->vmmu_segment_size);
 	vgpu_mgr_debug(vgpu_mgr, "[GSP RM] ECC enabled: %d\n", vgpu_mgr->ecc_enabled);
 
+	ret = setup_engine_bitmap(vgpu_mgr);
+	if (ret)
+		return ret;
+
 	vgpu_mgr->total_avail_chids = nvidia_vgpu_mgr_get_avail_chids(vgpu_mgr);
 	vgpu_mgr->total_fbmem_size = nvidia_vgpu_mgr_get_total_fbmem_size(vgpu_mgr);
 
@@ -204,7 +230,15 @@ static int init_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr)
 
 	init_gsp_rm_constraints(vgpu_mgr);
 
-	return vgpu_mgr->use_chid_alloc_bitmap ? setup_chid_alloc_bitmap(vgpu_mgr) : 0;
+	if (vgpu_mgr->use_chid_alloc_bitmap) {
+		ret = setup_chid_alloc_bitmap(vgpu_mgr);
+		if (ret) {
+			kvfree(vgpu_mgr->engine_bitmap);
+			vgpu_mgr->engine_bitmap = NULL;
+			return ret;
+		}
+	}
+	return 0;
 }
 
 static int setup_pf_driver_caps(struct nvidia_vgpu_mgr *vgpu_mgr, unsigned long *caps)

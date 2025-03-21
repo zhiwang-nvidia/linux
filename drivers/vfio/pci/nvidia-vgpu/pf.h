@@ -109,4 +109,14 @@ static inline int nvidia_vgpu_mgr_init_handle(struct pci_dev *pdev,
 #define nvidia_vgpu_mgr_bar1_unmap_mem(m, mem) \
 	((m)->handle.ops->bar1_unmap_mem(mem))
 
+#define nvidia_vgpu_mgr_get_engine_bitmap_size(m) ({ \
+	typeof(m) __m = (m); \
+	__m->handle.ops->get_engine_bitmap_size(__m->handle.pf_drvdata); \
+})
+
+#define nvidia_vgpu_mgr_get_engine_bitmap(m, bitmap) ({ \
+	typeof(m) __m = (m); \
+	__m->handle.ops->get_engine_bitmap(__m->handle.pf_drvdata, bitmap); \
+})
+
 #endif

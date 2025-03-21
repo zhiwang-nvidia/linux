@@ -34,6 +34,7 @@ struct nvidia_vgpu_info {
 	u32 gfid;
 	u32 dbdf;
 	struct nvidia_vgpu_type *vgpu_type;
+	u32 vm_pid;
 };
 
 /**
@@ -119,6 +120,7 @@ struct nvidia_vgpu_mgr {
 	/* core driver configurations */
 	u32 total_avail_chids;
 	u64 total_fbmem_size;
+	void *engine_bitmap;
 
 	/* GSP RM configurations */
 	u64 vmmu_segment_size;
