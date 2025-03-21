@@ -154,6 +154,30 @@ static int setup_chid_alloc_bitmap(struct nvidia_vgpu_mgr *vgpu_mgr)
 	return 0;
 }
 
+static void init_gsp_rm_constraints(struct nvidia_vgpu_mgr *vgpu_mgr)
+{
+	vgpu_mgr->comm_buff_size = (3 * SZ_4K) + SZ_2M + SZ_4K + SZ_128K + SZ_256K + SZ_64K;
+	vgpu_mgr->init_task_log_offset = (3 * SZ_4K) + SZ_2M + SZ_4K;
+	vgpu_mgr->init_task_log_size = SZ_128K;
+	vgpu_mgr->vgpu_task_log_size = SZ_256K;
+	vgpu_mgr->kernel_log_size = SZ_64K;
+
+	vgpu_mgr_debug(vgpu_mgr, "[GSP RM constraint] comm_buff_size 0x%llx\n",
+		       vgpu_mgr->comm_buff_size);
+
+	vgpu_mgr_debug(vgpu_mgr, "[GSP RM constraint] init_task_log_offset 0x%llx\n",
+		       vgpu_mgr->init_task_log_offset);
+
+	vgpu_mgr_debug(vgpu_mgr, "[GSP RM constraint] init_task_log size 0x%llx\n",
+		       vgpu_mgr->init_task_log_size);
+
+	vgpu_mgr_debug(vgpu_mgr, "[GSP RM constraint] vgpu_task_log size 0x%llx\n",
+		       vgpu_mgr->vgpu_task_log_size);
+
+	vgpu_mgr_debug(vgpu_mgr, "[GSP RM constraint] kernel_log size 0x%llx\n",
+		       vgpu_mgr->kernel_log_size);
+}
+
 static int init_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr)
 {
 	int ret;
@@ -177,6 +201,8 @@ static int init_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr)
 		       vgpu_mgr->total_avail_chids);
 	vgpu_mgr_debug(vgpu_mgr, "[core driver] total fbmem size 0x%llx\n",
 		       vgpu_mgr->total_fbmem_size);
+
+	init_gsp_rm_constraints(vgpu_mgr);
 
 	return vgpu_mgr->use_chid_alloc_bitmap ? setup_chid_alloc_bitmap(vgpu_mgr) : 0;
 }

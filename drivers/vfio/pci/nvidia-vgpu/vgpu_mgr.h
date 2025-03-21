@@ -51,7 +51,10 @@ struct nvidia_vgpu_chid {
 
 struct nvidia_vgpu_mgmt {
 	struct nvidia_vgpu_mem *heap_mem;
-	/* more to come */
+	void __iomem *ctrl_vaddr;
+	void __iomem *init_task_log_vaddr;
+	void __iomem *vgpu_task_log_vaddr;
+	void __iomem *kernel_log_vaddr;
 };
 
 /**
@@ -91,6 +94,11 @@ struct nvidia_vgpu {
  * @total_fbmem_size: total FB memory size
  * @vmmu_segment_size: VMMU segment size
  * @ecc_enabled: ECC is enabled in the GPU
+ * @comm_buff_size: communication buffer size of mgmt heap
+ * @init_task_log_offset: offset of init task log in mgmt heap
+ * @init_task_log_size: size of init task size in mgmt heap
+ * @vgpu_task_log_size: size of vgpu task log size in mgmt heap
+ * @kernel_log_size: size of kernel log size in mgmt heap
  * @vgpu_major: vGPU major version
  * @vgpu_minor: vGPU minor version
  * @vgpu_list_lock: lock to protect vGPU list
@@ -113,6 +121,13 @@ struct nvidia_vgpu_mgr {
 	/* GSP RM configurations */
 	u64 vmmu_segment_size;
 	bool ecc_enabled;
+
+	/* GSP RM constraints */
+	u64 comm_buff_size;
+	u64 init_task_log_offset;
+	u64 init_task_log_size;
+	u64 vgpu_task_log_size;
+	u64 kernel_log_size;
 
 	u64 vgpu_major;
 	u64 vgpu_minor;

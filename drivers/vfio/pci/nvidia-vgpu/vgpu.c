@@ -177,10 +177,14 @@ static void clean_mgmt_heap(struct nvidia_vgpu *vgpu)
 	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
 	struct nvidia_vgpu_mgmt *mgmt = &vgpu->mgmt;
 
+	nvidia_vgpu_mgr_bar1_unmap_mem(vgpu_mgr, mgmt->heap_mem);
+
 	vgpu_debug(vgpu, "free mgmt heap, offset 0x%llx size 0x%llx\n", mgmt->heap_mem->addr,
 		   mgmt->heap_mem->size);
 
 	nvidia_vgpu_mgr_free_fbmem(vgpu_mgr, mgmt->heap_mem);
+	mgmt->init_task_log_vaddr = mgmt->vgpu_task_log_vaddr = NULL;
+	mgmt->ctrl_vaddr = mgmt->kernel_log_vaddr = NULL;
 	mgmt->heap_mem = NULL;
 }
 
@@ -191,7 +195,9 @@ static int setup_mgmt_heap(struct nvidia_vgpu *vgpu)
 	struct nvidia_vgpu_info *info = &vgpu->info;
 	struct nvidia_vgpu_type *vgpu_type = info->vgpu_type;
 	struct nvidia_vgpu_alloc_fbmem_info alloc_info = {0};
+	struct nvidia_vgpu_map_mem_info map_info = {0};
 	struct nvidia_vgpu_mem *mem;
+	int ret;
 
 	alloc_info.size = vgpu_type->gsp_heap_size;
 
@@ -203,6 +209,23 @@ static int setup_mgmt_heap(struct nvidia_vgpu *vgpu)
 
 	vgpu_debug(vgpu, "mgmt heap offset 0x%llx size 0x%llx\n", mem->addr, mem->size);
 
+	map_info.map_size = vgpu_mgr->comm_buff_size;
+
+	ret = nvidia_vgpu_mgr_bar1_map_mem(vgpu_mgr, mem, &map_info);
+	if (ret) {
+		nvidia_vgpu_mgr_free_fbmem(vgpu_mgr, mem);
+		return ret;
+	}
+
+	vgpu_debug(vgpu, "mgmt heap mapped\n");
+
+	mgmt->ctrl_vaddr = mem->bar1_vaddr;
+	mgmt->init_task_log_vaddr = mgmt->ctrl_vaddr +
+				    vgpu_mgr->init_task_log_offset;
+	mgmt->vgpu_task_log_vaddr = mgmt->init_task_log_vaddr +
+				    vgpu_mgr->init_task_log_size;
+	mgmt->kernel_log_vaddr = mgmt->vgpu_task_log_vaddr +
+				 vgpu_mgr->vgpu_task_log_size;
 	mgmt->heap_mem = mem;
 	return 0;
 }
