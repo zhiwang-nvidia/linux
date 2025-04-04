@@ -22,4 +22,14 @@
 	pci_err(__v->pdev, "nvidia-vgpu %d: "f, __v->info.id, ##a); \
 })
 
+#define nvdev_debug(n, f, a...) ({ \
+	typeof(n) __n = (n); \
+	pci_dbg(__n->core_dev.pdev, "nvidia-vgpu-vfio: "f, ##a); \
+})
+
+#define nvdev_error(n, f, a...) ({ \
+	typeof(n) __n = (n); \
+	pci_err(__n->core_dev.pdev, "nvidia-vgpu-vfio: "f, ##a); \
+})
+
 #endif

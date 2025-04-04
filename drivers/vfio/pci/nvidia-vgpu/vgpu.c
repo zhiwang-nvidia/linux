@@ -9,6 +9,7 @@
 #include "vgpu_mgr.h"
 
 #include <nvrm/bootload.h>
+#include <nvrm/vgpu.h>
 
 static void unregister_vgpu(struct nvidia_vgpu *vgpu)
 {
@@ -361,7 +362,7 @@ int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu)
 	struct nvidia_vgpu_info *info = &vgpu->info;
 	int ret;
 
-	if (WARN_ON(!info->gfid || !info->dbdf || !info->vgpu_type))
+	if (WARN_ON(!info->gfid || !info->dbdf || !info->vgpu_type || !info->vm_pid))
 		return -EINVAL;
 
 	if (WARN_ON(!vgpu->vgpu_mgr || !vgpu->pdev))
@@ -372,8 +373,8 @@ int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu)
 
 	vgpu->info = *info;
 
-	vgpu_debug(vgpu, "create vgpu %s on vgpu_mgr %px\n",
-		   info->vgpu_type->vgpu_type_name, vgpu->vgpu_mgr);
+	vgpu_debug(vgpu, "create vgpu %s on vgpu_mgr %px vm pid %u\n",
+		   info->vgpu_type->vgpu_type_name, vgpu->vgpu_mgr, info->vm_pid);
 
 	ret = register_vgpu(vgpu);
 	if (ret)
@@ -427,3 +428,49 @@ err_setup_chids:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nvidia_vgpu_mgr_create_vgpu);
+
+/**
+ * nvidia_vgpu_mgr_reset_vgpu - reset a vGPU instance
+ * @vgpu: the vGPU instance going to be reset.
+ *
+ * Returns: 0 on success, others on failure.
+ */
+int nvidia_vgpu_mgr_reset_vgpu(struct nvidia_vgpu *vgpu)
+{
+	int ret;
+
+	ret = nvidia_vgpu_rpc_call(vgpu, NV_VGPU_CPU_RPC_MSG_RESET, NULL, 0);
+	if (ret) {
+		vgpu_error(vgpu, "fail to reset vgpu ret %d\n", ret);
+		return ret;
+	}
+
+	vgpu_debug(vgpu, "reset done\n");
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nvidia_vgpu_mgr_reset_vgpu);
+
+static int update_bme_state(struct nvidia_vgpu *vgpu, bool enable)
+{
+	NV_VGPU_CPU_RPC_DATA_UPDATE_BME_STATE params = {0};
+
+	params.enable = enable;
+
+	return nvidia_vgpu_rpc_call(vgpu, NV_VGPU_CPU_RPC_MSG_UPDATE_BME_STATE,
+				    &params, sizeof(params));
+}
+
+/**
+ * nvidia_vgpu_set_bme - handle BME sequence
+ * @vgpu: the vGPU instance
+ * @enable: BME enable/disable
+ *
+ * Returns: 0 on success, others on failure.
+ */
+int nvidia_vgpu_mgr_set_bme(struct nvidia_vgpu *vgpu, bool enable)
+{
+	vgpu_debug(vgpu, "set bme, enable %d\n", enable);
+
+	return update_bme_state(vgpu, enable);
+}
+EXPORT_SYMBOL_GPL(nvidia_vgpu_mgr_set_bme);

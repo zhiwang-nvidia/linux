@@ -1,0 +1,11 @@
+What:           /sys/devices/pciXXXX:XX/0000:XX:XX.X/nvidia/creatable_vgpu_types
+Date:		June 2, 2025
+KernelVersion:	6.17
+Contact:	kvm@vger.kernel.org
+Description:	Query the creatble vGPU types on a virtual function.
+
+What:           /sys/devices/pciXXXX:XX/0000:XX:XX.X/nvidia/current_vgpu_type
+Date:		June 2, 2025
+KernelVersion:	6.17
+Contact:	kvm@vger.kernel.org
+Description:	Set the vGPU type for the virtual function.

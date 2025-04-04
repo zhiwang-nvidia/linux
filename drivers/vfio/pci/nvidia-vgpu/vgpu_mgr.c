@@ -103,8 +103,30 @@ static struct nvidia_vgpu_mgr *alloc_vgpu_mgr(struct nvidia_vgpu_mgr_handle *han
 	mutex_init(&vgpu_mgr->vgpu_list_lock);
 	INIT_LIST_HEAD(&vgpu_mgr->vgpu_list_head);
 	atomic_set(&vgpu_mgr->num_vgpus, 0);
+	mutex_init(&vgpu_mgr->curr_vgpu_type_lock);
+	nvidia_vgpu_event_init_chain(&vgpu_mgr->pf_driver_event_chain);
 
 	return vgpu_mgr;
+}
+
+static int call_chain(struct nvidia_vgpu_event_chain *chain, unsigned int event, void *data)
+{
+	struct nvidia_vgpu_event_listener *l;
+	struct list_head *pos, *temp;
+	int ret = 0;
+
+	mutex_lock(&chain->lock);
+
+	list_for_each_safe(pos, temp, &chain->head) {
+		l = container_of(pos, struct nvidia_vgpu_event_listener, list);
+		ret = l->func(l, event, data);
+		if (ret)
+			goto out_unlock;
+	}
+
+out_unlock:
+	mutex_unlock(&chain->lock);
+	return ret;
 }
 
 static const char *pf_events_string[NVIDIA_VGPU_PF_EVENT_MAX] = {
@@ -115,14 +137,20 @@ static const char *pf_events_string[NVIDIA_VGPU_PF_EVENT_MAX] = {
 static int pf_event_notify_fn(void *priv, unsigned int event, void *data)
 {
 	struct nvidia_vgpu_mgr *vgpu_mgr = priv;
+	int ret = 0;
 
 	if (WARN_ON(event >= NVIDIA_VGPU_PF_EVENT_MAX))
 		return -EINVAL;
 
 	vgpu_mgr_debug(vgpu_mgr, "handle PF event %s\n", pf_events_string[event]);
 
-	/* more to come. */
-	return 0;
+	switch (event) {
+	case NVIDIA_VGPU_PF_DRIVER_EVENT_START...NVIDIA_VGPU_PF_DRIVER_EVENT_END:
+		ret = call_chain(&vgpu_mgr->pf_driver_event_chain, event, data);
+		break;
+	}
+
+	return ret;
 }
 
 static void attach_vgpu_mgr(struct nvidia_vgpu_mgr *vgpu_mgr,
@@ -378,3 +406,39 @@ int nvidia_vgpu_mgr_setup(struct pci_dev *dev, int (*init_vfio_fn)(void *priv, v
 	return nvidia_vgpu_mgr_attach_handle(&handle, &attach_handle_data);
 }
 EXPORT_SYMBOL(nvidia_vgpu_mgr_setup);
+
+/**
+ * nvidia_vgpu_event_init_chain - initialize an event chain
+ * @chain: the even chain.
+ */
+void nvidia_vgpu_event_init_chain(struct nvidia_vgpu_event_chain *chain)
+{
+	mutex_init(&chain->lock);
+	INIT_LIST_HEAD(&chain->head);
+}
+
+/**
+ * nvidia_vgpu_event_register_listener - register an event listener
+ * @chain: the event chain.
+ * @l: the listener.
+ */
+void nvidia_vgpu_event_register_listener(struct nvidia_vgpu_event_chain *chain,
+					 struct nvidia_vgpu_event_listener *l)
+{
+	mutex_lock(&chain->lock);
+	list_add_tail(&l->list, &chain->head);
+	mutex_unlock(&chain->lock);
+}
+
+/**
+ * nvidia_vgpu_event_unregister_listener - unregister an event listener
+ * @chain: the event chain.
+ * @l: the listener.
+ */
+void nvidia_vgpu_event_unregister_listener(struct nvidia_vgpu_event_chain *chain,
+					   struct nvidia_vgpu_event_listener *l)
+{
+	mutex_lock(&chain->lock);
+	list_del_init(&l->list);
+	mutex_unlock(&chain->lock);
+}

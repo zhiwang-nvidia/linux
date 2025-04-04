@@ -101,6 +101,17 @@ struct nvidia_vgpu {
 	struct nvidia_vgpu_rpc rpc;
 };
 
+struct nvidia_vgpu_event_listener {
+	int (*func)(struct nvidia_vgpu_event_listener *self, unsigned int event, void *data);
+	struct list_head list;
+};
+
+struct nvidia_vgpu_event_chain {
+	/* lock for PF event listener list */
+	struct mutex lock;
+	struct list_head head;
+};
+
 /**
  * struct nvidia_vgpu_mgr - the vGPU manager
  *
@@ -125,6 +136,10 @@ struct nvidia_vgpu {
  * @num_vgpu_types: number of installed vGPU types
  * @use_alloc_bitmap: use chid allocator for the PF driver doesn't support chid allocation
  * @chid_alloc_bitmap: chid allocator bitmap
+ * @curr_vgpu_lock: lock to protect curr_vgpu_type
+ * @curr_vgpu_type: type of current created vgpu in homogeneous mode
+ * @num_instances: number of created vGPU with curr_vgpu_type in homogeneous mode
+ * @pf_driver_event_chain: PF driver event chain
  * @pdev: the PCI device pointer
  * @bar0_vaddr: the virtual address of BAR0
  */
@@ -163,6 +178,13 @@ struct nvidia_vgpu_mgr {
 	bool use_chid_alloc_bitmap;
 	void *chid_alloc_bitmap;
 
+	/* lock for current vGPU type */
+	struct mutex curr_vgpu_type_lock;
+	struct nvidia_vgpu_type *curr_vgpu_type;
+	unsigned int num_instances;
+
+	struct nvidia_vgpu_event_chain pf_driver_event_chain;
+
 	struct pci_dev *pdev;
 	void __iomem *bar0_vaddr;
 };
@@ -173,14 +195,21 @@ struct nvidia_vgpu_mgr {
 int nvidia_vgpu_mgr_setup(struct pci_dev *dev, int (*init_vfio_fn)(void *priv, void *data),
 			  void *init_vfio_fn_data);
 void nvidia_vgpu_mgr_release(struct nvidia_vgpu_mgr *vgpu_mgr);
+void nvidia_vgpu_event_init_chain(struct nvidia_vgpu_event_chain *chain);
+void nvidia_vgpu_event_register_listener(struct nvidia_vgpu_event_chain *chain,
+					 struct nvidia_vgpu_event_listener *l);
+void nvidia_vgpu_event_unregister_listener(struct nvidia_vgpu_event_chain *chain,
+					   struct nvidia_vgpu_event_listener *l);
 
 int nvidia_vgpu_mgr_destroy_vgpu(struct nvidia_vgpu *vgpu);
 int nvidia_vgpu_mgr_create_vgpu(struct nvidia_vgpu *vgpu);
+int nvidia_vgpu_mgr_reset_vgpu(struct nvidia_vgpu *vgpu);
 int nvidia_vgpu_mgr_setup_metadata(struct nvidia_vgpu_mgr *vgpu_mgr);
 void nvidia_vgpu_mgr_clean_metadata(struct nvidia_vgpu_mgr *vgpu_mgr);
 int nvidia_vgpu_rpc_call(struct nvidia_vgpu *vgpu, u32 msg_type,
 			 void *data, u64 size);
 void nvidia_vgpu_clean_rpc(struct nvidia_vgpu *vgpu);
 int nvidia_vgpu_setup_rpc(struct nvidia_vgpu *vgpu);
+int nvidia_vgpu_mgr_set_bme(struct nvidia_vgpu *vgpu, bool enable);
 
 #endif
