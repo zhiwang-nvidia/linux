@@ -9,27 +9,37 @@ use kernel::device;
 use kernel::firmware;
 use kernel::prelude::*;
 use kernel::str::CString;
+use sec2::Sec2Firmware;
 
 use crate::dma::DmaObject;
+use crate::driver::Bar0;
 use crate::falcon::FalconFirmware;
+use crate::falcon::{sec2::Sec2, Falcon};
 use crate::gpu;
 use crate::gpu::Chipset;
 
 pub(crate) mod fwsec;
+pub(crate) mod sec2;
 
 pub(crate) const FIRMWARE_VERSION: &str = "535.113.01";
 
 /// Structure encapsulating the firmware blobs required for the GPU to operate.
 #[expect(dead_code)]
 pub(crate) struct Firmware {
-    booter_load: firmware::Firmware,
-    booter_unload: firmware::Firmware,
+    booter_load: Sec2Firmware,
+    booter_unload: Sec2Firmware,
     bootloader: firmware::Firmware,
     gsp: firmware::Firmware,
 }
 
 impl Firmware {
-    pub(crate) fn new(dev: &device::Device, chipset: Chipset, ver: &str) -> Result<Firmware> {
+    pub(crate) fn new(
+        dev: &device::Device<device::Bound>,
+        sec2: &Falcon<Sec2>,
+        bar: &Bar0,
+        chipset: Chipset,
+        ver: &str,
+    ) -> Result<Firmware> {
         let mut chip_name = CString::try_from_fmt(fmt!("{}", chipset))?;
         chip_name.make_ascii_lowercase();
 
@@ -39,8 +49,10 @@ impl Firmware {
         };
 
         Ok(Firmware {
-            booter_load: request("booter_load")?,
-            booter_unload: request("booter_unload")?,
+            booter_load: request("booter_load")
+                .and_then(|fw| Sec2Firmware::new(sec2, dev, bar, &fw))?,
+            booter_unload: request("booter_unload")
+                .and_then(|fw| Sec2Firmware::new(sec2, dev, bar, &fw))?,
             bootloader: request("bootloader")?,
             gsp: request("gsp")?,
         })
@@ -148,6 +160,73 @@ impl<F: FalconFirmware> FirmwareDmaObject<F, Unsigned> {
         FirmwareDmaObject(self.0, PhantomData)
     }
 }
+
+// TODO: turn this into a local marker trait that is auto-implemented for structs implementing
+// `FromBytes`.
+macro_rules! impl_from_bytes {
+    ($name:ty) => {
+        impl $name {
+            pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Self> {
+                let mut data: [u8; size_of::<Self>()] = bytes.try_into().map_err(|_| EINVAL)?;
+
+                const U32_SIZE: usize = size_of::<u32>();
+                data.chunks_exact_mut(U32_SIZE)
+                    .map(|slice| <&mut [u8; U32_SIZE]>::try_from(slice).unwrap())
+                    .for_each(|chunk| *chunk = u32::from_le_bytes(*chunk).to_ne_bytes());
+
+                // SAFETY: the `FromBytes` implementation guarantees that any byte stream is valid
+                // for `Self`.
+                Ok(unsafe { core::mem::transmute::<[u8; size_of::<Self>()], Self>(data) })
+            }
+        }
+    };
+}
+
+#[repr(C)]
+#[derive(Debug)]
+struct BinHdr {
+    pub bin_magic: u32,
+    pub bin_ver: u32,
+    pub bin_size: u32,
+    pub header_offset: u32,
+    pub data_offset: u32,
+    pub data_size: u32,
+}
+impl_from_bytes!(BinHdr);
+
+#[repr(C)]
+#[derive(Debug)]
+struct HsHeaderV2 {
+    pub sig_prod_offset: u32,
+    pub sig_prod_size: u32,
+    pub patch_loc: u32,
+    pub patch_sig: u32,
+    pub meta_data_offset: u32,
+    pub meta_data_size: u32,
+    pub num_sig: u32,
+    pub header_offset: u32,
+    pub header_size: u32,
+}
+impl_from_bytes!(HsHeaderV2);
+
+#[repr(C)]
+#[derive(Debug)]
+struct HsLoadHeaderV2 {
+    pub os_code_offset: u32,
+    pub os_code_size: u32,
+    pub os_data_offset: u32,
+    pub os_data_size: u32,
+    pub num_apps: u32,
+}
+impl_from_bytes!(HsLoadHeaderV2);
+
+#[repr(C)]
+#[derive(Debug)]
+struct HsLoadHeaderV2App {
+    pub offset: u32,
+    pub len: u32,
+}
+impl_from_bytes!(HsLoadHeaderV2App);
 
 pub(crate) struct ModInfoBuilder<const N: usize>(firmware::ModInfoBuilder<N>);
 
