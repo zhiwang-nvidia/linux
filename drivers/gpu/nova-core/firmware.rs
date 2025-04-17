@@ -87,7 +87,7 @@ pub(crate) struct Firmware {
     pub booter_load: Sec2Firmware,
     pub booter_unload: Sec2Firmware,
     pub bootloader: RiscvFirmware,
-    gsp: RadixFirmware,
+    pub gsp: RadixFirmware,
     pub gsp_sigs: DmaObject,
 }
 
