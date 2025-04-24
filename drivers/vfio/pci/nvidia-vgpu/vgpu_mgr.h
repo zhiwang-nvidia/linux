@@ -69,6 +69,18 @@ struct nvidia_vgpu_rpc {
 	void __iomem *error_buf;
 };
 
+struct nvidia_vgpu_event_listener {
+	int (*func)(struct nvidia_vgpu_event_listener *self, unsigned int event, void *data);
+	struct list_head list;
+};
+
+struct nvidia_vgpu_ce_channel {
+	struct nvidia_vgpu_chan *chan;
+	struct nvidia_vgpu_mem *sema_mem;
+	struct nvidia_vgpu_event_listener listener;
+	struct wait_queue_head wq;
+};
+
 /**
  * struct nvidia_vgpu - per-vGPU state
  *
@@ -83,6 +95,7 @@ struct nvidia_vgpu_rpc {
  * @fbmem_heap: allocated FB memory for the vGPU
  * @mgmt: vGPU mgmt heap
  * @rpc: vGPU host RPC
+ * @ce_channel: copy engine channel
  */
 struct nvidia_vgpu {
 	/* Per-vGPU lock */
@@ -99,11 +112,7 @@ struct nvidia_vgpu {
 	struct nvidia_vgpu_mem *fbmem_heap;
 	struct nvidia_vgpu_mgmt mgmt;
 	struct nvidia_vgpu_rpc rpc;
-};
-
-struct nvidia_vgpu_event_listener {
-	int (*func)(struct nvidia_vgpu_event_listener *self, unsigned int event, void *data);
-	struct list_head list;
+	struct nvidia_vgpu_ce_channel ce_channel;
 };
 
 struct nvidia_vgpu_event_chain {
@@ -140,8 +149,10 @@ struct nvidia_vgpu_event_chain {
  * @curr_vgpu_type: type of current created vgpu in homogeneous mode
  * @num_instances: number of created vGPU with curr_vgpu_type in homogeneous mode
  * @pf_driver_event_chain: PF driver event chain
+ * @pf_channel_event_chain: PF channel event chain
  * @pdev: the PCI device pointer
  * @bar0_vaddr: the virtual address of BAR0
+ * @use_ce_scrub_fbmem: scrub the FB memory if the PF driver supports.
  */
 struct nvidia_vgpu_mgr {
 	struct kref refcount;
@@ -184,9 +195,12 @@ struct nvidia_vgpu_mgr {
 	unsigned int num_instances;
 
 	struct nvidia_vgpu_event_chain pf_driver_event_chain;
+	struct nvidia_vgpu_event_chain pf_channel_event_chain;
 
 	struct pci_dev *pdev;
 	void __iomem *bar0_vaddr;
+
+	bool use_ce_scrub_fbmem;
 };
 
 #define nvidia_vgpu_mgr_for_each_vgpu(vgpu, vgpu_mgr) \

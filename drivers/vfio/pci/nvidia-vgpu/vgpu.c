@@ -2,7 +2,6 @@
 /*
  * Copyright © 2025 NVIDIA Corporation
  */
-
 #include <linux/log2.h>
 
 #include "debug.h"
@@ -111,6 +110,209 @@ static int setup_chids(struct nvidia_vgpu *vgpu)
 	return 0;
 }
 
+static void clean_ce_channel(struct nvidia_vgpu *vgpu)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+	struct nvidia_vgpu_ce_channel *channel = &vgpu->ce_channel;
+
+	nvidia_vgpu_event_unregister_listener(&vgpu_mgr->pf_channel_event_chain,
+					      &channel->listener);
+
+	nvidia_vgpu_mgr_channel_unmap_mem(vgpu_mgr, channel->sema_mem);
+	nvidia_vgpu_mgr_bar1_unmap_mem(vgpu_mgr, channel->sema_mem);
+	nvidia_vgpu_mgr_free_fbmem(vgpu_mgr, channel->sema_mem);
+	nvidia_vgpu_mgr_free_ce_channel(vgpu_mgr, channel->chan);
+	channel->chan = NULL;
+	channel->sema_mem = NULL;
+}
+
+static int handle_channel_events(struct nvidia_vgpu_event_listener *self, unsigned int event,
+				 void *data)
+{
+	struct nvidia_vgpu_ce_channel *channel = container_of(self, typeof(*channel), listener);
+	struct nvidia_vgpu *vgpu = container_of(channel, typeof(*vgpu), ce_channel);
+
+	if (data != channel->chan)
+		return 0;
+
+	switch (event) {
+	case NVIDIA_VGPU_PF_CHANNEL_EVENT_FIFO_NONSTALL:
+		vgpu_debug(vgpu, "handle channel event fifo nonstall\n");
+
+		wake_up(&channel->wq);
+		break;
+	}
+	return 0;
+}
+
+static int setup_ce_channel(struct nvidia_vgpu *vgpu)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+	struct nvidia_vgpu_ce_channel *channel = &vgpu->ce_channel;
+	struct nvidia_vgpu_chid *chid = &vgpu->chid;
+	struct nvidia_vgpu_alloc_fbmem_info alloc_info = {0};
+	struct nvidia_vgpu_map_mem_info map_info = {0};
+	struct nvidia_vgpu_chan *chan;
+	struct nvidia_vgpu_mem *mem;
+	int ret;
+
+	chan = nvidia_vgpu_mgr_alloc_ce_channel(vgpu_mgr, chid->chid_offset + chid->num_chid - 1);
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
+
+	/* Allocate a page for semaphore */
+	alloc_info.size = SZ_4K;
+
+	mem = nvidia_vgpu_mgr_alloc_fbmem(vgpu_mgr, &alloc_info);
+	if (IS_ERR(mem))
+		goto err_alloc_fbmem;
+
+	map_info.map_size = SZ_4K;
+
+	ret = nvidia_vgpu_mgr_channel_map_mem(vgpu_mgr, chan, mem, &map_info);
+	if (ret)
+		goto err_chan_map_mem;
+
+	ret = nvidia_vgpu_mgr_bar1_map_mem(vgpu_mgr, mem, &map_info);
+	if (ret)
+		goto err_bar1_map_mem;
+
+	channel->chan = chan;
+	channel->sema_mem = mem;
+
+	init_waitqueue_head(&channel->wq);
+
+	INIT_LIST_HEAD(&channel->listener.list);
+	channel->listener.func = handle_channel_events;
+
+	nvidia_vgpu_event_register_listener(&vgpu_mgr->pf_channel_event_chain,
+					    &channel->listener);
+
+	return 0;
+
+err_bar1_map_mem:
+	nvidia_vgpu_mgr_channel_unmap_mem(vgpu_mgr, mem);
+err_chan_map_mem:
+	nvidia_vgpu_mgr_free_fbmem(vgpu_mgr, mem);
+err_alloc_fbmem:
+	nvidia_vgpu_mgr_free_ce_channel(vgpu_mgr, chan);
+	return ret;
+}
+
+static bool ce_workload_complete(struct nvidia_vgpu_ce_channel *channel)
+{
+	return !!READ_ONCE(*(u32 *)(channel->sema_mem->bar1_vaddr));
+}
+
+#define VGPU_SCRUBBER_LINE_LENGTH_MAX 0x80000000
+#define FBMEM_SCRUB_TIMEOUT_MS (4000)
+
+static int scrub_fbmem_heap(struct nvidia_vgpu *vgpu)
+{
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
+	struct nvidia_vgpu_ce_channel *channel;
+	struct nvidia_vgpu_chan *chan;
+	struct nvidia_vgpu_mem *mem = vgpu->fbmem_heap;
+	struct nvidia_vgpu_map_mem_info map_info = {0};
+	u64 line_length = mem->size;
+	u32 line_count = 1;
+	int ret;
+	int i;
+
+	if (WARN_ON(!vgpu_mgr->use_ce_scrub_fbmem))
+		return 0;
+
+	ret = setup_ce_channel(vgpu);
+	if (ret)
+		return ret;
+
+	channel = &vgpu->ce_channel;
+	chan = channel->chan;
+
+	map_info.compressible_disable_plc = true;
+	map_info.huge_page = true;
+	map_info.map_size = mem->size;
+
+	ret = nvidia_vgpu_mgr_channel_map_mem(vgpu_mgr, chan, mem, &map_info);
+	if (ret)
+		goto err_chan_map_mem;
+
+	vgpu_debug(vgpu, "guest FB memory chan vma 0x%llx\n", mem->chan_vma_addr);
+
+	while (line_length > VGPU_SCRUBBER_LINE_LENGTH_MAX) {
+		line_count = line_count << 1;
+		line_length = line_length >> 1;
+	}
+
+	*(u32 *)(channel->sema_mem->bar1_vaddr) = 0;
+
+	vgpu_debug(vgpu, "semaphore seqno before scrubbing 0x%x\n",
+		   *(u32 *)(channel->sema_mem->bar1_vaddr));
+
+	nvidia_vgpu_mgr_begin_pushbuf(vgpu_mgr, chan, 150);
+
+#define EMIT_DWORD(x) \
+	nvidia_vgpu_mgr_emit_pushbuf(vgpu_mgr, chan, x)
+
+	for (i = 0; i < 128; i += 4)
+		EMIT_DWORD(0x0);
+
+	EMIT_DWORD(0x20010000);
+	EMIT_DWORD(chan->ce_object_handle);
+	EMIT_DWORD(0x200181c2);
+	EMIT_DWORD(0x30004);
+
+	EMIT_DWORD(0x200181c0);
+	EMIT_DWORD(0x0);
+
+	EMIT_DWORD(0x20048104);
+	EMIT_DWORD(lower_32_bits(line_length));
+	EMIT_DWORD(lower_32_bits(line_length));
+	EMIT_DWORD(lower_32_bits(line_length >> 2));
+	EMIT_DWORD(line_count);
+
+	EMIT_DWORD(0x20028102);
+	EMIT_DWORD(upper_32_bits(vgpu->fbmem_heap->chan_vma_addr));
+	EMIT_DWORD(lower_32_bits(vgpu->fbmem_heap->chan_vma_addr));
+
+	EMIT_DWORD(0x200180c0);
+	EMIT_DWORD(0x785);
+
+	EMIT_DWORD(0x20038090);
+	EMIT_DWORD(upper_32_bits(vgpu->ce_channel.sema_mem->chan_vma_addr));
+	EMIT_DWORD(lower_32_bits(vgpu->ce_channel.sema_mem->chan_vma_addr));
+	EMIT_DWORD(0xdeadbeef);
+
+	EMIT_DWORD(0x200180c0);
+	EMIT_DWORD(0x5cc);
+
+#undef EMIT_DWORD
+
+	nvidia_vgpu_mgr_submit_pushbuf(vgpu_mgr, chan);
+
+	if (!wait_event_timeout(channel->wq, ce_workload_complete(channel),
+				msecs_to_jiffies(FBMEM_SCRUB_TIMEOUT_MS))) {
+		vgpu_debug(vgpu, "fail to wait for CE workload complete\n");
+
+		ret = -ETIMEDOUT;
+		goto err_pushbuf;
+	}
+
+	vgpu_debug(vgpu, "semaphore seqno after scrubbing 0x%x\n",
+		   *(u32 *)(channel->sema_mem->bar1_vaddr));
+
+	nvidia_vgpu_mgr_channel_unmap_mem(vgpu_mgr, mem);
+	clean_ce_channel(vgpu);
+
+	return 0;
+
+err_pushbuf:
+	nvidia_vgpu_mgr_channel_unmap_mem(vgpu_mgr, mem);
+err_chan_map_mem:
+	clean_ce_channel(vgpu);
+	return ret;
+}
+
 static void clean_fbmem_heap(struct nvidia_vgpu *vgpu)
 {
 	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
@@ -118,6 +320,8 @@ static void clean_fbmem_heap(struct nvidia_vgpu *vgpu)
 	vgpu_debug(vgpu, "free guest FB memory, offset 0x%llx size 0x%llx\n",
 		   vgpu->fbmem_heap->addr, vgpu->fbmem_heap->size);
 
+	if (vgpu_mgr->use_ce_scrub_fbmem)
+		WARN_ON(scrub_fbmem_heap(vgpu));
 	nvidia_vgpu_mgr_free_fbmem(vgpu_mgr, vgpu->fbmem_heap);
 	vgpu->fbmem_heap = NULL;
 }
@@ -172,7 +376,8 @@ static int setup_fbmem_heap(struct nvidia_vgpu *vgpu)
 	vgpu_debug(vgpu, "guest FB memory offset 0x%llx size 0x%llx\n", mem->addr, mem->size);
 
 	vgpu->fbmem_heap = mem;
-	return 0;
+
+	return vgpu_mgr->use_ce_scrub_fbmem ? scrub_fbmem_heap(vgpu) : 0;
 }
 
 static void clean_mgmt_heap(struct nvidia_vgpu *vgpu)
@@ -437,12 +642,21 @@ EXPORT_SYMBOL_GPL(nvidia_vgpu_mgr_create_vgpu);
  */
 int nvidia_vgpu_mgr_reset_vgpu(struct nvidia_vgpu *vgpu)
 {
+	struct nvidia_vgpu_mgr *vgpu_mgr = vgpu->vgpu_mgr;
 	int ret;
 
 	ret = nvidia_vgpu_rpc_call(vgpu, NV_VGPU_CPU_RPC_MSG_RESET, NULL, 0);
 	if (ret) {
 		vgpu_error(vgpu, "fail to reset vgpu ret %d\n", ret);
 		return ret;
+	}
+
+	if (vgpu_mgr->use_ce_scrub_fbmem) {
+		ret = scrub_fbmem_heap(vgpu);
+		if (ret) {
+			vgpu_error(vgpu, "fail to scrub the fbmem %d\n", ret);
+			return ret;
+		}
 	}
 
 	vgpu_debug(vgpu, "reset done\n");

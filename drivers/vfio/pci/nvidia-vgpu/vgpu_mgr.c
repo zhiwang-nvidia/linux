@@ -105,6 +105,7 @@ static struct nvidia_vgpu_mgr *alloc_vgpu_mgr(struct nvidia_vgpu_mgr_handle *han
 	atomic_set(&vgpu_mgr->num_vgpus, 0);
 	mutex_init(&vgpu_mgr->curr_vgpu_type_lock);
 	nvidia_vgpu_event_init_chain(&vgpu_mgr->pf_driver_event_chain);
+	nvidia_vgpu_event_init_chain(&vgpu_mgr->pf_channel_event_chain);
 
 	return vgpu_mgr;
 }
@@ -132,6 +133,7 @@ out_unlock:
 static const char *pf_events_string[NVIDIA_VGPU_PF_EVENT_MAX] = {
 	[NVIDIA_VGPU_PF_DRIVER_EVENT_SRIOV_CONFIGURE] = "SRIOV configure",
 	[NVIDIA_VGPU_PF_DRIVER_EVENT_DRIVER_UNBIND] = "driver unbind",
+	[NVIDIA_VGPU_PF_CHANNEL_EVENT_FIFO_NONSTALL] = "FIFO nonstall",
 };
 
 static int pf_event_notify_fn(void *priv, unsigned int event, void *data)
@@ -147,6 +149,9 @@ static int pf_event_notify_fn(void *priv, unsigned int event, void *data)
 	switch (event) {
 	case NVIDIA_VGPU_PF_DRIVER_EVENT_START...NVIDIA_VGPU_PF_DRIVER_EVENT_END:
 		ret = call_chain(&vgpu_mgr->pf_driver_event_chain, event, data);
+		break;
+	case NVIDIA_VGPU_PF_CHANNEL_EVENT_START...NVIDIA_VGPU_PF_CHANNEL_EVENT_END:
+		ret = call_chain(&vgpu_mgr->pf_channel_event_chain, event, data);
 		break;
 	}
 
@@ -300,6 +305,7 @@ static int setup_pf_driver_caps(struct nvidia_vgpu_mgr *vgpu_mgr, unsigned long 
 	test_bit(NVIDIA_VGPU_PF_DRIVER_CAP_HAS_##cap, caps)
 
 	vgpu_mgr->use_chid_alloc_bitmap = !HAS_CAP(CHID_ALLOC);
+	vgpu_mgr->use_ce_scrub_fbmem = HAS_CAP(CE_CHAN_ALLOC) | HAS_CAP(PUSHBUF_SUBMIT);
 
 #undef HAS_CAP
 	return 0;

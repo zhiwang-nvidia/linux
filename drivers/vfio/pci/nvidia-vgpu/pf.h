@@ -119,4 +119,27 @@ static inline int nvidia_vgpu_mgr_init_handle(struct pci_dev *pdev,
 	__m->handle.ops->get_engine_bitmap(__m->handle.pf_drvdata, bitmap); \
 })
 
+#define nvidia_vgpu_mgr_channel_map_mem(m, chan, mem, info) \
+	((m)->handle.ops->channel_map_mem(chan, mem, info))
+
+#define nvidia_vgpu_mgr_channel_unmap_mem(m, mem) \
+	((m)->handle.ops->channel_unmap_mem(mem))
+
+#define nvidia_vgpu_mgr_alloc_ce_channel(m, chid) ({ \
+	typeof(m) __m = (m); \
+	__m->handle.ops->alloc_ce_channel(__m->handle.pf_drvdata, chid); \
+})
+
+#define nvidia_vgpu_mgr_free_ce_channel(m, chan) \
+	((m)->handle.ops->free_ce_channel(chan))
+
+#define nvidia_vgpu_mgr_begin_pushbuf(m, chan, num_dwords) \
+	((m)->handle.ops->begin_pushbuf(chan, num_dwords))
+
+#define nvidia_vgpu_mgr_emit_pushbuf(m, chan, dwords) \
+	((m)->handle.ops->emit_pushbuf(chan, dwords))
+
+#define nvidia_vgpu_mgr_submit_pushbuf(m, chan) \
+	((m)->handle.ops->submit_pushbuf(chan))
+
 #endif
