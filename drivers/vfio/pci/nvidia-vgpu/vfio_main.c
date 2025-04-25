@@ -24,9 +24,40 @@ static int pdev_to_gfid(struct pci_dev *pdev)
 	return pci_iov_vf_id(pdev) + 1;
 }
 
+static void disable_vgpu_logs(struct nvidia_vgpu_vfio *nvdev)
+{
+	if (WARN_ON(!nvdev->vgpu))
+		return;
+
+	/* save the latest vGPU logs before disabling */
+	nvidia_vgpu_vfio_update_logs(nvdev);
+
+	nvdev->log_init_task.blob.data = nvdev->log_init_task.mem;
+	nvdev->log_vgpu_task.blob.data = nvdev->log_vgpu_task.mem;
+	nvdev->log_kernel.blob.data = nvdev->log_kernel.mem;
+}
+
+static void enable_vgpu_logs(struct nvidia_vgpu_vfio *nvdev)
+{
+	struct nvidia_vgpu *vgpu = nvdev->vgpu;
+	struct nvidia_vgpu_mgmt *mgmt = &vgpu->mgmt;
+
+	if (WARN_ON(!vgpu))
+		return;
+
+	nvdev->log_init_task.blob.data = mgmt->init_task_log_vaddr;
+	nvdev->log_vgpu_task.blob.data = mgmt->vgpu_task_log_vaddr;
+	nvdev->log_kernel.blob.data = mgmt->kernel_log_vaddr;
+
+	/* get the latest vGPU logs after enabling */
+	nvidia_vgpu_vfio_update_logs(nvdev);
+}
+
 static int destroy_vgpu(struct nvidia_vgpu_vfio *nvdev)
 {
 	int ret;
+
+	disable_vgpu_logs(nvdev);
 
 	ret = nvidia_vgpu_mgr_destroy_vgpu(nvdev->vgpu);
 	if (ret)
@@ -68,6 +99,8 @@ static int create_vgpu(struct nvidia_vgpu_vfio *nvdev)
 	}
 
 	nvdev->vgpu = vgpu;
+
+	enable_vgpu_logs(nvdev);
 	return 0;
 }
 
@@ -582,11 +615,14 @@ static void unregister_pf_driver_event_listener(struct nvidia_vgpu_vfio *nvdev)
 
 static void clean_nvdev(struct nvidia_vgpu_vfio *nvdev)
 {
-	if (nvdev->driver_is_unbound)
+	if (nvdev->driver_is_unbound) {
+		nvidia_vgpu_vfio_clean_debugfs(nvdev);
 		return;
+	}
 
 	unregister_pf_driver_event_listener(nvdev);
 	nvidia_vgpu_vfio_clean_sysfs(nvdev);
+	nvidia_vgpu_vfio_clean_debugfs(nvdev);
 
 	nvidia_vgpu_mgr_release(nvdev->vgpu_mgr);
 	nvdev->vgpu_mgr = NULL;
@@ -607,6 +643,12 @@ static int setup_nvdev(void *priv, void *data)
 	ret = nvidia_vgpu_vfio_setup_sysfs(nvdev);
 	if (ret)
 		return ret;
+
+	ret = nvidia_vgpu_vfio_setup_debugfs(nvdev);
+	if (ret) {
+		nvidia_vgpu_vfio_clean_sysfs(nvdev);
+		return ret;
+	}
 
 	register_pf_driver_event_listener(nvdev);
 	return 0;

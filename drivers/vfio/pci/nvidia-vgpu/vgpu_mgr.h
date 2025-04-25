@@ -225,5 +225,7 @@ int nvidia_vgpu_rpc_call(struct nvidia_vgpu *vgpu, u32 msg_type,
 void nvidia_vgpu_clean_rpc(struct nvidia_vgpu *vgpu);
 int nvidia_vgpu_setup_rpc(struct nvidia_vgpu *vgpu);
 int nvidia_vgpu_mgr_set_bme(struct nvidia_vgpu *vgpu, bool enable);
+struct dentry *nvidia_vgpu_get_debugfs_root(void);
+void nvidia_vgpu_put_debugfs_root(void);
 
 #endif
