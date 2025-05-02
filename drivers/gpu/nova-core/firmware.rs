@@ -26,7 +26,7 @@ pub(crate) mod radix3;
 pub(crate) mod riscv;
 pub(crate) mod sec2;
 
-pub(crate) const FIRMWARE_VERSION: &str = "535.113.01";
+pub(crate) const FIRMWARE_VERSION: &str = "570.144";
 
 fn elf_section<'a, 'b>(elf: &'a [u8], name: &'b str) -> Option<&'a [u8]> {
     let hdr = elf
