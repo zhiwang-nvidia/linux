@@ -522,6 +522,21 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         Ok(())
     }
 
+    /// Wait until the falcon CPU is halted.
+    pub(crate) fn wait_till_halted(&self, bar: &Bar0) -> Result<()> {
+        // TIMEOUT: arbitrarily large value, firmwares should complete in less than 2 seconds.
+        util::wait_on(Delta::from_secs(2), || {
+            let r = regs::NV_PFALCON_FALCON_CPUCTL::read(bar, E::BASE);
+            if r.halted() {
+                Some(())
+            } else {
+                None
+            }
+        })?;
+
+        Ok(())
+    }
+
     /// Runs the loaded firmware and waits for its completion.
     ///
     /// `mbox0` and `mbox1` are optional parameters to write into the `MBOX0` and `MBOX1` registers
@@ -556,15 +571,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
                 .write(bar, E::BASE),
         }
 
-        // TIMEOUT: arbitrarily large value, firmwares should complete in less than 2 seconds.
-        util::wait_on(Delta::from_secs(2), || {
-            let r = regs::NV_PFALCON_FALCON_CPUCTL::read(bar, E::BASE);
-            if r.halted() {
-                Some(())
-            } else {
-                None
-            }
-        })?;
+        self.wait_till_halted(bar)?;
 
         let (mbox0, mbox1) = (
             regs::NV_PFALCON_FALCON_MAILBOX0::read(bar, E::BASE).value(),
