@@ -317,7 +317,7 @@ impl Gpu {
 
         Self::run_fwsec_frts(pdev.as_ref(), &gsp_falcon, bar, &bios, &fb_layout)?;
 
-        let libos = gsp::GspMemObjects::new(pdev, &devres_bar, &gsp_falcon, &sec2_falcon, &fw)?;
+        let mut libos = gsp::GspMemObjects::new(pdev, &devres_bar, &gsp_falcon, &sec2_falcon, &fw)?;
         let libos_handle = libos.libos.dma_handle();
         let wpr_meta = gsp::build_wpr_meta(pdev.as_ref(), &fw, &fb_layout)?;
         let wpr_handle = wpr_meta.dma_handle();
@@ -358,6 +358,8 @@ impl Gpu {
             "RISC-V active? {}\n",
             gsp_falcon.is_riscv_active(&bar)?,
         );
+
+        libos.cmdq.run_sequencer(Delta::from_secs(10))?;
 
         Ok(pin_init!(Self {
             spec,

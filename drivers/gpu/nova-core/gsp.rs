@@ -24,7 +24,9 @@ use crate::firmware::Firmware;
 use crate::nvfw::r570_144 as fw;
 use crate::regs::NV_PGSP_QUEUE_HEAD;
 use crate::sbuffer::{SBuffer, SBufferIteratorMut};
-use crate::util::wait_on;
+use crate::util::wait_on_result;
+
+pub(crate) mod sequencer;
 
 pub(crate) const GSP_PAGE_SHIFT: usize = 12;
 pub(crate) const GSP_PAGE_SIZE: usize = 1 << GSP_PAGE_SHIFT;
@@ -85,6 +87,44 @@ pub(crate) trait GspMessageElement {
         Self: Sized,
     {
         return size_of::<Self>();
+    }
+}
+
+pub(crate) struct GspSequencerInfo {
+    info: fw::rpc_run_cpu_sequencer_v17_00,
+    cmd_data: KVec<u8>,
+}
+
+impl GspMessageElement for GspSequencerInfo {
+    fn new_from_slices(slice_1: &[u8], slice_2: Option<&[u8]>) -> Result<Self> {
+        // First, extract the info field from the beginning of the data
+        let info_size = size_of::<fw::rpc_run_cpu_sequencer_v17_00>();
+
+        // Check if we have enough data for the info field
+        let total_available = slice_1.len() + slice_2.map_or(0, |s| s.len());
+        if total_available < info_size {
+            return Err(EINVAL);
+        }
+
+        let info = fw::rpc_run_cpu_sequencer_v17_00::new_from_slices(slice_1, slice_2)?;
+
+        if slice_1.len() <= info_size {
+            return Err(EINVAL);
+        }
+
+        let mut data_len = slice_1.len() - info_size;
+        if let Some(slice) = slice_2 {
+            data_len += slice.len();
+        }
+
+        let mut cmd_data = KVec::with_capacity(data_len, GFP_KERNEL)?;
+        cmd_data.extend_from_slice(&slice_1[info_size..], GFP_KERNEL)?;
+
+        if let Some(slice) = slice_2 {
+            cmd_data.extend_from_slice(slice, GFP_KERNEL)?;
+        }
+
+        Ok(GspSequencerInfo { info, cmd_data })
     }
 }
 
@@ -161,6 +201,8 @@ struct GspMem {
     cpuq: Msgq,
     gspq: Msgq,
 }
+
+impl GspMessageElement for fw::rpc_run_cpu_sequencer_v17_00 {}
 
 // Needed for CoherentAllocation
 unsafe impl FromBytes for GspMem {}
@@ -476,6 +518,44 @@ impl<'a> GspCmdq<'a> {
         };
 
         result
+    }
+
+    /// Wait to receive a message matching `function`. If a different message is
+    /// in the queue this will return `Err(ERANGE)`.
+    fn receive_wait<R: GspMessageElement>(&mut self, timeout: Delta, function: u32) -> Result<R> {
+        wait_on_result(timeout, || match self.receive::<R>(function) {
+            Ok(x) => Some(Ok(x)),
+            Err(EAGAIN) => None,
+            Err(e) => Some(Err(e)),
+        })
+    }
+
+    pub(crate) fn run_sequencer(self: &mut Self, timeout: Delta) -> Result {
+        let seq_info = self.receive_wait::<GspSequencerInfo>(
+            timeout,
+            fw::NV_VGPU_MSG_EVENT_GSP_RUN_CPU_SEQUENCER,
+        )?;
+        self.bar.try_access_with(|bar| {
+            match sequencer::GspSequencer::new(
+                seq_info,
+                bar,
+                self.sec2_falcon,
+                self.gsp_falcon,
+                self.libos_dma_handle,
+                self.fw,
+            ) {
+                Ok(sequencer) => {
+                    if let Err(e) = sequencer.run() {
+                        pr_info!("Error running CPU sequencer: {:?}\n", e);
+                    }
+                }
+                Err(e) => {
+                    pr_info!("Error creating CPU sequencer: {:?}\n", e);
+                }
+            }
+        });
+
+        Ok(())
     }
 }
 
