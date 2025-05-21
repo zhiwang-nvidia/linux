@@ -585,4 +585,12 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         self.hal
             .signature_reg_fuse_version(self, bar, engine_id_mask, ucode_id)
     }
+
+    /// Check if the RISC-V core is active.
+    ///
+    /// Returns `true` if the RISC-V core is active, `false` otherwise.
+    pub(crate) fn is_riscv_active(&self, bar: &Bar0) -> Result<bool> {
+        let cpuctl = regs::NV_PRISCV_RISCV_CPUCTL::read(bar, E::BASE);
+        Ok(cpuctl.active_stat())
+    }
 }

@@ -299,6 +299,8 @@ register!(NV_PFALCON_FBIF_CTL @ +0x00000624 {
     7:7     allow_phys_no_ctx as bool;
 });
 
+// Start of the Falcon secondary register space (PFALCON2)
+// This address space starts at 0x1000 and includes the PRISCV registers.
 register!(NV_PFALCON2_FALCON_MOD_SEL @ +0x00001180 {
     7:0     algo as u8 ?=> FalconModSelAlgo;
 });
@@ -317,6 +319,11 @@ register!(NV_PFALCON2_FALCON_BROM_PARAADDR @ +0x00001210 {
 });
 
 // PRISCV
+
+register!(NV_PRISCV_RISCV_CPUCTL @ +0x00001388 {
+    7:7     active_stat as bool;
+    0:0     halted as bool;
+});
 
 register!(NV_PRISCV_RISCV_BCR_CTRL @ +0x00001668 {
     0:0     valid as bool;
