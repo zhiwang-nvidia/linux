@@ -593,4 +593,13 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         let cpuctl = regs::NV_PRISCV_RISCV_CPUCTL::read(bar, E::BASE);
         Ok(cpuctl.active_stat())
     }
+
+    /// Write the application version to the OS register.
+    #[expect(dead_code)]
+    pub(crate) fn write_os_version(&self, bar: &Bar0, app_version: u32) -> Result<()> {
+        regs::NV_PFALCON_FALCON_OS::default()
+            .set_value(app_version)
+            .write(bar, E::BASE);
+        Ok(())
+    }
 }
