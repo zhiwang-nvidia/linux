@@ -339,6 +339,12 @@ pub(crate) struct RmRiscvUCodeDesc {
 }
 impl_from_bytes!(RmRiscvUCodeDesc);
 
+impl RmRiscvUCodeDesc {
+    pub(crate) fn app_version(&self) -> u32 {
+        self.app_version
+    }
+}
+
 pub(crate) struct ModInfoBuilder<const N: usize>(firmware::ModInfoBuilder<N>);
 
 impl<const N: usize> ModInfoBuilder<N> {
