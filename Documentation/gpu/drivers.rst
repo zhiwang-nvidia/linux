@@ -11,6 +11,7 @@ GPU Driver Documentation
    mcde
    meson
    nouveau
+   nvidia-vgpu
    pl111
    tegra
    tve200
