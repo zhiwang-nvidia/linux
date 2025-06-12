@@ -161,3 +161,41 @@ macro_rules! power_of_two_impl {
 }
 
 power_of_two_impl!(usize, u8, u16, u32, u64, u128);
+
+macro_rules! impl_last_set_bit {
+    ($($t:ty),+) => {
+        $(
+            ::kernel::macros::paste! {
+            /// Last Set Bit: return the 1-based index of the last (i.e. most significant) set bit
+            /// in `v`.
+            ///
+            /// Equivalent to the C `fls` function.
+            ///
+            /// # Examples
+            ///
+            /// ```
+            #[doc = concat!("use kernel::num::last_set_bit_", stringify!($t), ";")]
+            ///
+            #[doc = concat!("assert_eq!(last_set_bit_", stringify!($t), "(0x0), 0);")]
+            #[doc = concat!("assert_eq!(last_set_bit_", stringify!($t), "(0x1), 1);")]
+            #[doc = concat!("assert_eq!(last_set_bit_", stringify!($t), "(0x10), 5);")]
+            #[doc = concat!("assert_eq!(last_set_bit_", stringify!($t), "(0x1f), 5);")]
+            #[doc = concat!(
+                "assert_eq!(last_set_bit_",
+                stringify!($t),
+                "(",
+                stringify!($t),
+                "::MAX), ",
+                stringify!($t), "::BITS);"
+            )]
+            /// ```
+            #[inline(always)]
+            pub const fn [<last_set_bit_ $t>](v: $t) -> u32 {
+                $t::BITS - v.leading_zeros()
+            }
+            }
+        )+
+    };
+}
+
+impl_last_set_bit!(usize, u8, u16, u32, u64, u128);
