@@ -109,16 +109,10 @@ impl Firmware {
         };
 
         let gsp_fw = request("gsp")?;
-        let gsp_elf = elf::Parser::new(gsp_fw.data())?;
 
         let (gsp, gsp_desc) = {
             // Extract the .fwimage section for the GSP firmware
-            let data = gsp_elf
-                .sections_iter()?
-                .filter_map(Result::ok)
-                .find(|section| section.name == ".fwimage")
-                .map(|section| section.data)
-                .ok_or(EINVAL)?;
+            let data = elf_section(gsp_fw.data(), ".fwimage").ok_or(EINVAL)?;
 
             let gsp = RadixFirmware::new(dev, ".fwimage", data)?;
 
