@@ -3,6 +3,7 @@
 use core::marker::PhantomData;
 
 use kernel::device;
+use kernel::num::last_set_bit_u32;
 use kernel::prelude::*;
 use kernel::time::Delta;
 
@@ -69,8 +70,7 @@ fn signature_reg_fuse_version_ga102(
     let reg_fuse_version =
         bar.read32(reg_fuse_base + ((ucode_id - 1) as usize * core::mem::size_of::<u32>()));
 
-    // TODO[NUMM]: replace with `last_set_bit` once it lands.
-    Ok(u32::BITS - reg_fuse_version.leading_zeros())
+    Ok(last_set_bit_u32(reg_fuse_version))
 }
 
 fn program_brom_ga102<E: FalconEngine>(bar: &Bar0, params: &FalconBromParams) -> Result {

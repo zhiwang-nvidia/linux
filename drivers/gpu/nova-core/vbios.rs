@@ -8,6 +8,7 @@ use crate::firmware::FalconUCodeDescV3;
 use core::convert::TryFrom;
 use kernel::device;
 use kernel::error::Result;
+use kernel::num::PowerOfTwo;
 use kernel::pci;
 use kernel::prelude::*;
 
@@ -177,8 +178,7 @@ impl<'a> Iterator for VbiosIterator<'a> {
 
         // Advance to next image (aligned to 512 bytes).
         self.current_offset += image_size;
-        // TODO[NUMM]: replace with `align_up` once it lands.
-        self.current_offset = self.current_offset.next_multiple_of(512);
+        self.current_offset = PowerOfTwo::<usize>::new(512).align_up(self.current_offset);
 
         Some(Ok(full_image))
     }

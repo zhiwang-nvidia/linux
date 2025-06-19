@@ -15,6 +15,7 @@ use core::mem::{align_of, size_of};
 use core::ops::Deref;
 
 use kernel::device::{self, Device};
+use kernel::num::PowerOfTwo;
 use kernel::prelude::*;
 use kernel::transmute::FromBytes;
 
@@ -218,11 +219,7 @@ impl FalconLoadParams for FwsecFirmware {
         FalconLoadTarget {
             src_start: self.desc.imem_load_size,
             dst_start: self.desc.dmem_phys_base,
-            // TODO[NUMM]: replace with `align_up` once it lands.
-            len: self
-                .desc
-                .dmem_load_size
-                .next_multiple_of(DMEM_LOAD_SIZE_ALIGN),
+            len: PowerOfTwo::<u32>::new(DMEM_LOAD_SIZE_ALIGN).align_up(self.desc.dmem_load_size),
         }
     }
 
