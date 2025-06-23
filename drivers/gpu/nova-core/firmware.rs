@@ -131,8 +131,12 @@ impl Firmware {
             (gsp, desc)
         };
 
-        // TODO: make this a GPU-specific const.
-        let gsp_sigs_section = ".fwsignature_ga10x";
+        // Architecture-specific firmware signature section
+        let gsp_sigs_section = match chipset.arch() {
+            gpu::Architecture::Ampere => ".fwsignature_ga10x",
+            gpu::Architecture::Ada => ".fwsignature_ad10x",
+            _ => return Err(ENOTSUPP),
+        };
         let gsp_sigs = elf_section(gsp_fw.data(), gsp_sigs_section)
             .ok_or(EINVAL)
             .and_then(|data| DmaObject::from_data(dev, data))?;
