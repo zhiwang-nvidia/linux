@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+use kernel::dma::CoherentAllocation;
 use kernel::{device, devres::Devres, error::code::*, pci, prelude::*};
 
 use crate::driver::Bar0;
@@ -10,9 +11,11 @@ use crate::firmware::fwsec::{FwsecCommand, FwsecFirmware};
 use crate::firmware::{Firmware, FIRMWARE_VERSION};
 use crate::gfw;
 use crate::gsp;
+use crate::nvfw::r570_144 as fw;
 use crate::regs;
 use crate::util;
 use crate::vbios::Vbios;
+
 use core::fmt;
 
 macro_rules! define_chipset {
@@ -173,6 +176,7 @@ pub(crate) struct Gpu {
     /// System memory page required for flushing all pending GPU-side memory writes done through
     /// PCIE into system memory, via sysmembar (A GPU-initiated HW memory-barrier operation).
     sysmem_flush: SysmemFlush,
+    wpr_meta: CoherentAllocation<fw::GspFwWprMeta>,
 }
 
 #[pinned_drop]
@@ -314,12 +318,15 @@ impl Gpu {
         Self::run_fwsec_frts(pdev.as_ref(), &gsp_falcon, bar, &bios, &fb_layout)?;
 
         let mut _libos = gsp::GspMemObjects::new(pdev)?;
+        let wpr_meta = gsp::build_wpr_meta(pdev.as_ref(), &fw, &fb_layout)?;
+        let _wpr_handle = wpr_meta.dma_handle();
 
         Ok(pin_init!(Self {
             spec,
             bar: devres_bar,
             fw,
             sysmem_flush,
+            wpr_meta,
         }))
     }
 }
