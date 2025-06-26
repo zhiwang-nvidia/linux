@@ -1,16 +1,30 @@
 // SPDX-License-Identifier: GPL-2.0
 
+use core::alloc::Layout;
+use core::mem::MaybeUninit;
+
+use kernel::alloc::allocator::Kmalloc;
+use kernel::alloc::Allocator;
+use kernel::asm;
 use kernel::device;
+use kernel::devres::Devres;
 use kernel::dma::CoherentAllocation;
 use kernel::pci;
+use kernel::pr_info;
 use kernel::prelude::*;
+use kernel::time::Delta;
 use kernel::transmute::{AsBytes, FromBytes};
-use kernel::{dma_write};
+use kernel::{dma_read, dma_write};
 
 use crate::dma::DmaObject;
+use crate::driver::Bar0;
+use crate::falcon::{gsp::Gsp, sec2::Sec2, Falcon};
 use crate::fb::FbLayout;
 use crate::firmware::Firmware;
 use crate::nvfw::r570_144 as fw;
+use crate::regs::NV_PGSP_QUEUE_HEAD;
+use crate::sbuffer::{SBuffer, SBufferIteratorMut};
+use crate::util::wait_on;
 
 pub(crate) const GSP_PAGE_SHIFT: usize = 12;
 pub(crate) const GSP_PAGE_SIZE: usize = 1 << GSP_PAGE_SHIFT;
@@ -20,6 +34,472 @@ unsafe impl FromBytes for fw::GspFwWprMeta {}
 unsafe impl AsBytes for fw::GspFwWprMeta {}
 unsafe impl FromBytes for fw::GspSystemInfo {}
 unsafe impl AsBytes for fw::GspSystemInfo {}
+
+// We provide this trait because not all our structs are Sized so therefore the
+// AsBytes and FromBytes traits don't work. However we can provide default
+// implementations for all structs that are Sized, which we do here.
+//
+// This also allows us to create a convenient internal representation of a
+// message which is only converted to bytes when actually doing the call. See the
+// registry for an example.
+pub(crate) trait GspMessageElement {
+    fn copy_to_sbuf(&self, sbuf: &mut SBufferIteratorMut<'_, '_>) -> Result
+    where
+        Self: Sized,
+    {
+        let cmd_slice =
+            unsafe { core::slice::from_raw_parts(self as *const Self as *const u8, self.size()) };
+        sbuf.write_slice(cmd_slice)
+    }
+
+    fn new_from_sbuf(sbuf: &SBuffer<'_>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        return unsafe {
+            let mut result = MaybeUninit::<Self>::uninit();
+            let result_ptr = result.as_mut_ptr() as *mut u8;
+            let result_slice = core::slice::from_raw_parts_mut(result_ptr, size_of::<Self>());
+            sbuf.read(0, result_slice)?;
+            Ok(result.assume_init())
+        };
+    }
+
+    // Creates a new struct by copying bytes from the given byte slice.
+    // SAFETY: Assumes the given byte slice is a valid representation of self.
+    fn new_from_slice(slice: &[u8]) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        if slice.len() < size_of::<Self>() {
+            return Err(EINVAL);
+        }
+
+        Ok(unsafe { core::ptr::read(slice.as_ptr() as *const Self) })
+    }
+
+    fn size(&self) -> usize
+    where
+        Self: Sized,
+    {
+        return size_of::<Self>();
+    }
+}
+
+// This next section contains constants and structures hand-coded from the GSP
+// headers We could replace these with bindgen versions, but that's a bit of a
+// pain because they basically end up pulling in the world (ie. definitions for
+// every rpc method). So for now the hand-coded ones are fine. They are just
+// structs so we can easily move to bindgen generated ones if/when we want to.
+
+// A GSP RPC header
+#[repr(C)]
+#[derive(Debug)]
+struct GspRpcHeader {
+    header_version: u32,
+    signature: u32,
+    length: u32,
+    function: u32,
+    rpc_result: u32,
+    rpc_result_private: u32,
+    sequence: u32,
+    cpu_rm_gfid: u32,
+}
+impl GspMessageElement for GspRpcHeader {}
+
+// A GSP message element header
+#[repr(C)]
+#[derive(Debug)]
+struct GspMsgHeader {
+    auth_tag_buffer: [u8; 16],
+    aad_buffer: [u8; 16],
+    checksum: u32,
+    sequence: u32,
+    elem_count: u32,
+    pad: u32,
+}
+impl GspMessageElement for GspMsgHeader {}
+
+// These next two structs come from msgq_priv.h. Hopefully the will never
+// need updating once the ABI is stabalised.
+#[repr(C)]
+#[derive(Debug)]
+struct MsgqTxHeader {
+    version: u32,    // queue version
+    size: u32,       // bytes, page aligned
+    msg_size: u32,   // entry size, bytes, must be power-of-2, 16 is minimum
+    msg_count: u32,  // number of entries in queue
+    write_ptr: u32,  // message id of next slot
+    flags: u32,      // if set it means "i want to swap RX"
+    rx_hdr_off: u32, // Offset of msgqRxHeader from start of backing store
+    entry_off: u32,  // Offset of entries from start of backing store
+}
+
+#[repr(C)]
+#[derive(Debug)]
+struct MsgqRxHeader {
+    read_ptr: u32, // message id of last message read
+}
+
+// There is no struct defined for this in the open-gpu-kernel-source headers.
+// Instead it is defined by code in GspMsgQueuesInit().
+#[repr(C)]
+#[derive(Debug)]
+struct Msgq {
+    tx: MsgqTxHeader,
+    rx: MsgqRxHeader,
+    _pad: [u8; GSP_PAGE_SIZE - size_of::<MsgqTxHeader>() - size_of::<MsgqRxHeader>()],
+    msgq: [[u8; GSP_PAGE_SIZE]; 0x3f],
+}
+
+#[repr(C)]
+#[derive(Debug)]
+struct GspMem {
+    ptes: [u8; GSP_PAGE_SIZE],
+    cpuq: Msgq,
+    gspq: Msgq,
+}
+
+// Needed for CoherentAllocation
+unsafe impl FromBytes for GspMem {}
+unsafe impl AsBytes for GspMem {}
+
+// SAFETY: this hack isn't :-) Only required until Nova core can boot GSP.
+unsafe impl Send for GspCmdq<'_> {}
+
+pub(crate) struct GspCmdq<'a> {
+    msg_count: u32,
+    seq: u32,
+    gsp_mem: CoherentAllocation<GspMem>,
+    nr_ptes: u32,
+    bar: &'a Devres<Bar0>,
+    gsp_falcon: &'a Falcon<Gsp>,
+    sec2_falcon: &'a Falcon<Sec2>,
+    libos_dma_handle: u64,
+    fw: &'a Firmware,
+}
+
+impl<'a> GspCmdq<'a> {
+    // This is equivalent to gsp_shared_init()
+    fn new(
+        dev: &device::Device<device::Bound>,
+        bar: &'a Devres<Bar0>,
+        gsp_falcon: &'a Falcon<Gsp>,
+        sec2_falcon: &'a Falcon<Sec2>,
+        libos_dma_handle: u64,
+        fw: &'a Firmware,
+    ) -> Result<GspCmdq<'a>> {
+        let mut gsp_mem =
+            CoherentAllocation::<GspMem>::alloc_coherent(dev, 1, GFP_KERNEL | __GFP_ZERO)?;
+
+        let nr_ptes = size_of::<GspMem>() >> GSP_PAGE_SHIFT;
+        build_assert!((size_of::<GspMem>() >> GSP_PAGE_SHIFT) * size_of::<u64>() <= GSP_PAGE_SIZE);
+
+        // Basically the same as create_pte_array() but we don't skip the first
+        // PTE.
+        // SAFETY: By the above build_assert which ensures the number of ptes
+        // fits in the GSP_PAGE_SIZE allocated for GspMem.ptes
+        let ptes = unsafe {
+            let ptr = gsp_mem.start_ptr_mut() as *mut u64;
+            core::slice::from_raw_parts_mut(ptr, nr_ptes)
+        };
+
+        for (i, pte) in ptes.iter_mut().enumerate() {
+            *pte = gsp_mem.dma_handle() as u64 + ((i as u64) << GSP_PAGE_SHIFT);
+        }
+
+        let msg_count = ((0x40000 - GSP_PAGE_SIZE) / GSP_PAGE_SIZE) as u32;
+        dma_write!(gsp_mem[0].cpuq.tx.version = 0)?;
+        dma_write!(gsp_mem[0].cpuq.tx.size = 0x40000)?;
+        dma_write!(gsp_mem[0].cpuq.tx.entry_off = GSP_PAGE_SIZE as u32)?;
+        dma_write!(gsp_mem[0].cpuq.tx.msg_size = GSP_PAGE_SIZE as u32)?;
+        dma_write!(gsp_mem[0].cpuq.tx.msg_count = msg_count)?;
+        dma_write!(gsp_mem[0].cpuq.tx.write_ptr = 0)?;
+        dma_write!(gsp_mem[0].cpuq.tx.flags = 1)?;
+
+        // TODO: Hard-coded for now because offset_of!() isn't stable for nested types
+        dma_write!(gsp_mem[0].cpuq.tx.rx_hdr_off = 32)?;
+
+        Ok(GspCmdq {
+            msg_count,
+            seq: 0,
+            gsp_mem,
+            nr_ptes: nr_ptes as u32,
+            bar,
+            gsp_falcon,
+            sec2_falcon,
+            libos_dma_handle,
+            fw,
+        })
+    }
+
+    // We need the next four accessors because the dma_read macro is failable
+    // and uses `?` which requires any calling function to return a Result<>.
+    // However in the first instance a dma_read failure probably needs to be dealt with
+    // by the function trying to do the read, so we need the accessors to permit that.
+    //
+    // Of course at the moment we "deal" with errors by panicing...
+    //
+    // I think we need to update the dma macro's to return a Result<u32>
+    fn cpu_wptr(self: &Self) -> Result<u32> {
+        dma_read!(self.gsp_mem[0].cpuq.tx.write_ptr)
+    }
+
+    fn gsp_rptr(self: &Self) -> Result<u32> {
+        dma_read!(self.gsp_mem[0].gspq.rx.read_ptr)
+    }
+
+    fn cpu_rptr(self: &Self) -> Result<u32> {
+        dma_read!(self.gsp_mem[0].cpuq.rx.read_ptr)
+    }
+
+    fn gsp_wptr(self: &Self) -> Result<u32> {
+        dma_read!(self.gsp_mem[0].gspq.tx.write_ptr)
+    }
+
+    // Returns the numbers of pages free for sending an RPC to GSP.
+    fn get_free_tx_pages(self: &Self) -> u32 {
+        let wptr = self.cpu_wptr().unwrap();
+        let rptr = self.gsp_rptr().unwrap();
+        let mut free = rptr + self.msg_count - wptr - 1;
+
+        if free >= self.msg_count {
+            free -= self.msg_count;
+        }
+
+        free
+    }
+
+    // Returns the number of pages the GSP has written to the queue.
+    fn get_used_rx_pages(self: &Self) -> u32 {
+        let rptr = self.cpu_rptr().unwrap();
+        let wptr = self.gsp_wptr().unwrap();
+        let mut used = wptr + self.msg_count - rptr;
+        if used >= self.msg_count {
+            used -= self.msg_count;
+        }
+
+        used
+    }
+
+    fn calculate_checksum(sbuf: &SBuffer<'_>) -> u32 {
+        let mut sum64: u64 = 0;
+        {
+            let mut iter = sbuf.iter().rev();
+            while let Some(byte) = iter.next() {
+                sum64 = sum64.rotate_left(8) ^ (byte as u64);
+            }
+        }
+        ((sum64 >> 32) as u32) ^ (sum64 as u32)
+    }
+
+    fn alloc_cmd_sbuffer<'b>(self: &mut Self, cmd_size: usize) -> Result<SBuffer<'b>> {
+        let msg_size = cmd_size.div_ceil(GSP_PAGE_SIZE);
+
+        while self.get_free_tx_pages() < msg_size as u32 {}
+        let wptr = self.cpu_wptr().unwrap() as usize;
+        let mut ptr =
+            unsafe { core::ptr::addr_of_mut!((*self.gsp_mem.start_ptr_mut()).cpuq.msgq[wptr]) };
+
+        // Simple case where the queue doesn't wrap
+        if wptr + msg_size <= 0x3f {
+            let slice: &mut [u8] = unsafe {
+                core::slice::from_raw_parts_mut(ptr as *mut u8, msg_size * GSP_PAGE_SIZE)
+            };
+
+            return SBuffer::<'b>::new((slice, None));
+        }
+
+        // First slice contains the remaining free pages in the queue
+        let slice_1: &mut [u8] = unsafe {
+            core::slice::from_raw_parts_mut(ptr as *mut u8, (0x3f - wptr) * GSP_PAGE_SIZE)
+        };
+        ptr = unsafe { core::ptr::addr_of_mut!((*self.gsp_mem.start_ptr_mut()).cpuq.msgq[0]) };
+        pr_info!("msg_size {} wptr {}\n", msg_size, wptr);
+        let slice_2: &mut [u8] = unsafe {
+            core::slice::from_raw_parts_mut(
+                ptr as *mut u8,
+                (msg_size - 0x3f + wptr) * GSP_PAGE_SIZE,
+            )
+        };
+        return SBuffer::<'b>::new((slice_1, Some(slice_2)));
+    }
+
+    pub(crate) fn send<A: GspMessageElement>(
+        self: &mut Self,
+        function: u32,
+        cmd: &A,
+    ) -> Result<()> {
+        let mut msg_header = GspMsgHeader {
+            auth_tag_buffer: [0; 16],
+            aad_buffer: [0; 16],
+            checksum: 0,
+            sequence: self.seq,
+            elem_count: 1,
+            pad: 0,
+        };
+        let mut rpc = GspRpcHeader {
+            header_version: 0x03000000,
+            signature: 0x43505256,
+            length: 0,
+            function,
+            rpc_result: 0xffffffff,
+            rpc_result_private: 0xffffffff,
+            sequence: 0,
+            cpu_rm_gfid: 0,
+        };
+
+        self.seq += 1;
+        rpc.length = (size_of::<GspRpcHeader>() + cmd.size()) as u32;
+
+        let mut sbuf = self.alloc_cmd_sbuffer(
+            size_of::<GspMsgHeader>() + size_of::<GspRpcHeader>() + cmd.size() as usize,
+        )?;
+        let msg_header_slice = unsafe {
+            core::slice::from_raw_parts(
+                &msg_header as *const GspMsgHeader as *const u8,
+                size_of::<GspMsgHeader>(),
+            )
+        };
+        let rpc_slice = unsafe {
+            core::slice::from_raw_parts(
+                &rpc as *const GspRpcHeader as *const u8,
+                size_of::<GspRpcHeader>(),
+            )
+        };
+
+        let mut sbuf_iter = sbuf.iter_mut();
+        sbuf_iter.write_slice(msg_header_slice)?;
+        sbuf_iter.write_slice(rpc_slice)?;
+        cmd.copy_to_sbuf(&mut sbuf_iter)?;
+
+        msg_header.checksum = 0;
+        let total_size = sbuf.total_bytes;
+        msg_header.elem_count = total_size.div_ceil(GSP_PAGE_SIZE) as u32;
+
+        // Calculate checksum over the entire message
+        msg_header.checksum = GspCmdq::calculate_checksum(&sbuf);
+
+        // Re-write the message header with the updated element count and checksum
+        sbuf.write(0, msg_header_slice)?;
+
+        let mut wptr = self.cpu_wptr().unwrap() as u32;
+        wptr += msg_header.elem_count as u32;
+        wptr %= 0x3f;
+
+        // TODO: Figure out Rust barriers
+        unsafe {
+            asm!("sfence";);
+            dma_write!(self.gsp_mem[0].cpuq.tx.write_ptr = wptr)?;
+            asm!("mfence";);
+        };
+
+        self.bar.try_access_with(|b| {
+            NV_PGSP_QUEUE_HEAD::default().set_address(0 as u32).write(b);
+        });
+
+        Ok(())
+    }
+
+    fn receive<A: GspMessageElement>(self: &mut Self, function: u32) -> Result<A> {
+        let header_size = (size_of::<GspMsgHeader>() + size_of::<GspRpcHeader>()) as u32;
+
+        // Used pages contains the total number of pages available to consume
+        let used_pages = self.get_used_rx_pages();
+        if used_pages < header_size.div_ceil(GSP_PAGE_SIZE as u32) {
+            return Err(EAGAIN);
+        }
+
+        let rptr = self.cpu_rptr().unwrap();
+
+        // Remaining number of bytes left before we have to wrap
+        let remaining = if rptr + used_pages > self.msg_count {
+            (self.msg_count - rptr) << GSP_PAGE_SHIFT
+        } else {
+            used_pages << GSP_PAGE_SHIFT
+        };
+
+        let ptr = unsafe {
+            core::ptr::addr_of_mut!((*self.gsp_mem.start_ptr_mut()).gspq.msgq[rptr as usize])
+        };
+        let msg_slice =
+            unsafe { core::slice::from_raw_parts_mut(ptr as *mut u8, remaining as usize) };
+
+        // TODO: Validating the checksum will read this
+        let _msg = GspMsgHeader::new_from_slice(&msg_slice[0..size_of::<GspMsgHeader>()])?;
+        let mut rpc = GspRpcHeader::new_from_slice(
+            &msg_slice
+                [size_of::<GspMsgHeader>()..size_of::<GspMsgHeader>() + size_of::<GspRpcHeader>()],
+        )?;
+
+        // rpc.length includes the size of the GspRpcHeader. Remove it to make
+        // the rest of the code a bit easier to follow.
+        rpc.length -= size_of::<GspRpcHeader>() as u32;
+
+        // Not all pages of the message have made it to the queue so bail and let the caller retry.
+        if used_pages << GSP_PAGE_SHIFT < header_size + rpc.length {
+            return Err(EAGAIN);
+        }
+
+        let sbuf = if rpc.length + header_size < remaining {
+            SBuffer::new((
+                &mut msg_slice[(header_size as usize)..(header_size + rpc.length) as usize],
+                None
+            ))?
+        } else {
+            let slice_1 =
+                &mut msg_slice[(header_size as usize)..(header_size + remaining) as usize];
+            let ptr =
+                unsafe { core::ptr::addr_of_mut!((*self.gsp_mem.start_ptr_mut()).gspq.msgq[0]) };
+            let slice_2 = unsafe {
+                core::slice::from_raw_parts_mut(ptr as *mut u8, rpc.length as usize - slice_1.len())
+            };
+            SBuffer::new((slice_1, Some(slice_2)))?
+        };
+
+        let result = if rpc.function == function {
+            Ok(A::new_from_sbuf(&sbuf)?)
+        } else {
+            Err(ERANGE)
+        };
+
+        let mut rptr = self.cpu_rptr()?;
+        rptr = rptr + (header_size + rpc.length).div_ceil(GSP_PAGE_SIZE as u32);
+        rptr %= 0x3f;
+
+        // TODO: Figure out Rust barriers
+        unsafe {
+            asm!("mfence";);
+            dma_write!(self.gsp_mem[0].cpuq.rx.read_ptr = rptr)?;
+        };
+
+        result
+    }
+}
+
+struct EmptyCmd {
+    size: usize,
+}
+
+impl GspMessageElement for EmptyCmd {
+    fn size(&self) -> usize {
+        self.size
+    }
+
+    fn copy_to_sbuf(&self, sbuf: &mut SBufferIteratorMut<'_, '_>) -> Result {
+        for _i in 0..self.size {
+            sbuf.write_byte(0)?;
+        }
+
+        Ok(())
+    }
+
+    fn new_from_sbuf(sbuf: &SBuffer<'_>) -> Result<Self> {
+        Ok(Self {
+            size: sbuf.total_bytes,
+        })
+    }
+}
 
 pub(crate) fn build_wpr_meta(
     dev: &device::Device<device::Bound>,
@@ -91,11 +571,12 @@ pub(crate) fn build_wpr_meta(
 }
 
 #[allow(unused)]
-pub(crate) struct GspMemObjects {
+pub(crate) struct GspMemObjects<'a> {
     pub libos: DmaObject,
     pub loginit: DmaObject,
     pub logintr: DmaObject,
     pub logrm: DmaObject,
+    pub cmdq: GspCmdq<'a>,
 }
 
 /// Generates the `ID8` identifier required for some GSP objects.
@@ -189,19 +670,29 @@ fn create_coherent_dma_object<A: AsBytes + FromBytes>(
     Ok(obj)
 }
 
-impl GspMemObjects {
-    pub(crate) fn new(pdev: &pci::Device<device::Bound>) -> Result<Self> {
+impl<'a> GspMemObjects<'a> {
+    pub(crate) fn new(
+        pdev: &pci::Device<device::Bound>,
+        bar: &'a Devres<Bar0>,
+        gsp_falcon: &'a Falcon<Gsp>,
+        sec2_falcon: &'a Falcon<Sec2>,
+        fw: &'a Firmware,
+    ) -> Result<Self> {
         let dev = pdev.as_ref();
         let mut libos = DmaObject::new(dev, GSP_PAGE_SIZE)?;
         let loginit = create_dma_object(dev, "LOGINIT", 0x10000, &mut libos, 0)?;
         let logintr = create_dma_object(dev, "LOGINTR", 0x10000, &mut libos, 1)?;
         let logrm = create_dma_object(dev, "LOGRM", 0x10000, &mut libos, 2)?;
 
+        // Creates its own PTE array
+        let cmdq = GspCmdq::new(dev, bar, gsp_falcon, sec2_falcon, libos.dma_handle(), fw)?;
+
         Ok(GspMemObjects {
             libos,
             loginit,
             logintr,
             logrm,
+            cmdq,
         })
     }
 }
