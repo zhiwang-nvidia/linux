@@ -30,6 +30,8 @@ pub(crate) const GSP_PAGE_SHIFT: usize = 12;
 pub(crate) const GSP_PAGE_SIZE: usize = 1 << GSP_PAGE_SHIFT;
 pub(crate) const GSP_HEAP_SHIFT: u64 = 1 << 20;
 
+unsafe impl FromBytes for fw::GSP_ARGUMENTS_CACHED {}
+unsafe impl AsBytes for fw::GSP_ARGUMENTS_CACHED {}
 unsafe impl FromBytes for fw::GspFwWprMeta {}
 unsafe impl AsBytes for fw::GspFwWprMeta {}
 unsafe impl FromBytes for fw::GspSystemInfo {}
@@ -576,6 +578,7 @@ pub(crate) struct GspMemObjects<'a> {
     pub loginit: DmaObject,
     pub logintr: DmaObject,
     pub logrm: DmaObject,
+    pub rmargs: CoherentAllocation<fw::GSP_ARGUMENTS_CACHED>,
     pub cmdq: GspCmdq<'a>,
 }
 
@@ -686,12 +689,25 @@ impl<'a> GspMemObjects<'a> {
 
         // Creates its own PTE array
         let cmdq = GspCmdq::new(dev, bar, gsp_falcon, sec2_falcon, libos.dma_handle(), fw)?;
+        let rmargs =
+            create_coherent_dma_object::<fw::GSP_ARGUMENTS_CACHED>(dev, "RMARGS", &mut libos, 3)?;
+        dma_write!(
+            rmargs[0].messageQueueInitArguments.sharedMemPhysAddr = cmdq.gsp_mem.dma_handle()
+        )?;
+        dma_write!(rmargs[0].messageQueueInitArguments.pageTableEntryCount = cmdq.nr_ptes)?;
+        dma_write!(rmargs[0].messageQueueInitArguments.cmdQueueOffset = 0x1000)?;
+        dma_write!(rmargs[0].messageQueueInitArguments.statQueueOffset = 0x41000)?;
+        dma_write!(rmargs[0].srInitArguments.oldLevel = 0)?;
+        dma_write!(rmargs[0].srInitArguments.flags = 0)?;
+        dma_write!(rmargs[0].srInitArguments.bInPMTransition = 0)?;
+        dma_write!(rmargs[0].bDmemStack = 1)?;
 
         Ok(GspMemObjects {
             libos,
             loginit,
             logintr,
             logrm,
+            rmargs,
             cmdq,
         })
     }
