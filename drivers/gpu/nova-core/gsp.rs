@@ -505,6 +505,22 @@ impl<'a> GspCmdq<'a> {
         })
     }
 
+    /// Same as the `receive_wait()` method but will consume and ingnore
+    /// unexpected messages. Ie. messages with a different function to the passed
+    /// `function` parameter.
+    fn receive_wait_ignore<R: GspMessageElement>(
+        &mut self,
+        timeout: Delta,
+        function: u32,
+    ) -> Result<R> {
+        wait_on_result(timeout, || match self.receive::<R>(function) {
+            Ok(x) => Some(Ok(x)),
+            Err(EAGAIN) => None,
+            Err(ERANGE) => None,
+            Err(e) => Some(Err(e)),
+        })
+    }
+
     pub(crate) fn run_sequencer(self: &mut Self, timeout: Delta) -> Result {
         let seq_info = self.receive_wait::<GspSequencerInfo>(
             timeout,
@@ -531,6 +547,11 @@ impl<'a> GspCmdq<'a> {
         });
 
         Ok(())
+    }
+
+    pub(crate) fn gsp_init_done(&mut self, timeout: Delta) -> Result {
+        self.receive_wait_ignore::<EmptyCmd>(timeout, fw::NV_VGPU_MSG_EVENT_GSP_INIT_DONE)
+            .map(|_| ())
     }
 }
 
