@@ -45,3 +45,20 @@ pub(crate) fn wait_on<R, F: Fn() -> Option<R>>(timeout: Delta, cond: F) -> Resul
         }
     }
 }
+
+pub(crate) fn wait_on_result<R, F: FnMut() -> Option<Result<R>>>(
+    timeout: Delta,
+    mut cond: F,
+) -> Result<R> {
+    let start_time = Instant::now();
+
+    loop {
+        if let Some(ret) = cond() {
+            return ret;
+        }
+
+        if start_time.elapsed().as_nanos() > timeout.as_nanos() {
+            return Err(ETIMEDOUT);
+        }
+    }
+}
