@@ -136,6 +136,7 @@ impl Firmware {
             gpu::Architecture::Ampere => ".fwsignature_ga10x",
             gpu::Architecture::Hopper => ".fwsignature_gh10x",
             gpu::Architecture::Ada => ".fwsignature_ad10x",
+            gpu::Architecture::Blackwell => ".fwsignature_gb10x",
             _ => return Err(ENOTSUPP),
         };
         let gsp_sigs = elf_section(gsp_fw.data(), gsp_sigs_section)
