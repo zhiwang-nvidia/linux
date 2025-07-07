@@ -197,6 +197,8 @@ pub(crate) struct Gpu {
     /// PCIE into system memory, via sysmembar (A GPU-initiated HW memory-barrier operation).
     sysmem_flush: SysmemFlush,
     wpr_meta: CoherentAllocation<fw::GspFwWprMeta>,
+    /// GSP static information
+    gsp_info: gsp::GspStaticConfigInfo,
 }
 
 #[pinned_drop]
@@ -424,12 +426,20 @@ impl Gpu {
 
         libos.cmdq.run_sequencer(Delta::from_secs(10))?;
         libos.cmdq.gsp_init_done(Delta::from_secs(10))?;
-        libos.cmdq.get_gsp_info()?;
-        let info = libos.cmdq.get_gsp_info()?;
+        let gsp_info = libos.cmdq.get_gsp_info()?;
+
         dev_info!(
             pdev.as_ref(),
             "GPU name: {}\n",
-            util::str_from_null_terminated(&info.gpu_name)
+            util::str_from_null_terminated(&gsp_info.gpu_name)
+        );
+
+        dev_info!(
+            pdev.as_ref(),
+            "GSP Handles: Client={:#x}, Device={:#x}, Subdevice={:#x}\n",
+            gsp_info.h_internal_client,
+            gsp_info.h_internal_device,
+            gsp_info.h_internal_subdevice
         );
 
         // TODO: Figure out how to convince the compiler that the lifetime
@@ -444,6 +454,7 @@ impl Gpu {
             fw,
             sysmem_flush,
             wpr_meta,
+            gsp_info,
         }))
     }
 }
