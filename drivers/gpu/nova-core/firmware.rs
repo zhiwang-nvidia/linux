@@ -5,10 +5,12 @@
 
 use core::marker::PhantomData;
 
+use kernel::bindings;
 use kernel::device;
 use kernel::firmware;
 use kernel::prelude::*;
 use kernel::str::CString;
+use radix3::RadixFirmware;
 use riscv::RiscvFirmware;
 use sec2::Sec2Firmware;
 
@@ -20,18 +22,73 @@ use crate::gpu;
 use crate::gpu::Chipset;
 
 pub(crate) mod fwsec;
+pub(crate) mod radix3;
 pub(crate) mod riscv;
 pub(crate) mod sec2;
 
 pub(crate) const FIRMWARE_VERSION: &str = "535.113.01";
 
+fn elf_section<'a, 'b>(elf: &'a [u8], name: &'b str) -> Option<&'a [u8]> {
+    let hdr = elf
+        .get(0..size_of::<bindings::elf64_hdr>())
+        .map(|slice| slice.as_ptr())
+        .filter(|ptr| ptr.align_offset(align_of::<bindings::elf64_hdr>()) == 0)
+        // SAFETY:
+        // * `get` guarantees that the slice is within the bounds of `elf` and of the size of
+        //   `elf64_hdr`.
+        // * We checked that `ptr` had the correct alignment for `elf64_hdr`.
+        .map(|ptr| unsafe { &*ptr.cast::<bindings::elf64_hdr>() })?;
+
+    let shdr_off = hdr.e_shoff as usize;
+    let shdr_num = hdr.e_shnum as usize;
+    let shdr = elf
+        .get(shdr_off..shdr_off + size_of::<bindings::elf64_shdr>() * shdr_num)
+        .map(|slice| slice.as_ptr())
+        .filter(|ptr| ptr.align_offset(align_of::<bindings::elf64_shdr>()) == 0)
+        // SAFETY:
+        // * `get` guarantees that the slice is within the bounds of `elf` and of size
+        //   `elf64_shdr * shdr_num`.
+        // * We checked that `ptr` had the correct alignment for `elf64_shdr`.
+        .map(|ptr| unsafe {
+            core::slice::from_raw_parts(ptr.cast::<bindings::elf64_shdr>(), shdr_num)
+        })?;
+
+    // Get the strings table.
+    let strhdr = shdr.get(hdr.e_shstrndx as usize)?;
+
+    // Find the section which name matches `name` and return it.
+    shdr.iter()
+        .find(|sh| {
+            let name_idx = strhdr.sh_offset as usize + sh.sh_name as usize;
+
+            // Get the start of the name.
+            elf.get(name_idx..)
+                // Stop at the first `0`.
+                .and_then(|nstr| nstr.get(0..=nstr.iter().position(|b| *b == 0)?))
+                // Convert into CStr. This should never fail because of the line above.
+                .and_then(|nstr| CStr::from_bytes_with_nul(nstr).ok())
+                // Convert into str.
+                .and_then(|c_str| c_str.to_str().ok())
+                // Check that the name matches.
+                .map(|str| str == name)
+                .unwrap_or(false)
+        })
+        // Return the slice containing the section.
+        .and_then(|sh| {
+            let start = sh.sh_offset as usize;
+
+            elf.get(start..start + sh.sh_size as usize)
+        })
+}
+
 /// Structure encapsulating the firmware blobs required for the GPU to operate.
 #[expect(dead_code)]
 pub(crate) struct Firmware {
-    booter_load: Sec2Firmware,
-    booter_unload: Sec2Firmware,
-    bootloader: RiscvFirmware,
-    gsp: firmware::Firmware,
+    pub booter_load: Sec2Firmware,
+    pub booter_unload: Sec2Firmware,
+    pub bootloader: RiscvFirmware,
+    gsp: RadixFirmware,
+    pub gsp_sigs: DmaObject,
 }
 
 impl Firmware {
@@ -50,13 +107,25 @@ impl Firmware {
                 .and_then(|path| firmware::Firmware::request(&path, dev))
         };
 
+        let gsp_fw = request("gsp")?;
+        let gsp = elf_section(gsp_fw.data(), ".fwimage")
+            .ok_or(EINVAL)
+            .and_then(|data| RadixFirmware::new(dev, ".fwimage", data))?;
+
+        // TODO: make this a GPU-specific const.
+        let gsp_sigs_section = ".fwsignature_ga10x";
+        let gsp_sigs = elf_section(gsp_fw.data(), gsp_sigs_section)
+            .ok_or(EINVAL)
+            .and_then(|data| DmaObject::from_data(dev, data))?;
+
         Ok(Firmware {
             booter_load: request("booter_load")
                 .and_then(|fw| Sec2Firmware::new(sec2, dev, bar, &fw))?,
             booter_unload: request("booter_unload")
                 .and_then(|fw| Sec2Firmware::new(sec2, dev, bar, &fw))?,
             bootloader: request("bootloader").and_then(|fw| RiscvFirmware::new(dev, &fw))?,
-            gsp: request("gsp")?,
+            gsp,
+            gsp_sigs,
         })
     }
 }
