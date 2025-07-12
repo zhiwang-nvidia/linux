@@ -134,6 +134,7 @@ impl Firmware {
         // Architecture-specific firmware signature section
         let gsp_sigs_section = match chipset.arch() {
             gpu::Architecture::Ampere => ".fwsignature_ga10x",
+            gpu::Architecture::Hopper => ".fwsignature_gh10x",
             gpu::Architecture::Ada => ".fwsignature_ad10x",
             _ => return Err(ENOTSUPP),
         };
