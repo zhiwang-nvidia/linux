@@ -96,34 +96,9 @@ pub(crate) struct GspSequencerInfo {
 }
 
 impl GspMessageElement for GspSequencerInfo {
-    fn new_from_slices(slice_1: &[u8], slice_2: Option<&[u8]>) -> Result<Self> {
-        // First, extract the info field from the beginning of the data
-        let info_size = size_of::<fw::rpc_run_cpu_sequencer_v17_00>();
-
-        // Check if we have enough data for the info field
-        let total_available = slice_1.len() + slice_2.map_or(0, |s| s.len());
-        if total_available < info_size {
-            return Err(EINVAL);
-        }
-
-        let info = fw::rpc_run_cpu_sequencer_v17_00::new_from_slices(slice_1, slice_2)?;
-
-        if slice_1.len() <= info_size {
-            return Err(EINVAL);
-        }
-
-        let mut data_len = slice_1.len() - info_size;
-        if let Some(slice) = slice_2 {
-            data_len += slice.len();
-        }
-
-        let mut cmd_data = KVec::with_capacity(data_len, GFP_KERNEL)?;
-        cmd_data.extend_from_slice(&slice_1[info_size..], GFP_KERNEL)?;
-
-        if let Some(slice) = slice_2 {
-            cmd_data.extend_from_slice(slice, GFP_KERNEL)?;
-        }
-
+    fn new_from_sbuf(sbuf: &SBuffer<'_>) -> Result<Self> {
+        let info = fw::rpc_run_cpu_sequencer_v17_00::new_from_sbuf(sbuf)?;
+        let cmd_data = sbuf.read_kvec(size_of::<fw::rpc_run_cpu_sequencer_v17_00>())?;
         Ok(GspSequencerInfo { info, cmd_data })
     }
 }
