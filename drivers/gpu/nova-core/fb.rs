@@ -213,6 +213,30 @@ impl FbLayout {
             wpr2.start - HEAP_SIZE..wpr2.start
         };
 
+        // Calculate rsvd_size to match Nouveau's approach
+        // Nouveau sets: rsvd_size = gsp->fb.heap.size
+        // Then: rsvd_size = ALIGN(rsvd_size + gsp->rm->wpr->rsvd_size_pmu, 0x200000)
+        let heap_size = (heap.end - heap.start) as u32;
+
+        // PMU reserved size based on Nouveau's r570 values:
+        // .rsvd_size_pmu = ALIGN(0x0800000 + 0x1000000 + 0x0001000, 0x20000)
+        // = ALIGN(8MB + 16MB + 4KB, 128KB) = approximately 24MB
+        let pmu_reserved_size = {
+            const PMU_BASE_SIZE: u32 = 0x0800000; // 8MB
+            const PMU_EXTRA_SIZE: u32 = 0x1000000; // 16MB
+            const PMU_OVERHEAD: u32 = 0x0001000; // 4KB
+            const PMU_ALIGN: PowerOfTwo<u32> = PowerOfTwo::<u32>::new(0x20000); // 128KB
+
+            let total = PMU_BASE_SIZE + PMU_EXTRA_SIZE + PMU_OVERHEAD;
+            PMU_ALIGN.align_up(total)
+        };
+
+        let rsvd_size = {
+            let total = heap_size + pmu_reserved_size;
+            const RSVD_ALIGN: PowerOfTwo<u32> = PowerOfTwo::<u32>::new(0x200000); // 2MB
+            RSVD_ALIGN.align_up(total)
+        };
+
         Ok(Self {
             fb,
             vga_workspace,
@@ -225,7 +249,7 @@ impl FbLayout {
             vf_partition_count: 0,
             region: Default::default(),
             nr_region: 0,
-            rsvd_size: 0,
+            rsvd_size,
         })
     }
 }
