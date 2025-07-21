@@ -18,6 +18,8 @@ use crate::nvfw::r570_144 as fw;
 use crate::regs;
 use crate::util;
 use crate::vbios::Vbios;
+use crate::vgpu;
+use crate::vgpu::VGpu;
 
 use crate::debugfs::NovaDebugfs;
 use core::fmt;
@@ -217,6 +219,7 @@ pub(crate) struct Gpu {
     pub mmu: Mmu,
     pub instmem: Arc<InstMem>,
     pub bars: Arc<Bar>,
+    pub vgpu: Arc<VGpu>,
 }
 
 #[pinned_drop]
@@ -357,13 +360,15 @@ impl Gpu {
         let binding = arc_bar.clone();
         let bar =  Arc::as_ref(&binding).access(pdev.as_ref())?;
         let spec = Spec::new(bar)?;
+        let vgpu_support = vgpu::vgpu_is_supported(pdev, spec.chipset);
 
         dev_info!(
             pdev.as_ref(),
-            "NVIDIA (Chipset: {}, Architecture: {:?}, Revision: {})\n",
+            "NVIDIA (Chipset: {}, Architecture: {:?}, Revision: {}, vgpu {})\n",
             spec.chipset,
             spec.chipset.arch(),
-            spec.revision
+            spec.revision,
+            vgpu_support
         );
 
         pdev.as_ref().dma_set_mask((1 << 48) - 1)?;
@@ -498,6 +503,8 @@ impl Gpu {
 
         bar.write32(0x40, 0x110004);
 
+        let vgpu = VGpu::new(vgpu_support)?;
+
         // TODO: Figure out how to convince the compiler that the lifetime
         // parameter on GspMemObjects is satisfied when we pass it to
         // pin_init below. For now we just leak the memory, which is not good
@@ -516,6 +523,7 @@ impl Gpu {
             mmu,
             instmem,
             bars,
+            vgpu,
         }))
     }
 }
