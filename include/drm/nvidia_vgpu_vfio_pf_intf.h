@@ -86,6 +86,28 @@ struct nvidia_vgpu_gsp_client {
 	void *gsp_device;
 };
 
+/**
+ * struct nvidia_vgpu_mem - memory block for VFIO driver
+ *
+ * @addr: the FB memory offset
+ * @size: the FB memory size
+ */
+struct nvidia_vgpu_mem {
+       u64 addr;
+       u64 size;
+};
+
+/**
+ * struct nvidia_vgpu_alloc_fbmem_info - info for allocating a memory block
+ *
+ * @size: the FB memory size to be allocated
+ * @align: the alignment of the FB memory offset
+ */
+struct nvidia_vgpu_alloc_fbmem_info {
+	u64 size;
+	u64 align;
+};
+
 struct nvidia_vgpu_vfio_ops {
 	/**
 	 * vgpu_is_enabled() - if vGPU support is enabled in the PF driver.
@@ -198,6 +220,27 @@ struct nvidia_vgpu_vfio_ops {
 	 * Return: the amount of available CHIDS for VFIO driver.
 	 */
 	u32 (*get_avail_chids)(void *handle);
+	/**
+	 * alloc_fbmem() - allocate the FB memory.
+	 * @handle: the VFIO driver handle.
+	 * @info: the info for FB memory allocation.
+	 *
+	 * Return: the FB memory block on success. an error pointer on errors.
+	 */
+	struct nvidia_vgpu_mem *(*alloc_fbmem)(void *handle,
+					       struct nvidia_vgpu_alloc_fbmem_info *info);
+	/**
+	 * free_fbmem() - free the FB memory.
+	 * @mem: the FB memory block.
+	 */
+	void (*free_fbmem)(struct nvidia_vgpu_mem *mem);
+	/**
+	 * get_total_fbmem_size() - get the total size of the GPU VRAM.
+	 * @handle: the VFIO driver handle.
+	 *
+	 * Return: the total size of the GPU VRAM.
+	 */
+	u64 (*get_total_fbmem_size)(void *handle);
 };
 
 struct nvidia_vgpu_vfio_ops *nova_vgpu_get_vfio_ops(void *handle);

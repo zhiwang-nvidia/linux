@@ -20,6 +20,11 @@ use crate::gpu::Chipset;
 use crate::gpu::Gpu;
 use crate::gsp::rm_control::RmControlParams;
 use crate::gsp::rm_control::RmControlMessageElement;
+use crate::port::memory::VramObj;
+use crate::port::vmm::Vma;
+use crate::port::memory::NVKM_MM_PAGE_SHIFT;
+use crate::port::memory::Memory;
+use kernel::types::ForeignOwnable;
 
 struct VGpuVfioHandleData {
     handle_data: bindings::nvidia_vgpu_vfio_handle_data,
@@ -120,10 +125,21 @@ impl RmControlMessageElement for VGpuRmControlData {
 }
 
 #[pin_data]
+#[repr(C)]
+pub(crate) struct VGPUMem {
+    #[pin]
+    base: bindings::nvidia_vgpu_mem,
+    obj: VramObj,
+    bar1_vma: Option<Arc<Vma>>,
+    handle: *mut core::ffi::c_void,
+}
+
+#[pin_data]
 pub(crate) struct VGpu {
     enabled: AtomicBool,
     #[pin]
     inner: Mutex<VGpuVfioHandleData>,
+    vidmem_size: u64,
 }
 
 pub(crate) fn vgpu_is_supported(pdev: &pci::Device<device::Bound>, chipset: Chipset) -> bool {
@@ -134,7 +150,7 @@ pub(crate) fn vgpu_is_supported(pdev: &pci::Device<device::Bound>, chipset: Chip
 }
 
 impl VGpu {
-    pub(crate) fn new(vgpu_enabled: bool) -> Result<Arc<Self>> {
+    pub(crate) fn new(vgpu_enabled: bool, vidmem_size: u64) -> Result<Arc<Self>> {
         let vgpu = UniqueArc::pin_init(pin_init!(Self {
             enabled: AtomicBool::new(vgpu_enabled),
             inner <- new_mutex!(VGpuVfioHandleData {
@@ -152,6 +168,7 @@ impl VGpu {
                     },
                 }
             }),
+            vidmem_size,
         }),
         GFP_KERNEL,
         )?;
@@ -333,6 +350,51 @@ unsafe extern "C" fn get_avail_chids(handle: *mut core::ffi::c_void) -> u32 {
     2048
 }
 
+unsafe extern "C" fn alloc_fbmem(handle: *mut core::ffi::c_void, info: *mut bindings::nvidia_vgpu_alloc_fbmem_info) -> *mut bindings::nvidia_vgpu_mem {
+    pr_info!("alloc fbmem\n");
+
+    let drv = handle as *mut NovaCore;
+    let nova_core = unsafe { &*drv };
+    let gpu = &nova_core.gpu;
+    let info = unsafe { &*info };
+    let mut shift: u32;
+
+    if info.align != 0 {
+        shift = info.align.ilog2();
+    } else {
+        shift = NVKM_MM_PAGE_SHIFT as u32;
+    }
+
+    let vramobj = VramObj::new(gpu.instmem.vram_mm.clone(), 0, 0x1, shift as u8, info.size as usize, true, true).unwrap();
+    let fbmem: Pin<KBox<VGPUMem>> = KBox::new(
+        VGPUMem {
+            base: bindings::nvidia_vgpu_mem {
+                addr: vramobj.addr().unwrap(),
+                size: vramobj.size().unwrap(),
+            },
+            obj: vramobj,
+            bar1_vma: None,
+            handle: handle,
+        }, GFP_KERNEL).unwrap().into();
+
+    pr_info!("alloc fbmem {} {}\n", fbmem.base.addr, fbmem.base.size);
+    fbmem.into_foreign() as _
+}
+
+unsafe extern "C" fn free_fbmem(mem: *mut bindings::nvidia_vgpu_mem) {
+    pr_info!("free fbmem\n");
+
+    let _fbmem : KBox<VGPUMem> = unsafe { KBox::from_foreign(mem as _) };
+}
+
+unsafe extern "C" fn get_total_fbmem_size(handle: *mut core::ffi::c_void) -> u64 {
+    pr_info!("get total fbmem size\n");
+
+    let vgpu = to_vgpu!(handle);
+
+    vgpu.vidmem_size
+}
+
 const NOVA_VFIO_OPS: bindings::nvidia_vgpu_vfio_ops = bindings::nvidia_vgpu_vfio_ops {
     vgpu_is_enabled: Some(vgpu_is_enabled),
     attach_handle: Some(attach_handle),
@@ -347,6 +409,9 @@ const NOVA_VFIO_OPS: bindings::nvidia_vgpu_vfio_ops = bindings::nvidia_vgpu_vfio
     alloc_chids: Some(alloc_chids),
     free_chids: Some(free_chids),
     get_avail_chids: Some(get_avail_chids),
+    alloc_fbmem: Some(alloc_fbmem),
+    free_fbmem: Some(free_fbmem),
+    get_total_fbmem_size: Some(get_total_fbmem_size),
 };
 
 #[no_mangle]

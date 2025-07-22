@@ -252,4 +252,8 @@ impl FbLayout {
             rsvd_size,
         })
     }
+
+    pub(crate) fn vidmem_size(chipset: Chipset, bar: &Bar0) -> Result<u64> {
+        Ok(hal::fb_hal(chipset).vidmem_size(bar))
+    }
 }

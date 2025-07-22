@@ -507,7 +507,7 @@ impl Gpu {
         bar.write32(0x40, 0x110004);
 
         let rmcontrol = RmControl::new(&gsp_info);
-        let vgpu = VGpu::new(vgpu_support)?;
+        let vgpu = VGpu::new(vgpu_support, FbLayout::vidmem_size(spec.chipset, bar)?)?;
 
         // TODO: Figure out how to convince the compiler that the lifetime
         // parameter on GspMemObjects is satisfied when we pass it to
