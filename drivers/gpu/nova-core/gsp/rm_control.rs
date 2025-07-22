@@ -8,11 +8,9 @@ use crate::gsp::{GspCmdq, GspMessageElement, GspStaticConfigInfo, GspRpcHeader, 
 use crate::nvfw::r570_144 as fw;
 use crate::sbuffer::{SBuffer, SBufferIteratorMut};
 use crate::util::wait_on_result;
-use kernel::device;
 use kernel::devres::Devres;
 use kernel::prelude::*;
 use kernel::time::Delta;
-use kernel::{dev_err, dev_info};
 
 // RM Control RPC header structure
 #[repr(C)]
@@ -115,21 +113,19 @@ pub(crate) trait RmControlMessageElement: Sized {
 }
 
 // Main RM Control API struct
-pub(crate) struct RmControl<'a> {
-    gsp_info: &'a GspStaticConfigInfo,
-    dev: &'a device::Device<device::Bound>,
+pub(crate) struct RmControl {
+    h_client: u32,
+    h_subdevice: u32,
 }
 
-#[expect(dead_code)]
-impl<'a> RmControl<'a> {
+impl RmControl {
     /// Create new RM control instance
     pub(crate) fn new(
-        gsp_info: &'a GspStaticConfigInfo,
-        dev: &'a device::Device<device::Bound>,
+        gsp_info: &GspStaticConfigInfo,
     ) -> Self {
         Self {
-            gsp_info,
-            dev,
+            h_client: gsp_info.h_internal_client,
+            h_subdevice: gsp_info.h_internal_subdevice,
         }
     }
 
@@ -145,8 +141,8 @@ impl<'a> RmControl<'a> {
 
         // Create RPC header
         let header = RmControlHeader {
-            h_client: self.gsp_info.h_internal_client,
-            h_object: self.gsp_info.h_internal_subdevice,
+            h_client: self.h_client,
+            h_object: self.h_subdevice,
             cmd,
             status: 0,
             params_size: params_size as u32,
@@ -163,8 +159,7 @@ impl<'a> RmControl<'a> {
         // Send the command using GSP RPC.
         cmdq.send(bar, fw::NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL, &mut msg)?;
 
-        dev_info!(
-            self.dev,
+        pr_info!(
             "RM Control: Sent command {:#x} with {} bytes params\n",
             cmd,
             params_size
@@ -173,7 +168,7 @@ impl<'a> RmControl<'a> {
         // Wait for response
         let response = wait_on_result(Delta::from_secs(5), || {
             match cmdq
-                .receive::<RmControlGspResponse>(fw::NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL)
+                .receive_wait_ignore::<RmControlGspResponse>(Delta::from_secs(5), fw::NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL)
             {
                 Ok(response) => Some(Ok(response)),
                 Err(EAGAIN) => None,
@@ -183,8 +178,7 @@ impl<'a> RmControl<'a> {
 
         // Check for RM errors
         if response.header.status != 0 {
-            dev_err!(
-                self.dev,
+            pr_err!(
                 "RM Control: Command {:#x} failed with status {:#x}\n",
                 cmd,
                 response.header.status

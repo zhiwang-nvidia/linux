@@ -137,6 +137,44 @@ struct nvidia_vgpu_vfio_ops {
 	 * Return: the handle that PF driver composed.
 	 */
 	u32 (*get_gsp_client_handle)(struct nvidia_vgpu_gsp_client *client);
+	/**
+	 * rm_ctrl_get() - get a GSP RPC container of RM control.
+	 * @client: the GSP client.
+	 * @cmd: the RM control command.
+	 * @size: the size of the RM control.
+	 *
+	 * Return: the allocated GSP RPC container on success. an error pointer on errors.
+	 */
+	void *(*rm_ctrl_get)(struct nvidia_vgpu_gsp_client *client,
+			     u32 cmd, u32 size);
+	/**
+	 * rm_ctrl_wr() - send the RM control to GSP without a reply.
+	 * @client: the GSP client.
+	 * @ctrl: the RM control GSP RPC container.
+	 *
+	 * Note that the PF driver should free the GSP RPC container.
+	 *
+	 * Return: zero on success. others on errors.
+	 */
+	int (*rm_ctrl_wr)(struct nvidia_vgpu_gsp_client *client,
+			  void *ctrl);
+	/**
+	 * rm_ctrl_rd() - send the RM control to GSP and requires a reply.
+	 * @client: the GSP client.
+	 * @cmd: the RM control command.
+	 * @size: the size of the RM control.
+	 *
+	 * Return: the GSP RPC container as reply on success. an error pointer on errors.
+	 */
+	void *(*rm_ctrl_rd)(struct nvidia_vgpu_gsp_client *client, u32 cmd,
+			    u32 size);
+	/**
+	 * rm_ctrl_done() - free the reply allocated by rd_ctrl_rd().
+	 * @client: the GSP client.
+	 * @ctrl: the RM control GSP RPC container.
+	 */
+	void (*rm_ctrl_done)(struct nvidia_vgpu_gsp_client *client,
+			     void *ctrl);
 };
 
 struct nvidia_vgpu_vfio_ops *nova_vgpu_get_vfio_ops(void *handle);

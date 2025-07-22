@@ -1059,7 +1059,7 @@ fn create_coherent_dma_object<A: AsBytes + FromBytes>(
 
 impl<'a> GspMemObjects<'a> {
     pub(crate) fn new(
-        pdev: &pci::Device<device::Bound>,
+        pdev: &'a pci::Device<device::Bound>,
         bar: &'a Devres<Bar0>,
         gsp_falcon: &'a Falcon<Gsp>,
         sec2_falcon: &'a Falcon<Sec2>,

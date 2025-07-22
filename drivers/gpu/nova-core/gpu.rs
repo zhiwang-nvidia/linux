@@ -14,6 +14,7 @@ use crate::firmware::{Firmware, FIRMWARE_VERSION};
 use crate::gfw;
 use crate::gsp;
 use crate::gsp::GspCmdq;
+use crate::gsp::rm_control::RmControl;
 use crate::nvfw::r570_144 as fw;
 use crate::regs;
 use crate::util;
@@ -219,6 +220,7 @@ pub(crate) struct Gpu {
     pub mmu: Mmu,
     pub instmem: Arc<InstMem>,
     pub bars: Arc<Bar>,
+    pub rmcontrol: RmControl,
     pub vgpu: Arc<VGpu>,
 }
 
@@ -504,6 +506,7 @@ impl Gpu {
 
         bar.write32(0x40, 0x110004);
 
+        let rmcontrol = RmControl::new(&gsp_info);
         let vgpu = VGpu::new(vgpu_support)?;
 
         // TODO: Figure out how to convince the compiler that the lifetime
@@ -524,6 +527,7 @@ impl Gpu {
             mmu,
             instmem,
             bars,
+            rmcontrol,
             vgpu,
         }))
     }
