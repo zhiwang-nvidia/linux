@@ -131,10 +131,35 @@ unsafe extern "C" fn detach_handle(handle: *mut core::ffi::c_void) {
     unsafe { bindings::module_put(guard.handle_data.vfio.module) };
 }
 
+unsafe extern "C" fn alloc_gsp_client(handle: *mut core::ffi::c_void, client: *mut bindings::nvidia_vgpu_gsp_client) -> i32 {
+    let vgpu = to_vgpu!(handle);
+
+    pr_info!("alloc gsp client\n");
+
+    if !vgpu.is_enabled() {
+        return ENODEV.to_errno();
+    }
+
+    unsafe { (*client).gsp_client = handle };
+    0
+}
+
+unsafe extern "C" fn free_gsp_client(client: *mut bindings::nvidia_vgpu_gsp_client) {
+    pr_info!("free gsp client\n");
+}
+
+unsafe extern "C" fn get_gsp_client_handle(client: *mut bindings::nvidia_vgpu_gsp_client) -> u32 {
+    pr_info!("get gsp client handle\n");
+    0
+}
+
 const NOVA_VFIO_OPS: bindings::nvidia_vgpu_vfio_ops = bindings::nvidia_vgpu_vfio_ops {
     vgpu_is_enabled: Some(vgpu_is_enabled),
     attach_handle: Some(attach_handle),
     detach_handle: Some(detach_handle),
+    alloc_gsp_client: Some(alloc_gsp_client),
+    free_gsp_client: Some(free_gsp_client),
+    get_gsp_client_handle: Some(get_gsp_client_handle),
 };
 
 #[no_mangle]

@@ -75,6 +75,17 @@ struct nvidia_vgpu_vfio_attach_handle_data {
 	void *init_vfio_fn_data;
 };
 
+/**
+ * struct nvidia_vgpu_gsp_client - the GSP client for VFIO driver
+ *
+ * @gsp_client: GSP object RmClient
+ * @gsp_device: GSP object RmDevice
+ */
+struct nvidia_vgpu_gsp_client {
+	void *gsp_client;
+	void *gsp_device;
+};
+
 struct nvidia_vgpu_vfio_ops {
 	/**
 	 * vgpu_is_enabled() - if vGPU support is enabled in the PF driver.
@@ -83,7 +94,6 @@ struct nvidia_vgpu_vfio_ops {
 	 * Return: True if vGPU support is enabled.
 	 */
 	bool (*vgpu_is_enabled)(void *handle);
-
 	/**
 	 * attach_handle() - attach handle data to the driver handle.
 	 * @handle: the VFIO driver handle.
@@ -103,6 +113,30 @@ struct nvidia_vgpu_vfio_ops {
 	 * The handle must be locked before detach.
 	 */
 	void (*detach_handle)(void *handle);
+	/**
+	 * alloc_gsp_client() - allocate a GSP client.
+	 * @handle: the VFIO driver handle.
+	 * @client: the GSP client.
+	 *
+	 * Return: zero on success, others on errors.
+	 */
+	int (*alloc_gsp_client)(void *handle,
+				struct nvidia_vgpu_gsp_client *client);
+	/**
+	 * free_gsp_client() - free a GSP client.
+	 * @client: the GSP client container.
+	 */
+	void (*free_gsp_client)(struct nvidia_vgpu_gsp_client *client);
+	/**
+	 * get_gsp_client_handle() - get the handle of a GSP client.
+	 * @client: the GSP client.
+	 *
+	 * When allocating the GSP client from the GSP, the PF driver composes a
+	 * handle to repsent the client.
+	 *
+	 * Return: the handle that PF driver composed.
+	 */
+	u32 (*get_gsp_client_handle)(struct nvidia_vgpu_gsp_client *client);
 };
 
 struct nvidia_vgpu_vfio_ops *nova_vgpu_get_vfio_ops(void *handle);
