@@ -26,6 +26,7 @@ use crate::regs::NV_PGSP_QUEUE_HEAD;
 use crate::sbuffer::{SBuffer, SBufferIteratorMut};
 use crate::util::wait_on_result;
 
+pub(crate) mod rm_control;
 pub(crate) mod sequencer;
 
 pub(crate) const GSP_PAGE_SHIFT: usize = 12;
