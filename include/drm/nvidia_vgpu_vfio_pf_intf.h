@@ -175,6 +175,29 @@ struct nvidia_vgpu_vfio_ops {
 	 */
 	void (*rm_ctrl_done)(struct nvidia_vgpu_gsp_client *client,
 			     void *ctrl);
+	/**
+	 * alloc_chids() - allocate the CHIDs.
+	 * @handle: the VFIO driver handle.
+	 * @offset: return the beginning offset of the CHIDs.
+	 * @count: the amount of the CHIDs going to be allocated.
+	 *
+	 * Return: zero on success. others on errors.
+	 */
+	int (*alloc_chids)(void *handle, u32 *offset, u32 count);
+	/**
+	 * free_chids() - free the CHIDs.
+	 * @handle: the VFIO driver handle.
+	 * @offset: the beginning offset of the allocated CHIDs.
+	 * @count: the amount of the CHIDs allocated.
+	 */
+	void (*free_chids)(void *handle, u32 offset, u32 count);
+	/**
+	 * get_avails_chis() - get the total amount of CHIDs for VFIO driver.
+	 * @handle: the VFIO driver handle.
+	 *
+	 * Return: the amount of available CHIDS for VFIO driver.
+	 */
+	u32 (*get_avail_chids)(void *handle);
 };
 
 struct nvidia_vgpu_vfio_ops *nova_vgpu_get_vfio_ops(void *handle);

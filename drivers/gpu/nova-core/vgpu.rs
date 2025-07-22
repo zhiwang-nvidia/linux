@@ -319,6 +319,20 @@ unsafe extern "C" fn rm_ctrl_done(client: *mut bindings::nvidia_vgpu_gsp_client,
     free_rm_control_data(ctrl);
 }
 
+unsafe extern "C" fn alloc_chids(handle: *mut core::ffi::c_void, offset: *mut u32, count: u32) -> i32 {
+    pr_info!("alloc chids\n");
+    0
+}
+
+unsafe extern "C" fn free_chids(handle: *mut core::ffi::c_void, offset: u32, count: u32) {
+    pr_info!("free chids\n");
+}
+
+unsafe extern "C" fn get_avail_chids(handle: *mut core::ffi::c_void) -> u32 {
+    pr_info!("get avail chids\n");
+    2048
+}
+
 const NOVA_VFIO_OPS: bindings::nvidia_vgpu_vfio_ops = bindings::nvidia_vgpu_vfio_ops {
     vgpu_is_enabled: Some(vgpu_is_enabled),
     attach_handle: Some(attach_handle),
@@ -330,6 +344,9 @@ const NOVA_VFIO_OPS: bindings::nvidia_vgpu_vfio_ops = bindings::nvidia_vgpu_vfio
     rm_ctrl_wr: Some(rm_ctrl_wr),
     rm_ctrl_rd: Some(rm_ctrl_rd),
     rm_ctrl_done: Some(rm_ctrl_done),
+    alloc_chids: Some(alloc_chids),
+    free_chids: Some(free_chids),
+    get_avail_chids: Some(get_avail_chids),
 };
 
 #[no_mangle]
