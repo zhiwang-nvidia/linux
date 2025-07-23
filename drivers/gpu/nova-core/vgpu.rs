@@ -371,6 +371,7 @@ unsafe extern "C" fn alloc_fbmem(handle: *mut core::ffi::c_void, info: *mut bind
             base: bindings::nvidia_vgpu_mem {
                 addr: vramobj.addr().unwrap(),
                 size: vramobj.size().unwrap(),
+                bar1_vaddr: core::ptr::null_mut(),
             },
             obj: vramobj,
             bar1_vma: None,
@@ -395,6 +396,44 @@ unsafe extern "C" fn get_total_fbmem_size(handle: *mut core::ffi::c_void) -> u64
     vgpu.vidmem_size
 }
 
+unsafe extern "C" fn bar1_map_mem(mem: *mut bindings::nvidia_vgpu_mem, info: *mut bindings::nvidia_vgpu_map_mem_info) -> i32 {
+    pr_info!("map bar1 mem {:?}\n", mem);
+
+    let fbmem_ptr: *mut VGPUMem = mem as *mut _ as *mut VGPUMem;
+    let fbmem = unsafe { &mut (*fbmem_ptr) };
+
+    let drv = fbmem.handle as *mut NovaCore;
+    let mut nova_core = unsafe { &mut *drv };
+    let gpu = &mut nova_core.gpu;
+    let info = unsafe { &*info };
+
+    let vmm = gpu.bars.bar1_vmm();
+    let size = info.map_size;
+    let vma = vmm.get(false, true, false, 0, 0, size).unwrap();
+
+    match fbmem.obj.vram_map(info.offset_in_mem, &vmm, vma.clone(), 0) {
+        Err(x) => { return x.to_errno(); }
+        _ => {}
+    }
+
+    fbmem.base.bar1_vaddr = unsafe { bindings::ioremap(gpu.bars.bar1_phys_addr + vma.addr(), size as usize) };
+
+    pr_info!("map fbmem {:#x} {:?}\n", vma.addr(), fbmem.base.bar1_vaddr);
+    fbmem.bar1_vma = Some(vma);
+    0
+}
+
+unsafe extern "C" fn bar1_unmap_mem(mem: *mut bindings::nvidia_vgpu_mem) {
+    pr_info!("bar1 unmap mem\n");
+
+    let fbmem_ptr: *mut VGPUMem = mem as *mut _ as *mut VGPUMem;
+    let fbmem = unsafe { &mut (*fbmem_ptr) };
+    pr_info!("unmap bar1 mem\n");
+
+    unsafe { bindings::iounmap(fbmem.base.bar1_vaddr) };
+    fbmem.bar1_vma = None;
+}
+
 const NOVA_VFIO_OPS: bindings::nvidia_vgpu_vfio_ops = bindings::nvidia_vgpu_vfio_ops {
     vgpu_is_enabled: Some(vgpu_is_enabled),
     attach_handle: Some(attach_handle),
@@ -412,6 +451,8 @@ const NOVA_VFIO_OPS: bindings::nvidia_vgpu_vfio_ops = bindings::nvidia_vgpu_vfio
     alloc_fbmem: Some(alloc_fbmem),
     free_fbmem: Some(free_fbmem),
     get_total_fbmem_size: Some(get_total_fbmem_size),
+    bar1_map_mem: Some(bar1_map_mem),
+    bar1_unmap_mem: Some(bar1_unmap_mem),
 };
 
 #[no_mangle]

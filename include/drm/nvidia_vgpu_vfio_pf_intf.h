@@ -91,10 +91,12 @@ struct nvidia_vgpu_gsp_client {
  *
  * @addr: the FB memory offset
  * @size: the FB memory size
+ * @bar1_vaddr: the virtual address where this block is mapped in BAR1
  */
 struct nvidia_vgpu_mem {
-       u64 addr;
-       u64 size;
+	u64 addr;
+	u64 size;
+	void * __iomem bar1_vaddr;
 };
 
 /**
@@ -106,6 +108,17 @@ struct nvidia_vgpu_mem {
 struct nvidia_vgpu_alloc_fbmem_info {
 	u64 size;
 	u64 align;
+};
+
+/**
+ * struct nvidia_vgpu_map_fbmem_info - info for mapping a memory block
+ *
+ * @offset_in_mem: the beginning offset need to be mapped within a memory block.
+ * @map_size: the size to map since the beginning offset.
+ */
+struct nvidia_vgpu_map_mem_info {
+       u64 offset_in_mem;
+       u64 map_size;
 };
 
 struct nvidia_vgpu_vfio_ops {
@@ -241,6 +254,19 @@ struct nvidia_vgpu_vfio_ops {
 	 * Return: the total size of the GPU VRAM.
 	 */
 	u64 (*get_total_fbmem_size)(void *handle);
+	/**
+	 * bar1_map_mem() - map a memory block into BAR1.
+	 * @mem: the memory block.
+	 * @info: the info for the memory block mapping in BAR1.
+	 *
+	 * Return: zero on success. others on errors.
+	 */
+	int (*bar1_map_mem)(struct nvidia_vgpu_mem *mem, struct nvidia_vgpu_map_mem_info *info);
+	/**
+	 * bar1_unmap_mem() - unmap a memory block from BAR1.
+	 * @mem: the memory block.
+	 */
+	void (*bar1_unmap_mem)(struct nvidia_vgpu_mem *mem);
 };
 
 struct nvidia_vgpu_vfio_ops *nova_vgpu_get_vfio_ops(void *handle);
