@@ -41,6 +41,14 @@ enum {
 	NVIDIA_VGPU_PF_DRIVER_CAP_HAS_PF_EVENT_DELIVERY,
 };
 
+enum {
+       NVIDIA_VGPU_PF_DRIVER_EVENT_START = 0,
+       NVIDIA_VGPU_PF_DRIVER_EVENT_SRIOV_CONFIGURE,
+       NVIDIA_VGPU_PF_DRIVER_EVENT_DRIVER_UNBIND,
+       NVIDIA_VGPU_PF_DRIVER_EVENT_END,
+       NVIDIA_VGPU_PF_EVENT_MAX,
+};
+
 /**
  * struct nvidia_vgpu_vfio_handle_data - VFIO driver handle data
  *

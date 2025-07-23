@@ -2,6 +2,7 @@
 
 #![allow(unused)]
 
+use kernel::bindings;
 use kernel::dma::CoherentAllocation;
 use kernel::{c_str, device, devres::Devres, error::code::*, pci, prelude::*, time::Delta};
 
@@ -230,6 +231,8 @@ impl PinnedDrop for Gpu {
         // Unregister the sysmem flush page before we release it.
         self.bar
             .try_access_with(|b| self.sysmem_flush.unregister(b));
+        let _ = self.vgpu
+            .notify_vfio_driver(bindings::NVIDIA_VGPU_PF_DRIVER_EVENT_DRIVER_UNBIND, core::ptr::null_mut());
     }
 }
 

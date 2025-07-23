@@ -8,7 +8,7 @@ use core::ptr::NonNull;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use kernel::new_mutex;
-use kernel::{bindings, device};
+use kernel::{bindings, device, error::to_result};
 use kernel::alloc::Allocator;
 use kernel::alloc::allocator::Kmalloc;
 use kernel::pci;
@@ -178,6 +178,39 @@ impl VGpu {
 
     pub(crate) fn is_enabled(&self) -> bool {
         self.enabled.load(Ordering::SeqCst)
+    }
+
+    pub(crate) fn notify_vfio_driver(&self, event: core::ffi::c_uint, data: *mut core::ffi::c_void) -> Result {
+        let mut guard = self.inner.lock();
+        let mut ret = 0;
+        let vfio = &mut guard.handle_data.vfio;
+
+        if !self.is_enabled() {
+            return Err(ENODEV);
+        }
+
+        if vfio.private_data.is_null() {
+            return Err(ENODEV);
+        }
+
+        if let Some(callback) = vfio.pf_event_notify_fn {
+            ret = unsafe { callback(vfio.private_data, event, data) };
+            if ret != 0 {
+                return to_result(ret);
+            }
+        } else {
+            return Err(EINVAL);
+        }
+
+        if event == bindings::NVIDIA_VGPU_PF_DRIVER_EVENT_DRIVER_UNBIND {
+            if let Some(callback) = vfio.pf_detach_handle_fn {
+                unsafe { callback(vfio.handle, &mut guard.handle_data as *mut _) };
+                guard.handle_data.pf.driver_is_unbound = true;
+            } else {
+                return Err(EINVAL);
+            }
+        }
+        Ok(())
     }
 }
 
