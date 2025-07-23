@@ -267,6 +267,22 @@ struct nvidia_vgpu_vfio_ops {
 	 * @mem: the memory block.
 	 */
 	void (*bar1_unmap_mem)(struct nvidia_vgpu_mem *mem);
+	/**
+	 * get_engine_bitmap_size() - get the engine bitmap size.
+	 * @handle: the VFIO driver handle.
+	 *
+	 * Note that the engine bitmap shows the *present* (even PF driver might not use some of
+	 * them) HW engines encoded by NV2080*.
+	 *
+	 * Return: the size (in bytes) of the engine bitmap.
+	 */
+	unsigned int (*get_engine_bitmap_size)(void *handle);
+	/**
+	 * get_engine_bitmap() - get the engine bitmap.
+	 * @handle: the VFIO driver handle.
+	 * @bitmap: return the engine bitmap.
+	 */
+	void (*get_engine_bitmap)(void *handle, unsigned long *bitmap);
 };
 
 struct nvidia_vgpu_vfio_ops *nova_vgpu_get_vfio_ops(void *handle);

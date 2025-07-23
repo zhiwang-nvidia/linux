@@ -434,6 +434,21 @@ unsafe extern "C" fn bar1_unmap_mem(mem: *mut bindings::nvidia_vgpu_mem) {
     fbmem.bar1_vma = None;
 }
 
+unsafe extern "C" fn get_engine_bitmap_size(handle: *mut core::ffi::c_void) -> u32 {
+    pr_info!("get engine bitmap size\n");
+    0xb
+}
+
+unsafe extern "C" fn get_engine_bitmap(handle: *mut core::ffi::c_void, bitmap: *mut usize) {
+    pr_info!("get engine bitmap\n");
+
+    let value: usize = 0x0008784438383e02;
+
+    unsafe {
+        ptr::copy_nonoverlapping(&value as *const usize, bitmap, 1);
+    }
+}
+
 const NOVA_VFIO_OPS: bindings::nvidia_vgpu_vfio_ops = bindings::nvidia_vgpu_vfio_ops {
     vgpu_is_enabled: Some(vgpu_is_enabled),
     attach_handle: Some(attach_handle),
@@ -453,6 +468,8 @@ const NOVA_VFIO_OPS: bindings::nvidia_vgpu_vfio_ops = bindings::nvidia_vgpu_vfio
     get_total_fbmem_size: Some(get_total_fbmem_size),
     bar1_map_mem: Some(bar1_map_mem),
     bar1_unmap_mem: Some(bar1_unmap_mem),
+    get_engine_bitmap_size: Some(get_engine_bitmap_size),
+    get_engine_bitmap: Some(get_engine_bitmap),
 };
 
 #[no_mangle]
