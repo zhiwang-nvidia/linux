@@ -54,4 +54,16 @@ impl pci::Driver for NovaCore {
 
         Ok(this)
     }
+
+    fn sriov_configure(
+        pdev: &pci::Device,
+        num_vfs: i32) -> Result<i32> {
+        if num_vfs > 0 {
+            pdev.enable_sriov(num_vfs)?;
+            Ok(num_vfs)
+        } else {
+            pdev.disable_sriov()?;
+            Ok(0)
+        }
+    }
 }
