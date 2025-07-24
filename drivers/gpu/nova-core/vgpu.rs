@@ -405,6 +405,7 @@ unsafe extern "C" fn alloc_fbmem(handle: *mut core::ffi::c_void, info: *mut bind
                 addr: vramobj.addr().unwrap(),
                 size: vramobj.size().unwrap(),
                 bar1_vaddr: core::ptr::null_mut(),
+                chan_vma_addr: 0,
             },
             obj: vramobj,
             bar1_vma: None,
@@ -482,6 +483,40 @@ unsafe extern "C" fn get_engine_bitmap(handle: *mut core::ffi::c_void, bitmap: *
     }
 }
 
+unsafe extern "C" fn channel_map_mem(chan: *mut bindings::nvidia_vgpu_chan,
+                                     mem: *mut bindings::nvidia_vgpu_mem,
+                                     info: *mut bindings::nvidia_vgpu_map_mem_info) -> i32 {
+    pr_info!("channel map mem\n");
+    0
+}
+
+unsafe extern "C" fn channel_unmap_mem(mem: *mut bindings::nvidia_vgpu_mem) {
+    pr_info!("channel unmap mem\n");
+}
+
+unsafe extern "C" fn alloc_ce_channel(handle: *mut core::ffi::c_void, chid: i32) -> *mut bindings::nvidia_vgpu_chan {
+    pr_info!("alloc ce channel\n");
+    core::ptr::null_mut()
+}
+
+unsafe extern "C" fn free_ce_channel(chan: *mut bindings::nvidia_vgpu_chan) {
+    pr_info!("free ce channel\n");
+}
+
+unsafe extern "C" fn begin_pushbuf(chan: *mut bindings::nvidia_vgpu_chan, num_dwords: u64) -> i32 {
+    pr_info!("begin pushbuf\n");
+    0
+}
+
+unsafe extern "C" fn emit_pushbuf(chan: *mut bindings::nvidia_vgpu_chan, dwords: u32) {
+    pr_info!("emit pushbuf\n");
+}
+
+unsafe extern "C" fn submit_pushbuf(chan: *mut bindings::nvidia_vgpu_chan) -> i32 {
+    pr_info!("submit pushbuf\n");
+    0
+}
+
 const NOVA_VFIO_OPS: bindings::nvidia_vgpu_vfio_ops = bindings::nvidia_vgpu_vfio_ops {
     vgpu_is_enabled: Some(vgpu_is_enabled),
     attach_handle: Some(attach_handle),
@@ -503,6 +538,13 @@ const NOVA_VFIO_OPS: bindings::nvidia_vgpu_vfio_ops = bindings::nvidia_vgpu_vfio
     bar1_unmap_mem: Some(bar1_unmap_mem),
     get_engine_bitmap_size: Some(get_engine_bitmap_size),
     get_engine_bitmap: Some(get_engine_bitmap),
+    channel_map_mem: Some(channel_map_mem),
+    channel_unmap_mem: Some(channel_unmap_mem),
+    alloc_ce_channel: Some(alloc_ce_channel),
+    free_ce_channel: Some(free_ce_channel),
+    begin_pushbuf: Some(begin_pushbuf),
+    emit_pushbuf: Some(emit_pushbuf),
+    submit_pushbuf: Some(submit_pushbuf),
 };
 
 #[no_mangle]

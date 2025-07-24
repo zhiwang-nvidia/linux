@@ -42,11 +42,14 @@ enum {
 };
 
 enum {
-       NVIDIA_VGPU_PF_DRIVER_EVENT_START = 0,
-       NVIDIA_VGPU_PF_DRIVER_EVENT_SRIOV_CONFIGURE,
-       NVIDIA_VGPU_PF_DRIVER_EVENT_DRIVER_UNBIND,
-       NVIDIA_VGPU_PF_DRIVER_EVENT_END,
-       NVIDIA_VGPU_PF_EVENT_MAX,
+	NVIDIA_VGPU_PF_DRIVER_EVENT_START = 0,
+	NVIDIA_VGPU_PF_DRIVER_EVENT_SRIOV_CONFIGURE,
+	NVIDIA_VGPU_PF_DRIVER_EVENT_DRIVER_UNBIND,
+	NVIDIA_VGPU_PF_DRIVER_EVENT_END,
+	NVIDIA_VGPU_PF_CHANNEL_EVENT_START,
+	NVIDIA_VGPU_PF_CHANNEL_EVENT_FIFO_NONSTALL,
+	NVIDIA_VGPU_PF_CHANNEL_EVENT_END,
+	NVIDIA_VGPU_PF_EVENT_MAX,
 };
 
 /**
@@ -100,11 +103,13 @@ struct nvidia_vgpu_gsp_client {
  * @addr: the FB memory offset
  * @size: the FB memory size
  * @bar1_vaddr: the virtual address where this block is mapped in BAR1
+ * @chan_vma_vaddr: the virtual address where this block is mapped in channel page table.
  */
 struct nvidia_vgpu_mem {
 	u64 addr;
 	u64 size;
 	void * __iomem bar1_vaddr;
+	u64 chan_vma_addr;
 };
 
 /**
@@ -119,14 +124,31 @@ struct nvidia_vgpu_alloc_fbmem_info {
 };
 
 /**
+ * struct nvidia_vgpu_chan - GPU channel for VFIO driver
+ *
+ * @ce_object_handle: the CE object handle
+ * @pushbuf_size: the size of allocated pushbuf size
+ * @pushbuf_vaddr: the vaddr of the allocated pushbuf
+ */
+struct nvidia_vgpu_chan {
+	u64 ce_object_handle;
+	u64 pushbuf_size;
+	void * __iomem pushbuf_vaddr;
+};
+
+/**
  * struct nvidia_vgpu_map_fbmem_info - info for mapping a memory block
  *
  * @offset_in_mem: the beginning offset need to be mapped within a memory block.
  * @map_size: the size to map since the beginning offset.
+ * @compressible_disable_plc: enable compressible_disable_plc kind when mapping.
+ * @huge_page: try to map this memory block as huge pages.
  */
 struct nvidia_vgpu_map_mem_info {
        u64 offset_in_mem;
        u64 map_size;
+       bool compressible_disable_plc;
+       bool huge_page;
 };
 
 struct nvidia_vgpu_vfio_ops {
@@ -291,6 +313,60 @@ struct nvidia_vgpu_vfio_ops {
 	 * @bitmap: return the engine bitmap.
 	 */
 	void (*get_engine_bitmap)(void *handle, unsigned long *bitmap);
+	/**
+	 * channel_map_mem() - map a memory block into the channel GPU page table.
+	 * @channel: the channel.
+	 * @mem: the memory block.
+	 * @info: the info for the memory block mapping.
+	 *
+	 * Return: zero on success. others on errors.
+	 */
+	int (*channel_map_mem)(struct nvidia_vgpu_chan *chan,
+			       struct nvidia_vgpu_mem *mem,
+			       struct nvidia_vgpu_map_mem_info *info);
+	/**
+	 * channel_unmap_mem() - unmap a memory block from the channel GPU page table.
+	 * @mem: the memory block.
+	 */
+	void (*channel_unmap_mem)(struct nvidia_vgpu_mem *mem);
+	/**
+	 * alloc_ce_channel() - allocate a CE channel.
+	 * @handle: the VFIO driver handle.
+	 * @chid: the channel ID associated with this CE channel.
+	 *
+	 * Note that the async CE is preferred.
+	 * Return: the allocated channel on success. an error pointer on errors.
+	 */
+	struct nvidia_vgpu_chan *(*alloc_ce_channel)(void *handle, int chid);
+	/**
+	 * free_ce_channel() - free a CE channel.
+	 * @chan: the CE channel to be freed.
+	 */
+	void (*free_ce_channel)(struct nvidia_vgpu_chan *chan);
+	/**
+	 * begin_pushbuf() - begin a new pushbuf submission.
+	 * @chan: the CE channel.
+	 * num_dwords: amount of the dwords needs to be available in the push buf.
+	 *
+	 * Return: zero on success. others on errors.
+	 */
+	int (*begin_pushbuf)(struct nvidia_vgpu_chan *chan, u64 num_dwords);
+	/**
+	 * emit_pushbuf() - emit a dword into a push buf.
+	 * @chan: the CE channel.
+	 * dword: the dword needs to be placed in the push buf.
+	 */
+	void (*emit_pushbuf)(struct nvidia_vgpu_chan *chan, u32 dword);
+	/**
+	 * submit_pushbuf() - submit the emitted push buf to the CE engine.
+	 * @chan: the CE channel.
+	 *
+	 * Note that the FIFO_NONSTALL events need to be forwarded by the PF driver for workload
+	 * completion.
+	 *
+	 * Return: zero on success. others on errors.
+	 */
+	int (*submit_pushbuf)(struct nvidia_vgpu_chan *chan);
 };
 
 struct nvidia_vgpu_vfio_ops *nova_vgpu_get_vfio_ops(void *handle);
