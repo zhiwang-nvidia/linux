@@ -429,6 +429,19 @@ impl Device {
         // - by its type invariant `self.as_raw` is always a valid pointer to a `struct pci_dev`.
         Ok(unsafe { bindings::pci_resource_len(self.as_raw(), bar.try_into()?) })
     }
+
+    /// Returns total VFs.
+    /// Returns total number of VFs, or `Err(ENODEV)` if none available.
+    pub fn sriov_get_totalvfs(&self) -> Result<i32> {
+        // SAFETY: `self.as_raw()` is a valid pointer to a `struct pci_dev`.
+        let vfs = unsafe { bindings::pci_sriov_get_totalvfs(self.as_raw()) };
+
+        if vfs != 0 {
+            Ok(vfs)
+        } else {
+            Err(ENODEV)
+        }
+    }
 }
 
 impl Device<device::Bound> {
