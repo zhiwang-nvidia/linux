@@ -7,6 +7,7 @@ use core::mem::MaybeUninit;
 use kernel::alloc::allocator::Kmalloc;
 use kernel::alloc::Allocator;
 use kernel::asm;
+use kernel::bindings;
 use kernel::device;
 use kernel::devres::Devres;
 use kernel::dma::CoherentAllocation;
@@ -958,7 +959,8 @@ fn build_registry<'a>(bar: &Devres<Bar0>, cmdq: &mut GspCmdq) {
 
 impl GspMessageElement for fw::GspSystemInfo {}
 
-fn set_system_info<'a>(dev: &pci::Device<device::Bound>, bar: &Devres<Bar0>, cmdq: &mut GspCmdq) -> Result {
+fn set_system_info<'a>(dev: &pci::Device<device::Bound>, bar: &'a Devres<Bar0>,
+    cmdq: &mut GspCmdq, vgpu_supported: bool) -> Result {
     let mut info = unsafe { MaybeUninit::<fw::GspSystemInfo>::zeroed().assume_init() };
 
     info.gpuPhysAddr = dev.resource_start(0)?;
@@ -978,6 +980,39 @@ fn set_system_info<'a>(dev: &pci::Device<device::Bound>, bar: &Devres<Bar0>, cmd
     info.PCIRevisionID = dev.revision_id() as u32;
     info.bIsPrimary = 0;
     info.bPreserveVideoMemoryAllocations = 0;
+
+    if vgpu_supported {
+        info.gspVFInfo.totalVFs = dev.sriov_get_totalvfs()? as u32;
+
+        let pos = dev.find_ext_capability(bindings::PCI_EXT_CAP_ID_SRIOV as i32).ok_or(ENODEV)?;
+
+        let val = dev.config_read_word((pos as i32) + bindings::PCI_SRIOV_VF_OFFSET as i32)?;
+        info.gspVFInfo.firstVFOffset = val as u32;
+
+        let val = dev.config_read_dword((pos as i32) + bindings::PCI_SRIOV_BAR as i32)?;
+        info.gspVFInfo.FirstVFBar0Address = val as u64;
+
+        let bar1_lo = dev.config_read_dword((pos as i32) + bindings::PCI_SRIOV_BAR as i32 + 4)?;
+        let bar1_hi = dev.config_read_dword((pos as i32) + bindings::PCI_SRIOV_BAR as i32 + 8)?;
+
+        let addr_mask = bindings::PCI_BASE_ADDRESS_MEM_MASK as u64;
+
+        info.gspVFInfo.FirstVFBar1Address =
+            ((bar1_hi as u64) << 32) | ((bar1_lo as u64) & addr_mask);
+
+        let bar2_lo = dev.config_read_dword((pos as i32) + bindings::PCI_SRIOV_BAR as i32 + 12)?;
+        let bar2_hi = dev.config_read_dword((pos as i32) + bindings::PCI_SRIOV_BAR as i32 + 16)?;
+
+        info.gspVFInfo.FirstVFBar2Address = ((bar2_hi as u64) << 32) | ((bar2_lo as u64) & addr_mask);
+
+        let bar0 = bar.access(dev.as_ref())?;
+
+        let val = bar0.read32(0x88000 + 0xbf4);
+        info.gspVFInfo.b64bitBar1 = ((val & 0x00000006) == 0x00000004) as u8;
+
+        let val = bar0.read32(0x88000 + 0xbfc);
+        info.gspVFInfo.b64bitBar2 = ((val & 0x00000006) == 0x00000004) as u8;
+    }
 
     cmdq.send(bar, fw::NV_VGPU_MSG_FUNCTION_GSP_SET_SYSTEM_INFO, &mut info)?;
     Ok(())
@@ -1020,6 +1055,7 @@ impl<'a> GspMemObjects<'a> {
         sec2_falcon: &'a Falcon<Sec2>,
         fw: &'a Firmware,
         cmdq: &mut GspCmdq,
+        vgpu_supported: bool,
     ) -> Result<Self> {
         let dev = pdev.as_ref();
         let mut libos = DmaObject::new(dev, GSP_PAGE_SIZE)?;
@@ -1042,7 +1078,7 @@ impl<'a> GspMemObjects<'a> {
         dma_write!(rmargs[0].srInitArguments.bInPMTransition = 0)?;
         dma_write!(rmargs[0].bDmemStack = 1)?;
 
-        set_system_info(pdev, bar, cmdq)?;
+        set_system_info(pdev, bar, cmdq, vgpu_supported)?;
         build_registry(bar, cmdq);
 
         Ok(GspMemObjects {

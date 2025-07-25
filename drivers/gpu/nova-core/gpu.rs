@@ -406,7 +406,8 @@ impl Gpu {
         Self::run_fwsec_frts(pdev.as_ref(), &gsp_falcon, bar, &bios, &fb_layout)?;
 
         let mut cmdq = GspCmdq::new(pdev.as_ref())?;
-        let mut libos = gsp::GspMemObjects::new(pdev, Arc::as_ref(&arc_bar), &gsp_falcon, &sec2_falcon, &fw, &mut cmdq)?;
+        let mut libos = gsp::GspMemObjects::new(pdev, Arc::as_ref(&arc_bar), &gsp_falcon, &sec2_falcon, &fw,
+                                                &mut cmdq, vgpu_support)?;
         let libos_handle = libos.libos.dma_handle();
         let wpr_meta = gsp::build_wpr_meta(pdev.as_ref(), &fw, &fb_layout)?;
         let wpr_handle = wpr_meta.dma_handle();
