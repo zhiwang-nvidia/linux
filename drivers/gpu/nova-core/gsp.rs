@@ -858,14 +858,16 @@ fn create_dma_object(
     Ok(obj)
 }
 
-const GSP_REGISTRY_NUM_ENTRIES: usize = 2;
+const GSP_MAX_REGISTRY_NUM_ENTRIES: usize = 3;
+
 struct RegistryEntry {
     key: &'static str,
     value: u32,
 }
 
 struct RegistryTable {
-    entries: [RegistryEntry; GSP_REGISTRY_NUM_ENTRIES],
+    entries: [RegistryEntry; GSP_MAX_REGISTRY_NUM_ENTRIES],
+    num_entries: usize,
 }
 
 impl GspMessageElement for RegistryTable {
@@ -887,13 +889,13 @@ impl GspMessageElement for RegistryTable {
             let table = ptr as *mut fw::PACKED_REGISTRY_TABLE;
             let mut table_data = ptr.add(
                 size_of::<fw::PACKED_REGISTRY_TABLE>()
-                    + GSP_REGISTRY_NUM_ENTRIES * size_of::<fw::PACKED_REGISTRY_ENTRY>(),
+                    + self.num_entries * size_of::<fw::PACKED_REGISTRY_ENTRY>(),
             );
 
-            (*table).numEntries = GSP_REGISTRY_NUM_ENTRIES as u32;
+            (*table).numEntries = self.num_entries as u32;
             (*table).size = total_size as u32;
 
-            for i in 0..GSP_REGISTRY_NUM_ENTRIES {
+            for i in 0..self.num_entries {
                 let entry_ptr = ptr.add(
                     size_of::<fw::PACKED_REGISTRY_TABLE>()
                         + i * size_of::<fw::PACKED_REGISTRY_ENTRY>(),
@@ -930,16 +932,16 @@ impl GspMessageElement for RegistryTable {
 
     fn size(&self) -> usize {
         let mut key_size = 0;
-        for i in 0..GSP_REGISTRY_NUM_ENTRIES {
+        for i in 0..self.num_entries {
             key_size += self.entries[i].key.len() + 1; // +1 for NULL terminator
         }
         size_of::<fw::PACKED_REGISTRY_TABLE>()
-            + GSP_REGISTRY_NUM_ENTRIES * size_of::<fw::PACKED_REGISTRY_ENTRY>()
+            + self.num_entries * size_of::<fw::PACKED_REGISTRY_ENTRY>()
             + key_size
     }
 }
 
-fn build_registry<'a>(bar: &Devres<Bar0>, cmdq: &mut GspCmdq) {
+fn build_registry(bar: &Devres<Bar0>, cmdq: &mut GspCmdq, vgpu_support:bool) {
     let mut registry = RegistryTable {
         entries: [
             RegistryEntry {
@@ -950,11 +952,19 @@ fn build_registry<'a>(bar: &Devres<Bar0>, cmdq: &mut GspCmdq) {
                 key: "RMForcePcieConfigSave",
                 value: 1,
             },
+            RegistryEntry {
+                key: "RMSetSriovMode",
+                value: 1,
+            },
         ],
+        num_entries: 2,
     };
 
-    cmdq.send(bar, fw::NV_VGPU_MSG_FUNCTION_SET_REGISTRY, &mut registry)
-        .unwrap();
+    if vgpu_support {
+        registry.num_entries = 3;
+    }
+
+    cmdq.send(bar, fw::NV_VGPU_MSG_FUNCTION_SET_REGISTRY, &mut registry).unwrap();
 }
 
 impl GspMessageElement for fw::GspSystemInfo {}
@@ -1079,7 +1089,7 @@ impl<'a> GspMemObjects<'a> {
         dma_write!(rmargs[0].bDmemStack = 1)?;
 
         set_system_info(pdev, bar, cmdq, vgpu_supported)?;
-        build_registry(bar, cmdq);
+        build_registry(bar, cmdq, vgpu_supported);
 
         Ok(GspMemObjects {
             libos,
