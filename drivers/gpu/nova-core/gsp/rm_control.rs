@@ -3,11 +3,13 @@
 // RM Control implementation for nova-core
 // RM control commands are used to query and configure various GPU resources.
 
+use crate::driver::Bar0;
 use crate::gsp::{GspCmdq, GspMessageElement, GspStaticConfigInfo};
 use crate::nvfw::r570_144 as fw;
 use crate::sbuffer::{SBuffer, SBufferIteratorMut};
 use crate::util::wait_on_result;
 use kernel::device;
+use kernel::devres::Devres;
 use kernel::prelude::*;
 use kernel::time::Delta;
 use kernel::{dev_err, dev_info};
@@ -86,7 +88,6 @@ pub(crate) trait RmControlMessageElement: Sized {
 
 // Main RM Control API struct
 pub(crate) struct RmControl<'a> {
-    cmdq: &'a mut GspCmdq<'a>,
     gsp_info: &'a GspStaticConfigInfo,
     dev: &'a device::Device<device::Bound>,
 }
@@ -95,12 +96,10 @@ pub(crate) struct RmControl<'a> {
 impl<'a> RmControl<'a> {
     /// Create new RM control instance
     pub(crate) fn new(
-        cmdq: &'a mut GspCmdq<'a>,
         gsp_info: &'a GspStaticConfigInfo,
         dev: &'a device::Device<device::Bound>,
     ) -> Self {
         Self {
-            cmdq,
             gsp_info,
             dev,
         }
@@ -109,6 +108,8 @@ impl<'a> RmControl<'a> {
     /// Send an RM control command and get typed response
     pub(crate) fn send<P: RmControlParams, T: RmControlMessageElement>(
         &mut self,
+        bar: &Devres<Bar0>,
+        cmdq: &mut GspCmdq,
         cmd: u32,
         params: Option<&P>,
     ) -> Result<T> {
@@ -131,8 +132,7 @@ impl<'a> RmControl<'a> {
         };
 
         // Send the command using GSP RPC.
-        self.cmdq
-            .send(fw::NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL, &msg)?;
+        cmdq.send(bar, fw::NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL, &msg)?;
 
         dev_info!(
             self.dev,
@@ -143,8 +143,7 @@ impl<'a> RmControl<'a> {
 
         // Wait for response
         let response = wait_on_result(Delta::from_secs(5), || {
-            match self
-                .cmdq
+            match cmdq
                 .receive::<RmControlGspResponse>(fw::NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL)
             {
                 Ok(response) => Some(Ok(response)),

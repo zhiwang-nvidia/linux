@@ -11,6 +11,7 @@ use crate::firmware::fwsec::{FwsecCommand, FwsecFirmware};
 use crate::firmware::{Firmware, FIRMWARE_VERSION};
 use crate::gfw;
 use crate::gsp;
+use crate::gsp::GspCmdq;
 use crate::nvfw::r570_144 as fw;
 use crate::regs;
 use crate::util;
@@ -199,6 +200,7 @@ pub(crate) struct Gpu {
     wpr_meta: CoherentAllocation<fw::GspFwWprMeta>,
     /// GSP static information
     gsp_info: gsp::GspStaticConfigInfo,
+    pub cmdq: gsp::GspCmdq,
 }
 
 #[pinned_drop]
@@ -380,7 +382,8 @@ impl Gpu {
 
         Self::run_fwsec_frts(pdev.as_ref(), &gsp_falcon, bar, &bios, &fb_layout)?;
 
-        let mut libos = gsp::GspMemObjects::new(pdev, &devres_bar, &gsp_falcon, &sec2_falcon, &fw)?;
+        let mut cmdq = GspCmdq::new(pdev.as_ref())?;
+        let mut libos = gsp::GspMemObjects::new(pdev, &devres_bar, &gsp_falcon, &sec2_falcon, &fw, &mut cmdq)?;
         let libos_handle = libos.libos.dma_handle();
         let wpr_meta = gsp::build_wpr_meta(pdev.as_ref(), &fw, &fb_layout)?;
         let wpr_handle = wpr_meta.dma_handle();
@@ -424,9 +427,9 @@ impl Gpu {
 
         Self::init_debugfs(&libos);
 
-        libos.cmdq.run_sequencer(Delta::from_secs(10))?;
-        libos.cmdq.gsp_init_done(Delta::from_secs(10))?;
-        let gsp_info = libos.cmdq.get_gsp_info()?;
+        libos.falcon.run_sequencer(&mut cmdq, Delta::from_secs(10))?;
+        libos.falcon.gsp_init_done(&mut cmdq, Delta::from_secs(10))?;
+        let gsp_info = libos.falcon.get_gsp_info(&mut cmdq)?;
 
         dev_info!(
             pdev.as_ref(),
@@ -455,6 +458,7 @@ impl Gpu {
             sysmem_flush,
             wpr_meta,
             gsp_info,
+            cmdq,
         }))
     }
 }
