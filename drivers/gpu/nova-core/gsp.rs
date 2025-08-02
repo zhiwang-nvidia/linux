@@ -427,6 +427,9 @@ impl GspCmdq {
         let total_size = sbuf.total_bytes;
         msg_header.elem_count = total_size.div_ceil(GSP_PAGE_SIZE) as u32;
 
+        // Re-write the message header with the updated element count and checksum
+        sbuf.write(0, msg_header_slice)?;
+
         // Calculate checksum over the entire message
         msg_header.checksum = GspCmdq::calculate_checksum(&sbuf);
 
