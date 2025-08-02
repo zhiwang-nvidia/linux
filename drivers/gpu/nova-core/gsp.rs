@@ -368,7 +368,7 @@ impl GspCmdq {
         let slice_2: &mut [u8] = unsafe {
             core::slice::from_raw_parts_mut(
                 ptr as *mut u8,
-                (msg_size - 0x3f + wptr) * GSP_PAGE_SIZE,
+                (msg_size - (0x3f - wptr)) * GSP_PAGE_SIZE,
             )
         };
         return SBuffer::<'b>::new((slice_1, Some(slice_2)));
