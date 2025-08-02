@@ -4,7 +4,7 @@
 // RM control commands are used to query and configure various GPU resources.
 
 use crate::driver::Bar0;
-use crate::gsp::{GspCmdq, GspMessageElement, GspStaticConfigInfo};
+use crate::gsp::{GspCmdq, GspMessageElement, GspStaticConfigInfo, GspRpcHeader, GspMsgHeader};
 use crate::nvfw::r570_144 as fw;
 use crate::sbuffer::{SBuffer, SBufferIteratorMut};
 use crate::util::wait_on_result;
@@ -47,31 +47,59 @@ impl GspMessageElement for RmControlGspResponse {
 
 // Message wrapper for sending (header + params)
 struct RmControlMessage<'a> {
+    copied_size: usize,
     header: RmControlHeader,
     params: Option<&'a [u8]>,
 }
 
 impl<'a> GspMessageElement for RmControlMessage<'a> {
-    fn copy_to_sbuf(&self, sbuf: &mut SBufferIteratorMut<'_, '_>) -> Result {
-        // Write the header
-        let header_bytes = unsafe {
-            core::slice::from_raw_parts(
-                &self.header as *const RmControlHeader as *const u8,
-                size_of::<RmControlHeader>(),
-            )
-        };
-        sbuf.write_slice(header_bytes)?;
+    fn copy_to_sbuf(&mut self, sbuf: &mut SBufferIteratorMut<'_, '_>) -> Result {
+        let header_len = size_of::<RmControlHeader>();
+        let mut copied = 0;
+
+        if self.copied_size == 0 {
+            // Write the header
+            let header_bytes = unsafe {
+                core::slice::from_raw_parts(
+                    &self.header as *const RmControlHeader as *const u8,
+                    header_len,
+                )
+            };
+            sbuf.write_slice(header_bytes)?;
+            copied += header_len;
+        }
 
         // Write params if present
         if let Some(params) = self.params {
-            sbuf.write_slice(params)?;
+            let max_params_size: usize = (16 * 0x1000) - size_of::<GspMsgHeader>() - size_of::<GspRpcHeader>() - copied;
+            let mut start = 0;
+
+            if self.copied_size != 0 {
+                start = self.copied_size - header_len;
+            }
+
+            let end = (start + max_params_size).min(params.len());
+            let params_slice = &params[start..end];
+
+            sbuf.write_slice(params_slice)?;
+            copied += params_slice.len();
         }
+
+        self.copied_size += copied;
 
         Ok(())
     }
 
     fn size(&self) -> usize {
         size_of::<RmControlHeader>() + self.header.params_size as usize
+    }
+
+    fn remain_size(&self) -> Result<usize> {
+        if self.copied_size < self.size() {
+            Ok(self.size() - self.copied_size)
+        } else {
+            Err(EINVAL)
+        }
     }
 }
 
@@ -126,13 +154,14 @@ impl<'a> RmControl<'a> {
         };
 
         // Create message wrapper
-        let msg = RmControlMessage {
+        let mut msg = RmControlMessage {
+            copied_size: 0,
             header,
             params: params.map(|p| p.to_bytes()),
         };
 
         // Send the command using GSP RPC.
-        cmdq.send(bar, fw::NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL, &msg)?;
+        cmdq.send(bar, fw::NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL, &mut msg)?;
 
         dev_info!(
             self.dev,

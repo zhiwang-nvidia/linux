@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 use core::alloc::Layout;
+use core::cmp::min;
 use core::mem::MaybeUninit;
 
 use kernel::alloc::allocator::Kmalloc;
@@ -22,6 +23,7 @@ use crate::falcon::{gsp::Gsp, sec2::Sec2, Falcon};
 use crate::fb::FbLayout;
 use crate::firmware::Firmware;
 use crate::nvfw::r570_144 as fw;
+use crate::nvfw::r570_144::NV_VGPU_MSG_FUNCTION_CONTINUATION_RECORD;
 use crate::regs::NV_PGSP_QUEUE_HEAD;
 use crate::sbuffer::{SBuffer, SBufferIteratorMut};
 use crate::util::wait_on_result;
@@ -48,7 +50,7 @@ unsafe impl AsBytes for fw::GspSystemInfo {}
 // message which is only converted to bytes when actually doing the call. See the
 // registry for an example.
 pub(crate) trait GspMessageElement {
-    fn copy_to_sbuf(&self, sbuf: &mut SBufferIteratorMut<'_, '_>) -> Result
+    fn copy_to_sbuf(&mut self, sbuf: &mut SBufferIteratorMut<'_, '_>) -> Result
     where
         Self: Sized,
     {
@@ -88,6 +90,13 @@ pub(crate) trait GspMessageElement {
         Self: Sized,
     {
         return size_of::<Self>();
+    }
+
+    fn remain_size(&self) -> Result<usize>
+    where
+        Self: Sized,
+    {
+        return Err(EINVAL);
     }
 }
 
@@ -374,11 +383,12 @@ impl GspCmdq {
         return SBuffer::<'b>::new((slice_1, Some(slice_2)));
     }
 
-    pub(crate) fn send<A: GspMessageElement>(
+    pub(crate) fn send_one_cmd<A: GspMessageElement>(
         self: &mut Self,
         bar: &Devres<Bar0>,
         function: u32,
-        cmd: &A,
+        cmd: &mut A,
+        cmd_length: usize
     ) -> Result<()> {
         let mut msg_header = GspMsgHeader {
             auth_tag_buffer: [0; 16],
@@ -400,10 +410,10 @@ impl GspCmdq {
         };
 
         self.seq += 1;
-        rpc.length = (size_of::<GspRpcHeader>() + cmd.size()) as u32;
+        rpc.length = (size_of::<GspRpcHeader>() + cmd_length) as u32;
 
         let mut sbuf = self.alloc_cmd_sbuffer(
-            size_of::<GspMsgHeader>() + size_of::<GspRpcHeader>() + cmd.size() as usize,
+            size_of::<GspMsgHeader>() + size_of::<GspRpcHeader>() + cmd_length as usize,
         )?;
         let msg_header_slice = unsafe {
             core::slice::from_raw_parts(
@@ -451,6 +461,22 @@ impl GspCmdq {
             NV_PGSP_QUEUE_HEAD::default().set_address(0 as u32).write(b);
         });
 
+        Ok(())
+    }
+
+    pub(crate) fn send<A: GspMessageElement>(
+        self: &mut Self,
+        bar: &Devres<Bar0>,
+        function: u32,
+        cmd: &mut A,
+    ) -> Result<()> {
+        let max_payload_size: usize = (16 * 0x1000) - size_of::<GspMsgHeader>() - size_of::<GspRpcHeader>();
+
+        self.send_one_cmd::<A>(bar, function, cmd, min(max_payload_size, cmd.size()))?;
+
+        while let Ok(size) = cmd.remain_size() {
+            self.send_one_cmd::<A>(bar, NV_VGPU_MSG_FUNCTION_CONTINUATION_RECORD, cmd, min(max_payload_size, size))?;
+        }
         Ok(())
     }
 
@@ -621,7 +647,7 @@ impl<'a> GspFalcon<'a> {
         cmdq.send(
             self.bar,
             fw::NV_VGPU_MSG_FUNCTION_GET_GSP_STATIC_INFO,
-            &EmptyCmd {
+            &mut EmptyCmd {
                 size: size_of::<fw::GspStaticConfigInfo_t>(),
             },
         )?;
@@ -641,7 +667,7 @@ impl GspMessageElement for EmptyCmd {
         self.size
     }
 
-    fn copy_to_sbuf(&self, sbuf: &mut SBufferIteratorMut<'_, '_>) -> Result {
+    fn copy_to_sbuf(&mut self, sbuf: &mut SBufferIteratorMut<'_, '_>) -> Result {
         for _i in 0..self.size {
             sbuf.write_byte(0)?;
         }
@@ -808,7 +834,7 @@ struct RegistryTable {
 }
 
 impl GspMessageElement for RegistryTable {
-    fn copy_to_sbuf(&self, sbuf: &mut SBufferIteratorMut<'_, '_>) -> Result {
+    fn copy_to_sbuf(&mut self, sbuf: &mut SBufferIteratorMut<'_, '_>) -> Result {
         let total_size = self.size();
         let align = core::mem::align_of::<fw::PACKED_REGISTRY_TABLE>();
         let layout = Layout::from_size_align(total_size, align)
@@ -879,7 +905,7 @@ impl GspMessageElement for RegistryTable {
 }
 
 fn build_registry<'a>(bar: &Devres<Bar0>, cmdq: &mut GspCmdq) {
-    let registry = RegistryTable {
+    let mut registry = RegistryTable {
         entries: [
             RegistryEntry {
                 key: "RMSecBusResetEnable",
@@ -892,7 +918,7 @@ fn build_registry<'a>(bar: &Devres<Bar0>, cmdq: &mut GspCmdq) {
         ],
     };
 
-    cmdq.send(bar, fw::NV_VGPU_MSG_FUNCTION_SET_REGISTRY, &registry)
+    cmdq.send(bar, fw::NV_VGPU_MSG_FUNCTION_SET_REGISTRY, &mut registry)
         .unwrap();
 }
 
@@ -919,7 +945,7 @@ fn set_system_info<'a>(dev: &pci::Device<device::Bound>, bar: &Devres<Bar0>, cmd
     info.bIsPrimary = 0;
     info.bPreserveVideoMemoryAllocations = 0;
 
-    cmdq.send(bar, fw::NV_VGPU_MSG_FUNCTION_GSP_SET_SYSTEM_INFO, &info)?;
+    cmdq.send(bar, fw::NV_VGPU_MSG_FUNCTION_GSP_SET_SYSTEM_INFO, &mut info)?;
     Ok(())
 }
 
