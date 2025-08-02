@@ -501,7 +501,7 @@ impl GspCmdq {
             ))?
         } else {
             let slice_1 =
-                &mut msg_slice[(header_size as usize)..(header_size + remaining) as usize];
+                &mut msg_slice[(header_size as usize)..(remaining) as usize];
             let ptr =
                 unsafe { core::ptr::addr_of_mut!((*self.gsp_mem.start_ptr_mut()).gspq.msgq[0]) };
             let slice_2 = unsafe {
