@@ -294,6 +294,12 @@ impl<const ID: u64> ListLinks<ID> {
     unsafe fn from_fields(me: *mut ListLinksFields) -> *mut Self {
         me.cast()
     }
+
+    #[inline]
+    unsafe fn fields_nomut(me: *const Self) -> *mut ListLinksFields {
+        // SAFETY: The caller promises that the pointer is valid.
+        unsafe { Opaque::raw_get(ptr::addr_of!((*me).inner)) }
+    }
 }
 
 /// Similar to [`ListLinks`], but also contains a pointer to the full value.
@@ -423,6 +429,56 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
 
         // INVARIANT: `new_elem` is in the list because we just inserted it.
         self.first = new_elem;
+    }
+
+    ///
+    pub fn push_before(&mut self, item: &ListLinks<ID>, new_item: ListArc<T, ID>) {
+        let raw_new_item = ListArc::into_raw(new_item);
+        let new_links = unsafe { T::prepare_to_insert(raw_new_item) };
+        // SAFETY: We have not yet called `post_remove`, so `list_links` is still valid.
+        let new_item = unsafe { ListLinks::fields(new_links) };
+
+        let item = unsafe { ListLinks::fields_nomut(item) };
+        unsafe {
+
+            let next = item;
+            let prev = (*item).prev;
+            // SAFETY: By the type invariant, this pointer is valid or null. We just checked that
+            // it's not null, so it must be valid.
+            // SAFETY: Pointers in a linked list are never dangling, and the caller just gave us
+            // ownership of the fields on `item`.
+            // INVARIANT: This correctly inserts `item` between `prev` and `next`.
+            (*new_item).next = next;
+            (*new_item).prev = prev;
+            (*next).prev = new_item;
+            (*prev).next = new_item;
+        }
+        if self.first == item {
+            self.first = new_item;
+        }
+    }
+
+    ///
+    pub fn push_after(&mut self, item: &ListLinks<ID>, new_item: ListArc<T, ID>) {
+        let raw_new_item = ListArc::into_raw(new_item);
+        let new_links = unsafe { T::prepare_to_insert(raw_new_item) };
+        // SAFETY: We have not yet called `post_remove`, so `list_links` is still valid.
+        let new_item = unsafe { ListLinks::fields(new_links) };
+
+        let item = unsafe { ListLinks::fields_nomut(item) };
+        unsafe {
+            let prev = item;
+            let next = (*item).next;
+            // SAFETY: By the type invariant, this pointer is valid or null. We just checked that
+            // it's not null, so it must be valid.
+            // SAFETY: Pointers in a linked list are never dangling, and the caller just gave us
+            // ownership of the fields on `item`.
+            // INVARIANT: This correctly inserts `item` between `prev` and `next`.
+            (*new_item).next = next;
+            (*new_item).prev = prev;
+            (*prev).next = new_item;
+            (*next).prev = new_item;
+        }
     }
 
     /// Removes the last item from this list.
@@ -864,6 +920,20 @@ impl<'a, T: ?Sized + ListItem<ID>, const ID: u64> Cursor<'a, T, ID> {
             ptr: self.next,
             cursor: self,
         })
+    }
+
+    ///
+    pub fn eq_next(&mut self, test: &T) -> bool {
+        if self.next.is_null() {
+            return false;
+        }
+
+        let me = self.next;
+        let testfield = unsafe { ListLinks::fields(T::view_links(test)) };
+        if me == testfield {
+            return true;
+        }
+        return false;
     }
 
     /// Access the element before this cursor.
