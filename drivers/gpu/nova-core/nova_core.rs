@@ -35,6 +35,7 @@ mod gfw;
 mod gpu;
 mod gsp;
 mod nvfw;
+mod port;
 mod regs;
 mod sbuffer;
 mod util;
