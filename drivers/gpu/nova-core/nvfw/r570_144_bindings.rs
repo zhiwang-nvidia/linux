@@ -855,3 +855,16 @@ impl Default for GSP_SEQUENCER_BUFFER_CMD {
         }
     }
 }
+
+pub const NV_RPC_UPDATE_PDE_BAR_1: _bindgen_ty_2 = 0;
+pub const NV_RPC_UPDATE_PDE_BAR_2: _bindgen_ty_2 = 1;
+pub const NV_RPC_UPDATE_PDE_BAR_INVALID: _bindgen_ty_2 = 2;
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct UpdateBarPde {
+    pub PDE_BAR_TYPE: u32,
+    pub padding: u32,
+    pub entryValue: u64,
+    pub entryLevelShift: u64,
+}

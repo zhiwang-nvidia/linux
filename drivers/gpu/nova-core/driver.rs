@@ -11,6 +11,9 @@ pub(crate) struct NovaCore {
     _reg: auxiliary::Registration,
 }
 
+unsafe impl Sync for NovaCore {}
+unsafe impl Send for NovaCore {}
+
 const BAR0_SIZE: usize = SZ_16M;
 pub(crate) type Bar0 = pci::Bar<BAR0_SIZE>;
 

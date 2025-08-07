@@ -25,6 +25,13 @@ use kernel::sync::{Arc, Mutex};
 
 use crate::port::mm::MemRange;
 use crate::gsp::GSP_PAGE_SHIFT;
+use crate::port::memory::InstMem;
+use crate::port::memory::NVKM_MM_PAGE_SHIFT;
+use crate::port::mmu::Mmu;
+use crate::port::utils::GpuBase;
+use crate::port::timer::Timer;
+use crate::port::utils::GspManager0;
+use crate::port::bar::Bar;
 
 static mut NOVA_DEBUGFS: Option<Arc<Mutex<NovaDebugfs>>> = None;
 
@@ -197,7 +204,7 @@ impl Spec {
 pub(crate) struct Gpu {
     spec: Spec,
     /// MMIO mapping of PCI BAR 0
-    bar: Devres<Bar0>,
+    pub bar: Arc<Devres<Bar0>>,
     fw: Firmware,
     /// System memory page required for flushing all pending GPU-side memory writes done through
     /// PCIE into system memory, via sysmembar (A GPU-initiated HW memory-barrier operation).
@@ -206,6 +213,10 @@ pub(crate) struct Gpu {
     /// GSP static information
     gsp_info: gsp::GspStaticConfigInfo,
     pub cmdq: gsp::GspCmdq,
+    pub gpu_base: Arc<GpuBase>,
+    pub mmu: Mmu,
+    pub instmem: Arc<InstMem>,
+    pub bars: Arc<Bar>,
 }
 
 #[pinned_drop]
@@ -342,7 +353,9 @@ impl Gpu {
         pdev: &pci::Device<device::Bound>,
         devres_bar: Devres<Bar0>,
     ) -> Result<impl PinInit<Self>> {
-        let bar = devres_bar.access(pdev.as_ref())?;
+        let arc_bar = Arc::new(devres_bar, GFP_KERNEL)?;
+        let binding = arc_bar.clone();
+        let bar =  Arc::as_ref(&binding).access(pdev.as_ref())?;
         let spec = Spec::new(bar)?;
 
         dev_info!(
@@ -388,7 +401,7 @@ impl Gpu {
         Self::run_fwsec_frts(pdev.as_ref(), &gsp_falcon, bar, &bios, &fb_layout)?;
 
         let mut cmdq = GspCmdq::new(pdev.as_ref())?;
-        let mut libos = gsp::GspMemObjects::new(pdev, &devres_bar, &gsp_falcon, &sec2_falcon, &fw, &mut cmdq)?;
+        let mut libos = gsp::GspMemObjects::new(pdev, Arc::as_ref(&arc_bar), &gsp_falcon, &sec2_falcon, &fw, &mut cmdq)?;
         let libos_handle = libos.libos.dma_handle();
         let wpr_meta = gsp::build_wpr_meta(pdev.as_ref(), &fw, &fb_layout)?;
         let wpr_handle = wpr_meta.dma_handle();
@@ -463,6 +476,28 @@ impl Gpu {
             }
         }
 
+        let timer = Timer::new(arc_bar.clone())?;
+
+        let base = Arc::new(GpuBase {
+            bar: arc_bar.clone(),
+            timer,
+        }, GFP_KERNEL)?;
+
+        let gsp_mgr = Arc::new(GspManager0::new(base.clone(), gsp_info.bar1_pde, gsp_info.bar2_pde)?, GFP_KERNEL)?;
+        let mmu = Mmu::new(base.clone(), (vram_mm.size(0)? << NVKM_MM_PAGE_SHIFT) as u64)?;
+        let instmem = InstMem::new(base.clone(), Arc::new(vram_mm, GFP_KERNEL)?, pdev.resource_start(3)?)?;
+
+        let bars = Arc::new(Bar::new(instmem.clone(),
+                            gsp_mgr.clone(),
+                            pdev.resource_len(1)?,
+                            pdev.resource_start(1)?,
+                            Some(pdev.resource_len(3)?),
+                            pdev.resource_start(3)?, &mut cmdq)?, GFP_KERNEL)?;
+
+        //        instmem.set_bar(bars.clone())?;
+
+        bar.write32(0x40, 0x110004);
+
         // TODO: Figure out how to convince the compiler that the lifetime
         // parameter on GspMemObjects is satisfied when we pass it to
         // pin_init below. For now we just leak the memory, which is not good
@@ -471,12 +506,16 @@ impl Gpu {
 
         Ok(pin_init!(Self {
             spec,
-            bar: devres_bar,
+            bar: arc_bar,
             fw,
             sysmem_flush,
             wpr_meta,
             gsp_info,
             cmdq,
+            gpu_base: base,
+            mmu,
+            instmem,
+            bars,
         }))
     }
 }

@@ -8,6 +8,12 @@ use kernel::pr_info;
 use crate::driver::Bar0;
 use crate::port::timer::Timer;
 
+use crate::gsp::GspMessageElement;
+use core::mem::MaybeUninit;
+use crate::nvfw::r570_144 as fw;
+use crate::nvfw::r570_144::NV_RPC_UPDATE_PDE_BAR_1;
+use crate::nvfw::r570_144::NV_RPC_UPDATE_PDE_BAR_2;
+
 use crate::gsp::GspCmdq;
 
 /// Structure holding the base pre-GSP boot GPU pieces
@@ -39,6 +45,8 @@ pub(crate) trait GspManager: Send + Sync {
     fn update_bar_pde(&self, cmdq: &mut GspCmdq, bar: u32, addr: u64, shift: u32) -> Result<()>;
 }
 
+impl GspMessageElement for fw::UpdateBarPde {}
+
 impl GspManager for GspManager0 {
     fn get_bar_pdb(&self, bar: u8) -> u64 {
         if bar == 1 {
@@ -49,7 +57,23 @@ impl GspManager for GspManager0 {
             self.bar2_pdb
         }
     }
-    fn update_bar_pde(&self, _cmdq: &mut GspCmdq, _bar: u32, _addr: u64, _shift: u32) -> Result<()> {
+
+    fn update_bar_pde(&self, cmdq: &mut GspCmdq, bar: u32, addr: u64, shift: u32) -> Result<()> {
+        let mut info = unsafe { MaybeUninit::<fw::UpdateBarPde>::zeroed().assume_init() };
+
+        if bar == 1 {
+            info.PDE_BAR_TYPE = NV_RPC_UPDATE_PDE_BAR_1;
+        } else {
+            info.PDE_BAR_TYPE = NV_RPC_UPDATE_PDE_BAR_2;
+        }
+
+        info.entryValue = addr;
+        info.entryLevelShift = shift as u64;
+
+        cmdq.send(
+            Arc::as_ref(&self.gpu_base.bar),
+            fw::NV_VGPU_MSG_FUNCTION_UPDATE_BAR_PDE,
+            &mut info)?;
         Ok(())
     }
 }

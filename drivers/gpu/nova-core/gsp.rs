@@ -124,6 +124,8 @@ pub(crate) struct GspStaticConfigInfo {
     pub h_internal_device: u32,
     pub h_internal_subdevice: u32,
     pub fb_regions: KVec<FbRegionInfo>,
+    pub bar1_pde: u64,
+    pub bar2_pde: u64,
 }
 
 impl GspMessageElement for GspStaticConfigInfo {
@@ -177,8 +179,13 @@ impl GspMessageElement for GspStaticConfigInfo {
             }
         }
 
+        let bar1_pde = static_info.bar1PdeBase;
+        let bar2_pde = static_info.bar2PdeBase;
+
         Ok(GspStaticConfigInfo {
             gpu_name,
+            bar1_pde,
+            bar2_pde,
             fb_regions,
             h_internal_client: static_info.hInternalClient,
             h_internal_device: static_info.hInternalDevice,
