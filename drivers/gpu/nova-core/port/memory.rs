@@ -5,20 +5,20 @@ use core::sync::atomic::{fence, Ordering};
 
 use kernel::prelude::*;
 use kernel::bindings;
+use kernel::io::IoRaw;
 use kernel::sync::Arc;
 use kernel::sync::SpinLock;
 use kernel::new_spinlock;
-use kernel::io::Io;
 use kernel::page::{PAGE_SIZE, PAGE_SHIFT};
-use crate::order_base_2;
-use crate::gpu::GpuBase;
-use crate::mmu::mmu::{NVKM_MEM_COHERENT, NVKM_MEM_UNCACHED};
-use crate::mmu::mm::MemRangeNode;
-use crate::mmu::mm::MemRange;
-use crate::mmu::vmm::{Vmm,Vma,VmmMap,VmmInner,VmmStaticInfo,VmmPt};
-use crate::align;
+use crate::port::utils::order_base_2;
+use crate::port::utils::GpuBase;
+use crate::port::utils::align;
+use crate::port::mmu::{NVKM_MEM_COHERENT, NVKM_MEM_UNCACHED};
+use crate::port::mm::MemRangeNode;
+use crate::port::mm::MemRange;
+use crate::port::vmm::{Vmm,Vma,VmmMap,VmmInner,VmmStaticInfo,VmmPt};
 use core::cell::UnsafeCell;
-use crate::bar::Bar;
+use crate::port::bar::Bar;
 
 pub(crate) enum MemObjType {
     VRAM,
@@ -250,7 +250,7 @@ pub(crate) struct InstObj {
     instmem: Arc<InstMem>,
     pub vram: VramObj,
     bar2_vma_addr: Option<u64>,
-    bar2_io: Option<Io::<PAGE_SIZE>>,
+    bar2_io: Option<IoRaw::<PAGE_SIZE>>,
     bar2_map: Option<*mut core::ffi::c_void>,
     use_fast: Option<bool>,
     old_fast: bool,
@@ -298,7 +298,7 @@ impl Memory for InstObj {
 
             self.bar2_vma_addr = Some(bar.addr());
             pr_info!("kmap inst {:#x} {:#x}\n", bar.clone().addr(), bar.clone().size());
-            self.bar2_io = Some(unsafe { Io::<PAGE_SIZE>::new((instmem.bar2_phys_base + bar.addr()) as usize, bar.size() as usize)? });
+            self.bar2_io = Some(unsafe { IoRaw::<PAGE_SIZE>::new((instmem.bar2_phys_base + bar.addr()) as usize, bar.size() as usize)? });
             self.bar2_map = Some(unsafe { self.bar2_io.as_ref().unwrap().remap(bar.size() as usize) });
             break;
         }
@@ -325,7 +325,7 @@ impl Memory for InstObj {
             // do ioremap
             self.bar2_vma_addr = Some(bar.addr());
             pr_info!("kmap inst {:#x} {:#x}\n", bar.clone().addr(), bar.clone().size());
-            self.bar2_io = Some(unsafe { Io::<PAGE_SIZE>::new((vmm_info.instmem.bar2_phys_base + bar.addr()) as usize, bar.size() as usize)? });
+            self.bar2_io = Some(unsafe { IoRaw::<PAGE_SIZE>::new((vmm_info.instmem.bar2_phys_base + bar.addr()) as usize, bar.size() as usize)? });
             self.bar2_map = Some(unsafe { self.bar2_io.as_ref().unwrap().remap(bar.size() as usize) });
             break;
         }
@@ -576,10 +576,10 @@ impl InstMem {
         let mut guard = self.addr_base.lock();
 
         if guard.addr_base != base {
-            bar.try_writel((base >> 16) as u32, 0x1700)?;
+            bar.try_write32((base >> 16) as u32, 0x1700)?;
             guard.addr_base = base;
         }
-        bar.try_writel(data, (0x700000 + addr) as usize)
+        bar.try_write32(data, (0x700000 + addr) as usize)
     }
 
     fn rd32_slow(&self, in_addr: u64, offset: u64) -> Result<u32> {
@@ -588,10 +588,10 @@ impl InstMem {
         let bar = self.base.bar.try_access().ok_or(ENXIO)?;
         let mut guard = self.addr_base.lock();
         if guard.addr_base != base {
-            bar.try_writel((base >> 16) as u32, 0x1700)?;
+            bar.try_write32((base >> 16) as u32, 0x1700)?;
             guard.addr_base = base;
         }
-        bar.try_readl((0x700000 + addr) as usize)
+        bar.try_read32((0x700000 + addr) as usize)
     }
 }
 

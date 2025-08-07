@@ -37,11 +37,11 @@ impl Timer {
         let bar = self.bar.try_access().ok_or(ENXIO)?;
         let mut ret : u64;
         loop {
-            let hi = bar.readl(NV04_PTIMER_TIME_1);
-            let lo = bar.readl(NV04_PTIMER_TIME_0);
+            let hi = bar.read32(NV04_PTIMER_TIME_1);
+            let lo = bar.read32(NV04_PTIMER_TIME_0);
 
             ret = ((hi as u64) << 32) | (lo as u64);
-            if hi == bar.readl(NV04_PTIMER_TIME_1) {
+            if hi == bar.read32(NV04_PTIMER_TIME_1) {
                 break;
             }
 
@@ -51,8 +51,8 @@ impl Timer {
 
     pub(crate) fn time(&self, time: u64) -> Result<()> {
         let bar = self.bar.try_access().ok_or(ENXIO)?;        
-        bar.writel((time >> 32) as u32, NV04_PTIMER_TIME_1);
-        bar.writel((time & 0xffffffff) as u32, NV04_PTIMER_TIME_0);
+        bar.write32((time >> 32) as u32, NV04_PTIMER_TIME_1);
+        bar.write32((time & 0xffffffff) as u32, NV04_PTIMER_TIME_0);
         Ok(())
     }
 }
@@ -78,7 +78,7 @@ impl TimerWait {
         if self.time1 == time {
             self.reads += 1;
             if self.reads == 16 {
-                return Err(ETIME);
+                return Err(EINVAL);
             }
         } else {
             self.time1 = time;
@@ -86,7 +86,7 @@ impl TimerWait {
         }
 
         if self.time1 - self.time0 > self.limit {
-            return Err(ETIME);
+            return Err(EINVAL);
         }
 
         Ok(self.time1 as i64 - self.time0 as i64)

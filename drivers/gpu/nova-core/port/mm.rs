@@ -8,7 +8,8 @@ use kernel::list::{
     List, ListArc, ListLinks, AtomicTracker, TryNewListArc,
 };
 use kernel::sync::UniqueArc;
-use crate::{roundup, rounddown};
+
+use crate::port::utils::{roundup, rounddown};
 
 const NVKM_MM_TYPE_NONE: u8 = 0x00;
 const NVKM_MM_TYPE_HOLE: u8 = 0xff;
@@ -121,57 +122,53 @@ impl MemRangeNode {
 
 #[allow(dead_code)]
 impl MemRangeInner {
-
-
     pub(crate) fn node_prev(list: &mut List<MemRangeNode, 0>, node: Arc<MemRangeNode>) -> Option<Arc<MemRangeNode>> {
-        let cursor = list.cursor_front();
-
-        let mut cursor = match cursor {
-            None => { return None; }
-            Some(x) => { x }
-        };
+        let mut cursor = list.cursor_front();
+        let mut found;
 
         loop {
-            if cursor.eq(node.as_ref()) {
+            found = cursor.eq_next(&node);
+
+            if found {
                 break;
+            } else {
+                cursor.move_next();
             }
-
-            cursor = match cursor.next() {
-                None => { return None; }
-                Some(x) => { x}
-            };
-
         }
 
-        match cursor.prev() {
+        if found == false {
+            return None;
+        }
+
+        match cursor.peek_prev() {
+            Some(x) => Some(x.arc().into()),
             None => None,
-            Some(x) => Some(x.current().into())
         }
     }
 
     pub(crate) fn node_next(list: &mut List<MemRangeNode, 0>, node: Arc<MemRangeNode>) -> Option<Arc<MemRangeNode>> {
-        let cursor = list.cursor_front();
-
-        let mut cursor = match cursor {
-            None => { return None; }
-            Some(x) => { x }
-        };
+        let mut cursor = list.cursor_front();
+        let mut found;
 
         loop {
-            if cursor.eq(node.as_ref()) {
+            found = cursor.eq_next(&node);
+
+            if found {
                 break;
+            } else {
+                cursor.move_next();
             }
-
-            cursor = match cursor.next() {
-                None => { return None; }
-                Some(x) => { x}
-            };
-
         }
 
-        match cursor.next() {
+        if found == false {
+            return None;
+        }
+
+        cursor.move_next();
+
+        match cursor.peek_next() {
+            Some(x) => Some(x.arc().into()),
             None => None,
-            Some(x) => Some(x.current().into())
         }
     }
 
@@ -214,14 +211,17 @@ impl MemRangeInner {
 
         pr_info!("node {} {}\n", node_offset, node_length);
         if self.heap_nodes > 0 {
-            let prev_cursor = self.nodes.cursor_front().unwrap().end().unwrap();
-            let prev = prev_cursor.current();
+            let mut prev_cursor = self.nodes.cursor_back();
+            if let Some(prev) = prev_cursor.peek_prev() {
+                let prev = prev.arc();
+                let next = prev.addr() + prev.size();
 
-            let next = prev.addr() + prev.size();
-
-            if next != offset {
-                let (node1, _) = MemRangeNode::new(heap, NVKM_MM_TYPE_HOLE, next, offset - next)?;
-                self.nodes.push_back(node1);
+                if next != offset {
+                    let (node1, _) = MemRangeNode::new(heap, NVKM_MM_TYPE_HOLE, next, offset - next)?;
+                    self.nodes.push_back(node1);
+                }
+            } else {
+                return Err(EINVAL);
             }
         }
         if length != 0 {
@@ -277,31 +277,37 @@ impl MemRangeInner {
         let newsize;
 
         {
-            let mut next_cursor = self.free.cursor_front().unwrap();
+            let mut cursor = self.free.cursor_front();
 
             loop {
-                if next_cursor.current().heap != heap {
-                    next_cursor = match next_cursor.next() {
-                        None => { return Err(ENOMEM); }
-                        Some(cur) => cur
+                let curr = match cursor.peek_next() {
+                    Some(x) => x,
+                    None => return Err(ENOMEM),
+                };
+
+                if curr.heap != heap {
+                    cursor.move_next();
+                    match cursor.peek_next() {
+                        Some(x) => x,
+                        None => return Err(ENOMEM),
                     };
                     continue;
                 }
 
-                let mut e : usize = next_cursor.current().addr() + next_cursor.current().size();
-                let mut s : usize = next_cursor.current().addr();
+                let curr = curr.arc();
+                let mut e : usize = curr.addr() + curr.size();
+                let mut s : usize = curr.addr();
 
                 s = (s + mask) & !mask;
                 e &= !mask;
                 if s > e || e - s < size_min {
-                    next_cursor = match next_cursor.next() {
-                        None => { return Err(ENOMEM); }
-                        Some(cur) => cur
+                    match cursor.peek_next() {
+                        None => return Err(ENOMEM),
+                        Some(x) => x
                     };
                     continue;
                 }
 
-                let curr = next_cursor.current();
                 this = Arc::<MemRangeNode>::from(curr);
                 splitoff = s - this.addr();
                 newsize = core::cmp::min(size_max, e - s);
@@ -351,22 +357,30 @@ impl MemRangeInner {
         let asize;
 
         {
-            let mut prev_cursor = self.free.cursor_front().unwrap().end().unwrap();
-
+            let mut cursor = self.free.cursor_back();
             loop {
-                let mut e : usize = prev_cursor.current().addr() + prev_cursor.current().size();
-                let mut s : usize = prev_cursor.current().addr();
+                let curr = match cursor.peek_prev() {
+                    Some(x) => x,
+                    None => return Err(ENOMEM),
+                };
+
+                let curr = curr.arc();
+
+                let mut e : usize = curr.addr() + curr.size();
+                let mut s : usize = curr.addr();
                 let mut c : usize = 0;
                 let mut a;
-                if prev_cursor.current().heap != heap {
-                    prev_cursor = match prev_cursor.prev() {
-                        None => { return Err(ENOMEM); }
-                        Some(cur) => cur
+                if curr.heap != heap {
+                    cursor.move_prev();
+
+                    match cursor.peek_prev() {
+                        Some(x) => x,
+                        None => return Err(ENOMEM),
                     };
                     continue;
                 }
 
-                let nthis = Arc::<MemRangeNode>::from(prev_cursor.current());
+                let nthis = Arc::<MemRangeNode>::from(curr);
                 let prev = Self::node_prev(&mut self.nodes, nthis.clone());
                 match prev {
                     None => {},
@@ -391,9 +405,11 @@ impl MemRangeInner {
                 s = (s + mask) & !mask;
                 a = e.wrapping_sub(s);
                 if s > e || a < size_min {
-                    prev_cursor = match prev_cursor.prev() {
-                        None => { return Err(ENOMEM); }
-                        Some(cur) => cur
+                    cursor.move_prev();
+
+                    match cursor.peek_prev() {
+                        Some(x) => x,
+                        None => return Err(ENOMEM),
                     };
                     continue;
                 }
@@ -404,7 +420,7 @@ impl MemRangeInner {
 
                 pr_info!("tail a:{:#x} s:{:#x} e:{:#x} c:{:#x}\n", a, s, e, c);
 
-                this = Arc::<MemRangeNode>::from(prev_cursor.current());
+                this = Arc::<MemRangeNode>::from(curr);
                 csize = c;
                 asize = a;
                 break;
@@ -414,7 +430,7 @@ impl MemRangeInner {
         return Ok(new);
     }
 
-    fn free(&mut self, node: Arc<MemRangeNode>) {
+    fn free(&mut self, node: Arc<MemRangeNode>) -> Result<()> {
         let prev = Self::node_prev(&mut self.nodes, node.clone());
         let next = Self::node_next(&mut self.nodes, node.clone());
         let mut this = Some(node);
@@ -453,20 +469,24 @@ impl MemRangeInner {
             None => {}
             Some(t) => {
                 if t.mm_type() != NVKM_MM_TYPE_NONE {
-
                     let mut ptr: Arc<MemRangeNode>;
                     {
-                        let mut cursor = self.free.cursor_front().unwrap();
+                        let mut cursor = self.free.cursor_front();
 
                         loop {
-                            ptr = Arc::<MemRangeNode>::from(cursor.current());
-                            if t.addr() < cursor.current().addr() {
+                            let curr = match cursor.peek_next() {
+                                Some(x) => x,
+                                None => return Err(ENOMEM),
+                            };
+
+                            let curr = curr.arc();
+
+                            ptr = Arc::<MemRangeNode>::from(curr);
+                            if t.addr() < ptr.addr() {
                                 break;
                             }
-                            cursor = match cursor.next() {
-                                None => { break; }
-                                Some(c) => c
-                            };
+
+                            cursor.move_next();
                         }
                     }
 
@@ -481,6 +501,7 @@ impl MemRangeInner {
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -519,6 +540,6 @@ impl MemRange {
 
     pub(crate) fn free(&self, node: Arc<MemRangeNode>) {
         let mut inner = self.inner.lock();
-        inner.free(node);
+        let _ = inner.free(node);
     }
 }

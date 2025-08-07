@@ -7,7 +7,7 @@ use kernel::c_str;
 use core::fmt::Debug;
 use core::fmt;
 use core::cell::UnsafeCell;
-use crate::{align64, is_aligned};
+use crate::port::utils::{align64, is_aligned};
 use kernel::prelude::*;
 use kernel::bindings;
 use kernel::page::{PAGE_SIZE, PAGE_SHIFT, PAGE_MASK};
@@ -30,13 +30,13 @@ macro_rules! runtime_optional_name {
     };
 }
 
-use crate::gpu::GpuBase;
-use crate::mmu::memory::{VramNode, VramObj, InstObj, MemObjType, DmaMemObj, SglMemObj};
-use crate::mmu::memory::{Memory, InstMem, MemTarget};
+use crate::port::utils::GpuBase;
+use crate::port::memory::{VramNode, VramObj, InstObj, MemObjType, DmaMemObj, SglMemObj};
+use crate::port::memory::{Memory, InstMem, MemTarget};
 
-use crate::mmu::mmu::{MmuPt, MmuPtC};
+use crate::port::mmu::{MmuPt, MmuPtC};
 use crate::{timer_nsec, timer_msec};
-use crate::timer::TimerWait;
+use crate::port::timer::TimerWait;
 
 const NVKM_VMM_PAGE_SPARSE: u8 = 0x01;
 const NVKM_VMM_PAGE_VRAM: u8 = 0x02;
@@ -73,7 +73,7 @@ const NVKM_VMM_PTE_SPARSE: u8 = 0x80;
 const NVKM_VMM_PTE_VALID: u8 = 0x40;
 const NVKM_VMM_PTE_SPTES: u8 = 0x3f;
 
-const VMM_TRACE: bool = false;
+const VMM_TRACE: bool = true;
 
 pub(crate) struct VmmPt {
     pt: [Option<MmuPt>; 2],
@@ -915,9 +915,9 @@ impl<'a> VmmIter<'a> {
         let mut outstr = c_str!("").to_cstring()?;
         for lvl in (0..=self.max).rev() {
             if lvl >= self.lvl {
-                outstr = CString::try_from_fmt(fmt!("{}{:05x}:", outstr, self.pte[lvl as usize]))?;
+//                outstr = CString::try_from_fmt(fmt!("{}{:05x}:", outstr, self.pte[lvl as usize]))?;
             } else {
-                outstr = CString::try_from_fmt(fmt!("{}xxxxx:", outstr))?;
+//                outstr = CString::try_from_fmt(fmt!("{}xxxxx:", outstr))?;
             }
         }
         Ok(outstr)
@@ -1025,7 +1025,7 @@ impl<'a> VmmIter<'a> {
 
         //call pde function?
         if VMM_TRACE {
-            pr_info!("{}: {} PDE write {}\n", &self.vmm_info.name, self.trace_str()?, desc.tname());
+//            pr_info!("{}: {} PDE write {}\n", &self.vmm_info.name, self.trace_str()?, desc.tname());
         }
         self.page.get_desc(self.lvl as usize).pde(pgd, pdei)?;
 
@@ -1113,8 +1113,8 @@ impl<'a> VmmIter<'a> {
 
         it.lvl = 0;
         if VMM_TRACE {
-            pr_info!("{}: {} {} {:016x} {:016x} {} {} PTEs\n", it.vmm_info.name, it.trace_str()?,
-                     name, addr, size, page.shift, it.cnt);
+//            pr_info!("{}: {} {} {:016x} {:016x} {} {} PTEs\n", it.vmm_info.name, it.trace_str()?,
+//                     name, addr, size, page.shift, it.cnt);
         }
         it.lvl = it.max;
 
@@ -1558,56 +1558,50 @@ pub(crate) struct VmmInner {
 
 impl VmmInner {
     fn node_prev(list: &mut List<Vma>, vma: Arc<Vma>) -> Option<Arc<Vma>> {
-        let cursor = list.cursor_front();
-
-        let mut cursor = match cursor {
-            None => { return None; }
-            Some(x) => { x }
-        };
+        let mut cursor = list.cursor_front();
+        let mut found;
 
         loop {
-            if cursor.eq(vma.as_ref()) {
+            found = cursor.eq_next(vma.as_ref());
+
+            if found {
                 break;
+            } else {
+                cursor.move_next();
             }
-
-            cursor = match cursor.next() {
-                None => { return None; }
-                Some(x) => { x }
-            };
-
         }
 
-        match cursor.prev() {
+        if found == false {
+            return None;
+        }
+
+        match cursor.peek_prev() {
+            Some(x) => Some(x.arc().into()),
             None => None,
-            Some(x) => Some(x.current().into())
         }
     }
 
     fn node_next(list: &mut List<Vma>, vma: Arc<Vma>) -> Option<Arc<Vma>> {
-        let cursor = list.cursor_front();
-
-        let mut cursor = match cursor {
-            None => { return None; }
-            Some(x) => { x }
-        };
+        let mut cursor = list.cursor_front();
+        let mut found;
 
         loop {
-            if cursor.eq(vma.as_ref()) {
+            found = cursor.eq_next(vma.as_ref());
+
+            if found {
                 break;
+            } else {
+                cursor.move_next();
             }
-
-            cursor = match cursor.next() {
-                None => { return None; }
-                Some(x) => { x }
-            };
-
         }
 
-        match cursor.next() {
+        if found == false {
+            return None;
+        }
+
+        match cursor.peek_next() {
+            Some(x) => Some(x.arc().into()),
             None => None,
-            Some(x) => {
-                Some(x.current().into())
-            }
         }
     }
 
@@ -2261,7 +2255,7 @@ impl Vmm {
 
         let lock_name;
         let (inner_lock_key, pd_lock_key) = match lock_class {
-            Some((x, y)) => { lock_name = Some(name); (x, y) },
+            Some((x, y)) => { lock_name = Some(name); ( unsafe { core::pin::Pin::new_unchecked(x) }, unsafe { core::pin::Pin::new_unchecked(y) }) },
             None => { lock_name = None ; (static_lock_class!(), static_lock_class!()) }
         };
 
@@ -2444,13 +2438,13 @@ impl Vmm {
 
         let bar = sinfo.instmem.base.bar.try_access().ok_or(ENXIO)?;
 
-        bar.try_writel(addr, 0xb830a0)?;
+        bar.try_write32(addr, 0xb830a0)?;
 
-        bar.try_writel(0x0, 0xb830a4)?;
-        bar.try_writel(0x80000000 | flush_type, 0xb830b0)?;
+        bar.try_write32(0x0, 0xb830a4)?;
+        bar.try_write32(0x80000000 | flush_type, 0xb830b0)?;
 
         timer_msec!({
-            if bar.try_readl(0xb830b0)? != 0x80000000 {
+            if bar.try_read32(0xb830b0)? != 0x80000000 {
                 break;
             }
         }, 2000, &sinfo.instmem.base.timer);

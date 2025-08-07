@@ -6,11 +6,11 @@ use kernel::prelude::*;
 use core::fmt;
 use core::fmt::Debug;
 use kernel::sync::Arc;
-use crate::gpu::GpuBase;
-use crate::mmu::memory::NVKM_MM_PAGE_SHIFT;
-use crate::mmu::memory::InstObj;
-use crate::mmu::memory::InstMem;
-use crate::mmu::memory::Memory;
+use crate::port::utils::GpuBase;
+use crate::port::memory::NVKM_MM_PAGE_SHIFT;
+use crate::port::memory::InstObj;
+use crate::port::memory::InstMem;
+use crate::port::memory::Memory;
 
 pub(crate) const DMA_BITS: u8 = 47;
 
