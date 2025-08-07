@@ -41,6 +41,18 @@ impl<const SIZE: usize> IoRaw<SIZE> {
     pub fn maxsize(&self) -> usize {
         self.maxsize
     }
+
+    /// Create an ioremap ptr
+    #[inline]
+    pub unsafe fn remap(&self, size: usize) -> *mut core::ffi::c_void {
+        unsafe { bindings::ioremap(self.addr as u64, size) }
+    }
+
+    /// Unmap a previously ioremap ptr
+    #[inline]
+    pub unsafe fn unmap(&self, ptr: *mut core::ffi::c_void) {
+        unsafe { bindings::iounmap(ptr) };
+    }
 }
 
 /// IO-mapped memory, starting at the base address @addr and spanning @maxlen bytes.
