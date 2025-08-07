@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#![allow(unused)]
+
 use kernel::dma::CoherentAllocation;
 use kernel::{c_str, device, devres::Devres, error::code::*, pci, prelude::*, time::Delta};
 
@@ -20,6 +22,9 @@ use crate::vbios::Vbios;
 use crate::debugfs::NovaDebugfs;
 use core::fmt;
 use kernel::sync::{Arc, Mutex};
+
+use crate::port::mm::MemRange;
+use crate::gsp::GSP_PAGE_SHIFT;
 
 static mut NOVA_DEBUGFS: Option<Arc<Mutex<NovaDebugfs>>> = None;
 
@@ -444,6 +449,19 @@ impl Gpu {
             gsp_info.h_internal_device,
             gsp_info.h_internal_subdevice
         );
+
+        let mut vram_mm = MemRange::new(1)?;
+
+        {
+            for i in gsp_info.fb_regions.iter() {
+                dev_info!(
+                    pdev.as_ref(),
+                    "FB region addr {:x} size {:x}\n",
+                    i.addr, i.size
+                );
+                vram_mm.init(0, (i.addr >> GSP_PAGE_SHIFT) as usize, (i.size >> GSP_PAGE_SHIFT) as usize)?;
+            }
+        }
 
         // TODO: Figure out how to convince the compiler that the lifetime
         // parameter on GspMemObjects is satisfied when we pass it to

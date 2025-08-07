@@ -113,11 +113,17 @@ impl GspMessageElement for GspSequencerInfo {
     }
 }
 
+pub(crate) struct FbRegionInfo {
+    pub addr: u64,
+    pub size: u64,
+}
+
 pub(crate) struct GspStaticConfigInfo {
     pub gpu_name: [u8; 40],
     pub h_internal_client: u32,
     pub h_internal_device: u32,
     pub h_internal_subdevice: u32,
+    pub fb_regions: KVec<FbRegionInfo>,
 }
 
 impl GspMessageElement for GspStaticConfigInfo {
@@ -151,8 +157,29 @@ impl GspMessageElement for GspStaticConfigInfo {
         gpu_name[..copy_len].copy_from_slice(&bytes[..copy_len]);
         gpu_name[copy_len] = b'\0';
 
+        let num_fb_regions = static_info.fbRegionInfoParams.numFBRegions as usize;
+        let mut fb_regions = KVec::new();
+
+        for i in 0..num_fb_regions {
+            let info = static_info.fbRegionInfoParams.fbRegion[i];
+
+            if info.reserved != 0 || info.bProtected != 0 {
+                continue;
+            }
+
+            if info.supportCompressed != 0 && info.supportISO != 0 {
+                let region = FbRegionInfo {
+                    addr: info.base,
+                    size: info.limit + 1 - info.base,
+                };
+
+                let _ = fb_regions.push(region, GFP_KERNEL);
+            }
+        }
+
         Ok(GspStaticConfigInfo {
             gpu_name,
+            fb_regions,
             h_internal_client: static_info.hInternalClient,
             h_internal_device: static_info.hInternalDevice,
             h_internal_subdevice: static_info.hInternalSubdevice,
