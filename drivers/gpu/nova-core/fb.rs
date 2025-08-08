@@ -130,7 +130,7 @@ pub(crate) struct FbLayout {
 
 impl FbLayout {
     /// Computes the FB layout.
-    pub(crate) fn new(chipset: Chipset, bar: &Bar0, fw: &Firmware) -> Result<Self> {
+    pub(crate) fn new(chipset: Chipset, bar: &Bar0, fw: &Firmware, vgpu_wpr2_heap_size: u64) -> Result<Self> {
         let hal = hal::fb_hal(chipset);
 
         let fb = {
@@ -193,7 +193,12 @@ impl FbLayout {
         let fb_size_fb = fb.end.div_ceil(SZ_1G as u64);
         let wpr2_heap = {
             const WPR2_HEAP_DOWN_ALIGN: PowerOfTwo<u64> = PowerOfTwo::<u64>::new(SZ_1M as u64);
-            let wpr2_heap_size = calc_wpr_heap(chipset, fb_size_fb);
+
+            let wpr2_heap_size = if vgpu_wpr2_heap_size == 0 {
+                calc_wpr_heap(chipset, fb_size_fb)
+            } else {
+                vgpu_wpr2_heap_size
+            };
             let wpr2_heap_addr = WPR2_HEAP_DOWN_ALIGN.align_down(elf.start - wpr2_heap_size);
 
             wpr2_heap_addr..WPR2_HEAP_DOWN_ALIGN.align_down(elf.start)

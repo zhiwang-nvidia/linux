@@ -403,12 +403,34 @@ impl Gpu {
             FIRMWARE_VERSION,
         )?;
 
-        let fb_layout = FbLayout::new(spec.chipset, bar, &fw)?;
+        let mut fb_layout;
+        if (vgpu_support) {
+            fb_layout = FbLayout::new(spec.chipset, bar, &fw, 581 * 1024 * 1024)?;
+            fb_layout.vf_partition_count = 32;
+        } else {
+            fb_layout = FbLayout::new(spec.chipset, bar, &fw, 0)?;
+        }
+
         dev_dbg!(pdev.as_ref(), "{:#x?}\n", fb_layout);
 
         let bios = Vbios::new(pdev, bar)?;
 
         Self::run_fwsec_frts(pdev.as_ref(), &gsp_falcon, bar, &bios, &fb_layout)?;
+
+        if (vgpu_support) {
+            pr_info!("Trying to run scrubber for vGPU...\n");
+
+            sec2_falcon.reset(&bar)?;
+            sec2_falcon.dma_load(&bar, &fw.scrubber)?;
+            let (mbox0, mbox1) = sec2_falcon.boot(
+                &bar,
+                None,
+                None,
+            )?;
+
+            let v = bar.read32(0x001180fc) >> 29;
+            pr_info!("Scrubber scratch register value: {}\n", v);
+        }
 
         let mut cmdq = GspCmdq::new(pdev.as_ref())?;
         let mut libos = gsp::GspMemObjects::new(pdev, Arc::as_ref(&arc_bar), &gsp_falcon, &sec2_falcon, &fw,

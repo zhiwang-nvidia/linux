@@ -86,6 +86,7 @@ fn elf_section<'a, 'b>(elf: &'a [u8], name: &'b str) -> Option<&'a [u8]> {
 pub(crate) struct Firmware {
     pub booter_load: Sec2Firmware,
     pub booter_unload: Sec2Firmware,
+    pub scrubber: Sec2Firmware,
     pub bootloader: RiscvFirmware,
     pub gsp: RadixFirmware,
     pub gsp_sigs: DmaObject,
@@ -147,6 +148,8 @@ impl Firmware {
             booter_load: request("booter_load")
                 .and_then(|fw| Sec2Firmware::new(sec2, dev, bar, &fw))?,
             booter_unload: request("booter_unload")
+                .and_then(|fw| Sec2Firmware::new(sec2, dev, bar, &fw))?,
+            scrubber: request("scrubber")
                 .and_then(|fw| Sec2Firmware::new(sec2, dev, bar, &fw))?,
             bootloader: request("bootloader").and_then(|fw| RiscvFirmware::new(dev, &fw))?,
             gsp,
@@ -352,6 +355,7 @@ impl<const N: usize> ModInfoBuilder<N> {
             .make_entry_file(chipset, "booter_unload")
             .make_entry_file(chipset, "bootloader")
             .make_entry_file(chipset, "gsp")
+            .make_entry_file(chipset, "scrubber")
     }
 
     pub(crate) const fn create(
